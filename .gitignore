@@ -1,3 +1,8 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# 평문 민감 파일 — 암호화본(.enc)만 커밋된다
+config/portfolio.yaml
+docs/data/latest.json
+docs/data/history.csv
