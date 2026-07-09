@@ -1,0 +1,63 @@
+{
+ "updated_at": "2026-07-09 10:59 KST",
+ "fx_usdkrw": 1507.88,
+ "fx_asof": "2026-07-09",
+ "total_krw": 3704329230,
+ "assets": [
+  {
+   "name": "Vanguard S&P 500 (예시)",
+   "ticker": "VOO",
+   "owner": "남편",
+   "category": "미국주식",
+   "quantity": 10,
+   "price": 685.26,
+   "currency": "USD",
+   "asof": "2026-07-08",
+   "value_krw": 10332899
+  },
+  {
+   "name": "Invesco QQQ (예시)",
+   "ticker": "QQQ",
+   "owner": "아내",
+   "category": "미국주식",
+   "quantity": 5,
+   "price": 711.44,
+   "currency": "USD",
+   "asof": "2026-07-08",
+   "value_krw": 5363831
+  },
+  {
+   "name": "KODEX 200 (예시)",
+   "ticker": "069500.KS",
+   "owner": "아내",
+   "category": "한국주식",
+   "quantity": 100,
+   "price": 119625.0,
+   "currency": "KRW",
+   "asof": "2026-07-09",
+   "value_krw": 11962500
+  },
+  {
+   "name": "반포자이 (예시 - 실제 아파트로 교체)",
+   "ticker": "",
+   "owner": "남편",
+   "category": "부동산",
+   "quantity": 1,
+   "price": 3666670000,
+   "currency": "KRW",
+   "asof": "2026-07-03",
+   "value_krw": 3666670000
+  },
+  {
+   "name": "예금 (예시)",
+   "ticker": "",
+   "owner": "공동",
+   "category": "현금",
+   "quantity": 1,
+   "price": 10000000,
+   "currency": "KRW",
+   "asof": "2026-07-09",
+   "value_krw": 10000000
+  }
+ ]
+}

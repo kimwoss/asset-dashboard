@@ -1,0 +1,43 @@
+# ============================================================
+# 부부 자산 포트폴리오 설정
+# 이 파일만 수정하면 됩니다. 수정 후 push하면 다음 자동 실행부터 반영.
+# ============================================================
+
+# --- 부동산 (KB시세 연동) ---
+# complex_id(단지기본일련번호)와 area_id(면적일련번호)는
+#   python scripts/kb_lookup.py
+# 를 실행해 대화형으로 찾을 수 있습니다.
+# price_field: 매매일반거래가 | 매매상위평균가 | 매매하위평균가
+real_estate:
+  - name: 반포자이 (예시 - 실제 아파트로 교체)
+    owner: 남편
+    complex_id: 15891
+    area_id: 63395
+    price_field: 매매일반거래가
+    note: 25평형(59.97㎡)
+
+# --- 금융자산 (yfinance 티커) ---
+# market: US(달러 자산, 환율 적용) | KR(원화 자산)
+# 한국 상장 종목은 티커 뒤에 .KS(코스피) / .KQ(코스닥)
+securities:
+  - ticker: VOO
+    name: Vanguard S&P 500 (예시)
+    market: US
+    owner: 남편
+    quantity: 10
+  - ticker: QQQ
+    name: Invesco QQQ (예시)
+    market: US
+    owner: 아내
+    quantity: 5
+  - ticker: 069500.KS
+    name: KODEX 200 (예시)
+    market: KR
+    owner: 아내
+    quantity: 100
+
+# --- 현금성 자산 (수동 관리, 만원 단위 아님 — 원 단위) ---
+cash:
+  - name: 예금 (예시)
+    owner: 공동
+    amount_krw: 10000000

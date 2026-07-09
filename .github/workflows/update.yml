@@ -1,0 +1,44 @@
+name: update-asset-data
+
+on:
+  schedule:
+    # KST 06:20 (미국 장 마감 후) / KST 16:20 (한국 장 마감 후)
+    - cron: "20 21 * * *"
+    - cron: "20 7 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update data
+        run: python scripts/update_data.py
+
+      - name: Commit & push
+        run: |
+          git config user.name "asset-bot"
+          git config user.email "actions@github.com"
+          git add docs/data
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "data: $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git pull --rebase origin main
+            git push
+          fi

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>우리집 자산 대시보드</title>
+<style>
+  :root {
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #898781;
+    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --up: #006300; --down: #d03b3b;
+    --c-re: #2a78d6; --c-us: #1baf7a; --c-kr: #eda100; --c-cash: #008300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
+      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --up: #0ca30c; --down: #e66767;
+      --c-re: #3987e5; --c-us: #199e70; --c-kr: #c98500; --c-cash: #008300;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page); color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 20px; max-width: 1080px; margin: 0 auto;
+  }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 18px; }
+  h1 { font-size: 20px; font-weight: 700; }
+  .meta { color: var(--ink-muted); font-size: 12.5px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px;
+  }
+  .card .label { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+  .card .value { font-size: 26px; font-weight: 700; line-height: 1.15; }
+  .card.hero .value { font-size: 40px; }
+  .card .sub { font-size: 12.5px; color: var(--ink-muted); margin-top: 6px; }
+  .delta-up { color: var(--up); } .delta-down { color: var(--down); }
+  section.card { margin-bottom: 14px; }
+  h2 { font-size: 14px; font-weight: 600; color: var(--ink-2); margin-bottom: 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 10px; }
+  .legend span::before {
+    content: ""; display: inline-block; width: 10px; height: 10px;
+    border-radius: 3px; margin-right: 5px; background: var(--sw);
+  }
+  svg text { font-family: inherit; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  th { color: var(--ink-muted); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--baseline); }
+  th:first-child, td:first-child { text-align: left; }
+  td.name { font-weight: 600; }
+  td .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    color: var(--ink-1);
+  }
+  #err { color: var(--down); padding: 30px 10px; font-size: 14px; display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>우리집 자산 대시보드</h1>
+  <span class="meta" id="updated"></span>
+  <span class="meta" id="fx"></span>
+</header>
+
+<div id="err"></div>
+<div class="cards" id="kpis"></div>
+
+<section class="card">
+  <h2>자산배분</h2>
+  <div id="alloc"></div>
+</section>
+
+<section class="card">
+  <h2>소유자별 자산</h2>
+  <div id="owners"></div>
+</section>
+
+<section class="card">
+  <h2>총자산 추이</h2>
+  <div id="trend"></div>
+</section>
+
+<section class="card">
+  <h2>자산 상세</h2>
+  <div style="overflow-x:auto"><table id="detail"></table></div>
+</section>
+
+<div id="tooltip"></div>
+
+<script>
+const CAT_COLORS = {
+  "부동산":   "var(--c-re)",
+  "미국주식": "var(--c-us)",
+  "한국주식": "var(--c-kr)",
+  "현금":     "var(--c-cash)",
+};
+const CATS = Object.keys(CAT_COLORS);
+const fmtEok = v => (v / 1e8).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) + "억";
+const fmtWon = v => Math.round(v).toLocaleString("ko-KR") + "원";
+const tooltip = document.getElementById("tooltip");
+
+function showTip(ev, html) {
+  tooltip.innerHTML = html;
+  tooltip.style.display = "block";
+  const pad = 14;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  const r = tooltip.getBoundingClientRect();
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  tooltip.style.left = x + "px"; tooltip.style.top = y + "px";
+}
+function hideTip() { tooltip.style.display = "none"; }
+
+function el(tag, attrs = {}, parent) {
+  const n = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+
+/* ---- 가로 스택 바 (2px 서피스 갭, 직접 라벨) ---- */
+function stackedBar(container, rows, totalOf) {
+  // rows: [{label, parts:{cat:value}}]
+  const W = Math.min(container.clientWidth || 900, 1000);
+  const labelW = 90, barH = 30, gapY = 14, H = rows.length * (barH + gapY);
+  const maxTotal = Math.max(...rows.map(r => totalOf(r)));
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}`, role: "img" });
+  rows.forEach((r, i) => {
+    const y = i * (barH + gapY);
+    const t = el("text", { x: 0, y: y + barH / 2 + 4, "font-size": 12.5, fill: "var(--ink-2)" }, svg);
+    t.textContent = r.label;
+    let x = labelW;
+    const scale = (W - labelW - 70) / maxTotal;
+    for (const cat of CATS) {
+      const v = r.parts[cat] || 0;
+      if (v <= 0) continue;
+      const w = Math.max(v * scale - 2, 1); // 2px surface gap
+      const rect = el("rect", { x, y, width: w, height: barH, rx: 4, fill: CAT_COLORS[cat] }, svg);
+      rect.addEventListener("mousemove", ev =>
+        showTip(ev, `<b>${r.label} · ${cat}</b><br>${fmtEok(v)} (${(v / totalOf(r) * 100).toFixed(1)}%)<br><span style="color:var(--ink-muted)">${fmtWon(v)}</span>`));
+      rect.addEventListener("mouseleave", hideTip);
+      if (w > 52) { // 직접 라벨 (넓은 세그먼트만)
+        const lt = el("text", { x: x + w / 2, y: y + barH / 2 + 4, "text-anchor": "middle", "font-size": 11.5, fill: "#fff", "font-weight": 600 }, svg);
+        lt.textContent = fmtEok(v);
+      }
+      x += v * scale;
+    }
+    const tot = el("text", { x: x + 6, y: y + barH / 2 + 4, "font-size": 12, fill: "var(--ink-1)", "font-weight": 600 }, svg);
+    tot.textContent = fmtEok(totalOf(r));
+  });
+  container.replaceChildren(svg);
+  const lg = document.createElement("div");
+  lg.className = "legend";
+  for (const cat of CATS) {
+    const s = document.createElement("span");
+    s.style.setProperty("--sw", CAT_COLORS[cat]);
+    s.textContent = cat;
+    lg.appendChild(s);
+  }
+  container.appendChild(lg);
+}
+
+/* ---- 추이 라인 차트 (크로스헤어 + 툴팁) ---- */
+function lineChart(container, points) {
+  // points: [{date, total}]
+  const W = Math.min(container.clientWidth || 900, 1000), H = 240;
+  const m = { l: 56, r: 16, t: 12, b: 26 };
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}` });
+  if (points.length === 0) { container.textContent = "이력 데이터가 아직 없습니다."; return; }
+  const vals = points.map(p => p.total);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (lo === hi) { lo *= 0.97; hi *= 1.03; }
+  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  const xs = i => points.length === 1 ? (m.l + W - m.r) / 2
+    : m.l + (W - m.l - m.r) * i / (points.length - 1);
+  const ys = v => m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo));
+  // gridlines + y labels
+  for (let g = 0; g <= 3; g++) {
+    const v = lo + (hi - lo) * g / 3, y = ys(v);
+    el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    const t = el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg);
+    t.textContent = fmtEok(v);
+  }
+  // x labels (first / mid / last)
+  const xIdx = points.length > 2 ? [0, Math.floor(points.length / 2), points.length - 1] : points.map((_, i) => i);
+  for (const i of new Set(xIdx)) {
+    const t = el("text", { x: xs(i), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg);
+    t.textContent = points[i].date.slice(5);
+  }
+  if (points.length > 1) {
+    const d = points.map((p, i) => (i ? "L" : "M") + xs(i).toFixed(1) + " " + ys(p.total).toFixed(1)).join(" ");
+    el("path", { d, fill: "none", stroke: "var(--c-re)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  }
+  const dotR = points.length <= 40 ? 3.5 : 0;
+  if (dotR) points.forEach((p, i) =>
+    el("circle", { cx: xs(i), cy: ys(p.total), r: dotR, fill: "var(--c-re)", stroke: "var(--surface-1)", "stroke-width": 2 }, svg));
+  // crosshair
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--baseline)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const hot = el("circle", { r: 5, fill: "var(--c-re)", stroke: "var(--surface-1)", "stroke-width": 2, visibility: "hidden" }, svg);
+  svg.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const px = (ev.clientX - box.left) * W / box.width;
+    let best = 0, bd = 1e9;
+    points.forEach((_, i) => { const d = Math.abs(xs(i) - px); if (d < bd) { bd = d; best = i; } });
+    const p = points[best];
+    cross.setAttribute("x1", xs(best)); cross.setAttribute("x2", xs(best));
+    cross.setAttribute("visibility", "visible");
+    hot.setAttribute("cx", xs(best)); hot.setAttribute("cy", ys(p.total));
+    hot.setAttribute("visibility", "visible");
+    showTip(ev, `<b>${p.date}</b><br>총자산 ${fmtEok(p.total)}<br><span style="color:var(--ink-muted)">${fmtWon(p.total)}</span>`);
+  });
+  svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hot.setAttribute("visibility", "hidden"); hideTip(); });
+  container.replaceChildren(svg);
+}
+
+function kpiCard(label, value, sub, hero) {
+  return `<div class="card${hero ? " hero" : ""}">
+    <div class="label">${label}</div><div class="value">${value}</div>
+    ${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+}
+
+async function main() {
+  let snap, histText;
+  try {
+    const bust = "?t=" + Date.now();
+    [snap, histText] = await Promise.all([
+      fetch("data/latest.json" + bust).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch("data/history.csv" + bust).then(r => r.ok ? r.text() : ""),
+    ]);
+  } catch (e) {
+    const err = document.getElementById("err");
+    err.style.display = "block";
+    err.textContent = "데이터를 불러오지 못했습니다. 로컬에서 열었다면 `python -m http.server`로 docs 폴더를 서빙해서 보세요. (" + e + ")";
+    return;
+  }
+
+  document.getElementById("updated").textContent = "갱신: " + snap.updated_at;
+  document.getElementById("fx").textContent = "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$ (" + snap.fx_asof + ")";
+
+  // history → 일별 총자산
+  const daily = new Map();
+  for (const line of histText.trim().split("\n").slice(1)) {
+    if (!line) continue;
+    const cols = line.split(",");
+    const date = cols[0], v = Number(cols[cols.length - 1]);
+    daily.set(date, (daily.get(date) || 0) + v);
+  }
+  const hist = [...daily.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)
+    .map(([date, total]) => ({ date, total }));
+
+  // KPI
+  const total = snap.total_krw;
+  let deltaHtml = "";
+  if (hist.length >= 2) {
+    const prev = hist[hist.length - 2];
+    const d = total - prev.total, pct = (d / prev.total * 100).toFixed(2);
+    const cls = d >= 0 ? "delta-up" : "delta-down", arrow = d >= 0 ? "▲" : "▼";
+    deltaHtml = `<span class="${cls}">${arrow} ${fmtEok(Math.abs(d))} (${pct}%)</span> vs ${prev.date}`;
+  }
+  const owners = {};
+  for (const a of snap.assets) owners[a.owner] = (owners[a.owner] || 0) + a.value_krw;
+  let cards = kpiCard("총자산", fmtEok(total), deltaHtml, true);
+  for (const [o, v] of Object.entries(owners))
+    cards += kpiCard(o, fmtEok(v), (v / total * 100).toFixed(1) + "%");
+  document.getElementById("kpis").innerHTML = cards;
+
+  // 자산배분 (전체 1행)
+  const parts = {};
+  for (const a of snap.assets) parts[a.category] = (parts[a.category] || 0) + a.value_krw;
+  stackedBar(document.getElementById("alloc"), [{ label: "전체", parts }], () => total);
+
+  // 소유자별
+  const orows = Object.keys(owners).map(o => {
+    const p = {};
+    for (const a of snap.assets) if (a.owner === o) p[a.category] = (p[a.category] || 0) + a.value_krw;
+    return { label: o, parts: p };
+  });
+  stackedBar(document.getElementById("owners"), orows, r => owners[r.label]);
+
+  // 추이
+  lineChart(document.getElementById("trend"), hist);
+
+  // 상세 테이블
+  const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => `
+    <tr>
+      <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${a.name}</td>
+      <td>${a.owner}</td><td>${a.category}</td>
+      <td>${a.quantity === 1 ? "-" : a.quantity.toLocaleString()}</td>
+      <td>${a.currency === "USD" ? "$" + a.price.toLocaleString() : fmtWon(a.price)}</td>
+      <td><b>${fmtEok(a.value_krw)}</b></td>
+      <td style="color:var(--ink-muted)">${a.asof}</td>
+    </tr>`).join("");
+  document.getElementById("detail").innerHTML = `
+    <thead><tr><th>자산</th><th>소유</th><th>분류</th><th>수량</th><th>가격</th><th>평가액</th><th>기준일</th></tr></thead>
+    <tbody>${rows}</tbody>`;
+}
+main();
+</script>
+</body>
+</html>
