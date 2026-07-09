@@ -62,6 +62,24 @@
     color: var(--ink-1);
   }
   #err { color: var(--down); padding: 30px 10px; font-size: 14px; display: none; }
+  #gate {
+    position: fixed; inset: 0; background: var(--page); z-index: 20;
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+  }
+  #gate .box {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 28px; width: min(340px, 90vw); display: flex; flex-direction: column; gap: 12px;
+  }
+  #gate h2 { margin: 0; }
+  #gate input {
+    font-size: 16px; padding: 10px 12px; border-radius: 8px;
+    border: 1px solid var(--baseline); background: var(--page); color: var(--ink-1);
+  }
+  #gate button {
+    font-size: 15px; font-weight: 600; padding: 10px; border-radius: 8px; border: none;
+    background: var(--c-re); color: #fff; cursor: pointer;
+  }
+  #gate .msg { font-size: 13px; color: var(--down); min-height: 18px; }
 </style>
 </head>
 <body>
@@ -70,6 +88,15 @@
   <span class="meta" id="updated"></span>
   <span class="meta" id="fx"></span>
 </header>
+
+<div id="gate" style="display:none">
+  <div class="box">
+    <h2>비밀번호 입력</h2>
+    <input type="password" id="pw" placeholder="공유한 비밀번호" autocomplete="current-password">
+    <button id="pwbtn">열기</button>
+    <div class="msg" id="pwmsg"></div>
+  </div>
+</div>
 
 <div id="err"></div>
 <div class="cards" id="kpis"></div>
@@ -228,14 +255,66 @@ function kpiCard(label, value, sub, hero) {
     ${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
 }
 
+/* ---- 복호화 (scripts/crypto_util.py와 동일 포맷) ---- */
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function decryptEnvelope(envText, passphrase) {
+  const o = JSON.parse(envText);
+  const raw = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: b64(o.salt), iterations: o.iter || 600000, hash: "SHA-256" },
+    raw, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(o.iv) }, key, b64(o.ct));
+  return new TextDecoder().decode(pt);
+}
+
+async function loadData(passphrase) {
+  const bust = "?t=" + Date.now();
+  const [encSnap, encHist] = await Promise.all([
+    fetch("data/latest.enc" + bust).then(r => { if (!r.ok) throw new Error("latest.enc HTTP " + r.status); return r.text(); }),
+    fetch("data/history.enc" + bust).then(r => r.ok ? r.text() : ""),
+  ]);
+  const snap = JSON.parse(await decryptEnvelope(encSnap, passphrase));
+  const histText = encHist ? await decryptEnvelope(encHist, passphrase) : "";
+  return [snap, histText];
+}
+
+async function gate() {
+  const g = document.getElementById("gate"), input = document.getElementById("pw"),
+        btn = document.getElementById("pwbtn"), msg = document.getElementById("pwmsg");
+  const saved = localStorage.getItem("asset_pw");
+  if (saved) {
+    try { return await loadData(saved); }
+    catch { localStorage.removeItem("asset_pw"); }
+  }
+  g.style.display = "flex";
+  return new Promise(resolve => {
+    const attempt = async () => {
+      const pw = input.value;
+      if (!pw) return;
+      btn.disabled = true; msg.textContent = "확인 중…";
+      try {
+        const data = await loadData(pw);
+        localStorage.setItem("asset_pw", pw);
+        g.style.display = "none";
+        resolve(data);
+      } catch (e) {
+        btn.disabled = false;
+        msg.textContent = String(e).includes("HTTP")
+          ? "데이터 파일을 불러오지 못했습니다 (" + e + ")"
+          : "비밀번호가 틀렸습니다.";
+      }
+    };
+    btn.addEventListener("click", attempt);
+    input.addEventListener("keydown", ev => { if (ev.key === "Enter") attempt(); });
+    input.focus();
+  });
+}
+
 async function main() {
   let snap, histText;
   try {
-    const bust = "?t=" + Date.now();
-    [snap, histText] = await Promise.all([
-      fetch("data/latest.json" + bust).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-      fetch("data/history.csv" + bust).then(r => r.ok ? r.text() : ""),
-    ]);
+    [snap, histText] = await gate();
   } catch (e) {
     const err = document.getElementById("err");
     err.style.display = "block";

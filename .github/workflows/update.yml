@@ -28,13 +28,15 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Update data
-        run: python scripts/update_data.py
+        env:
+          ASSET_PASSPHRASE: ${{ secrets.ASSET_PASSPHRASE }}
+        run: python scripts/run_ci.py
 
       - name: Commit & push
         run: |
           git config user.name "asset-bot"
           git config user.email "actions@github.com"
-          git add docs/data
+          git add docs/data config/portfolio.enc
           if git diff --cached --quiet; then
             echo "no changes"
           else
