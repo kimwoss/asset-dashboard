@@ -30,6 +30,8 @@ jobs:
       - name: Update data
         env:
           ASSET_PASSPHRASE: ${{ secrets.ASSET_PASSPHRASE }}
+          # FIRE 목표 섹션 — ⭐️분당부부_MASTER ★종합 읽기. 없으면 FIRE 섹션만 생략(그레이스풀).
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
         run: python scripts/run_ci.py
 
       - name: Commit & push

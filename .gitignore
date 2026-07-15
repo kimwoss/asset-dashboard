@@ -6,3 +6,7 @@ __pycache__/
 config/portfolio.yaml
 docs/data/latest.json
 docs/data/history.csv
+
+# Google 서비스계정 키 (FIRE 시트 읽기 — CI는 Secret 사용, 로컬 폴백만 gitignore)
+config/credentials.json
+credentials.json
