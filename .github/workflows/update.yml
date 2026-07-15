@@ -2,9 +2,9 @@ name: update-asset-data
 
 on:
   schedule:
-    # KST 06:20 (미국 장 마감 후) / KST 16:20 (한국 장 마감 후)
-    - cron: "20 21 * * *"
-    - cron: "20 7 * * 1-5"
+    # KB시세는 매주 금요일 08:00(KST) 갱신 → 그 직후 08:30(KST) 실행
+    # 금 08:30 KST = 목 23:30 UTC
+    - cron: "30 23 * * 4"
   workflow_dispatch:
 
 permissions:
