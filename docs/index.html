@@ -220,11 +220,18 @@ function lineChart(container, points) {
     const t = el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg);
     t.textContent = fmtEok(v);
   }
-  // x labels (first / mid / last)
-  const xIdx = points.length > 2 ? [0, Math.floor(points.length / 2), points.length - 1] : points.map((_, i) => i);
-  for (const i of new Set(xIdx)) {
+  // x labels — 연말은 "YYYY", 그 외는 "YY.MM". 겹치지 않게 최대 ~8개 균등 표시.
+  const xlab = date => {
+    const [y, mo, d] = date.split("-");
+    return (mo === "12" && d === "31") ? y : y.slice(2) + "." + mo;
+  };
+  const step = Math.max(1, Math.ceil(points.length / 8));
+  const xIdx = new Set();
+  for (let i = 0; i < points.length; i += step) xIdx.add(i);
+  xIdx.add(points.length - 1);
+  for (const i of xIdx) {
     const t = el("text", { x: xs(i), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg);
-    t.textContent = points[i].date.slice(5);
+    t.textContent = xlab(points[i].date);
   }
   if (points.length > 1) {
     const d = points.map((p, i) => (i ? "L" : "M") + xs(i).toFixed(1) + " " + ys(p.total).toFixed(1)).join(" ");
