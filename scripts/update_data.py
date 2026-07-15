@@ -168,17 +168,27 @@ def main():
         json.dump(snapshot, f, ensure_ascii=False, indent=1)
 
     # 7) history.csv — 순자산 추이용. 오늘 자 행은 갈아끼움 (하루 2회 실행 대응)
-    #    kind: asset(+) / liability(-)
+    #    kind: asset(+) / liability(-) / seed(순자산 이력 1행)
+    #    날짜별 value_krw 합계 = 그 날의 순자산 (대시보드가 이 방식으로 추이 계산)
     hist_path = DATA_DIR / "history.csv"
     fields = ["date", "kind", "name", "owner", "category", "value_krw"]
+
+    # 마스터 시트 순자산 이력 시드 (과거 고정값, 오늘 이전 날짜만)
+    seed = {s["date"]: int(s["net_krw"]) for s in (pf.get("networth_history") or [])}
+    seed_dates = set(seed)
+
     rows = []
     if hist_path.exists():
         with open(hist_path, encoding="utf-8", newline="") as f:
             for r in csv.DictReader(f):
-                if r.get("date") == today:
+                # 오늘 자와 시드 날짜는 아래에서 새로 채워넣음
+                if r.get("date") == today or r.get("date") in seed_dates:
                     continue
                 r.setdefault("kind", "asset")  # 구 포맷 마이그레이션
                 rows.append({k: r.get(k, "") for k in fields})
+    for d, net_v in sorted(seed.items()):
+        rows.append({"date": d, "kind": "seed", "name": "순자산",
+                     "owner": "", "category": "순자산", "value_krw": net_v})
     for a in assets:
         rows.append({"date": today, "kind": "asset", "name": a["name"],
                      "owner": a["owner"], "category": a["category"], "value_krw": a["value_krw"]})
