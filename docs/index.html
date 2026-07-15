@@ -12,6 +12,7 @@
     --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
     --up: #006300; --down: #d03b3b;
     --c-re: #2a78d6; --c-us: #1baf7a; --c-kr: #eda100; --c-cash: #008300;
+    --c-vi: #4a3aa7; --c-debt: #b0524f;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -20,6 +21,7 @@
       --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
       --up: #0ca30c; --down: #e66767;
       --c-re: #3987e5; --c-us: #199e70; --c-kr: #c98500; --c-cash: #008300;
+      --c-vi: #9085e9; --c-debt: #d08a88;
     }
   }
   * { box-sizing: border-box; margin: 0; }
@@ -43,11 +45,16 @@
   .delta-up { color: var(--up); } .delta-down { color: var(--down); }
   section.card { margin-bottom: 14px; }
   h2 { font-size: 14px; font-weight: 600; color: var(--ink-2); margin-bottom: 12px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 12px; justify-content: center; }
+  .legend span { white-space: nowrap; }
   .legend span::before {
     content: ""; display: inline-block; width: 10px; height: 10px;
-    border-radius: 3px; margin-right: 5px; background: var(--sw);
+    border-radius: 3px; margin-right: 5px; background: var(--sw); vertical-align: 0px;
   }
+  .donut-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
+  .donut-cell { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 2px; }
+  .donut-cell h3 { font-size: 13px; font-weight: 600; color: var(--ink-1); margin-bottom: 2px; text-align: center; }
+  .donut-cell .cap { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
   svg text { font-family: inherit; }
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
@@ -102,13 +109,8 @@
 <div class="cards" id="kpis"></div>
 
 <section class="card">
-  <h2>자산배분</h2>
-  <div id="alloc"></div>
-</section>
-
-<section class="card">
-  <h2>소유자별 자산</h2>
-  <div id="owners"></div>
+  <h2>자산 구성</h2>
+  <div class="donut-row" id="donuts"></div>
 </section>
 
 <section class="card">
@@ -157,46 +159,58 @@ function el(tag, attrs = {}, parent) {
   return n;
 }
 
-/* ---- 가로 스택 바 (2px 서피스 갭, 직접 라벨) ---- */
-function stackedBar(container, rows, totalOf) {
-  // rows: [{label, parts:{cat:value}}]
-  const W = Math.min(container.clientWidth || 900, 1000);
-  const labelW = 90, barH = 30, gapY = 14, H = rows.length * (barH + gapY);
-  const maxTotal = Math.max(...rows.map(r => totalOf(r)));
-  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}`, role: "img" });
-  rows.forEach((r, i) => {
-    const y = i * (barH + gapY);
-    const t = el("text", { x: 0, y: y + barH / 2 + 4, "font-size": 12.5, fill: "var(--ink-2)" }, svg);
-    t.textContent = r.label;
-    let x = labelW;
-    const scale = (W - labelW - 70) / maxTotal;
-    for (const cat of CATS) {
-      const v = r.parts[cat] || 0;
-      if (v <= 0) continue;
-      const w = Math.max(v * scale - 2, 1); // 2px surface gap
-      const rect = el("rect", { x, y, width: w, height: barH, rx: 4, fill: CAT_COLORS[cat] }, svg);
-      rect.addEventListener("mousemove", ev =>
-        showTip(ev, `<b>${r.label} · ${cat}</b><br>${fmtEok(v)} (${(v / totalOf(r) * 100).toFixed(1)}%)<br><span style="color:var(--ink-muted)">${fmtWon(v)}</span>`));
-      rect.addEventListener("mouseleave", hideTip);
-      if (w > 52) { // 직접 라벨 (넓은 세그먼트만)
-        const lt = el("text", { x: x + w / 2, y: y + barH / 2 + 4, "text-anchor": "middle", "font-size": 11.5, fill: "#fff", "font-weight": 600 }, svg);
-        lt.textContent = fmtEok(v);
-      }
-      x += v * scale;
+/* ---- 도넛 차트 (중앙 합계 + 범례 + 툴팁) ---- */
+function arcPath(cx, cy, rO, rI, a0, a1) {
+  const pt = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  const large = (a1 - a0) > Math.PI ? 1 : 0;
+  const [x0, y0] = pt(rO, a0), [x1, y1] = pt(rO, a1);
+  const [x2, y2] = pt(rI, a1), [x3, y3] = pt(rI, a0);
+  return `M${x0} ${y0} A${rO} ${rO} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rI} ${rI} 0 ${large} 0 ${x3} ${y3} Z`;
+}
+
+function donut(cell, spec) {
+  // spec: {title, caption, center, centerLabel, slices:[{label,value,color,neg}]}
+  cell.innerHTML = "";
+  const h3 = document.createElement("h3"); h3.textContent = spec.title; cell.appendChild(h3);
+  const cap = document.createElement("div"); cap.className = "cap"; cap.textContent = spec.caption || ""; cell.appendChild(cap);
+
+  const slices = spec.slices.filter(s => Math.abs(s.value) > 0);
+  const total = slices.reduce((s, x) => s + Math.abs(x.value), 0) || 1;
+  const size = 200, cx = 100, cy = 100, rO = 84, rI = 55, gap = 0.025;
+  const svg = el("svg", { viewBox: `0 0 ${size} ${size}`, style: "width:100%;max-width:200px;display:block" });
+  let ang = -Math.PI / 2;
+  for (const s of slices) {
+    const frac = Math.abs(s.value) / total;
+    const a0 = ang + gap / 2, a1 = ang + frac * 2 * Math.PI - gap / 2;
+    if (a1 > a0) {
+      const p = el("path", { d: arcPath(cx, cy, rO, rI, a0, a1), fill: s.color,
+        stroke: "var(--surface-1)", "stroke-width": 1 }, svg);
+      const sign = s.neg ? "−" : "";
+      p.addEventListener("mousemove", ev => showTip(ev,
+        `<b>${s.label}</b><br>${sign}${fmtEok(Math.abs(s.value))} (${(frac * 100).toFixed(1)}%)` +
+        `<br><span style="color:var(--ink-muted)">${sign}${fmtWon(Math.abs(s.value))}</span>`));
+      p.addEventListener("mouseleave", hideTip);
     }
-    const tot = el("text", { x: x + 6, y: y + barH / 2 + 4, "font-size": 12, fill: "var(--ink-1)", "font-weight": 600 }, svg);
-    tot.textContent = fmtEok(totalOf(r));
-  });
-  container.replaceChildren(svg);
-  const lg = document.createElement("div");
-  lg.className = "legend";
-  for (const cat of CATS) {
-    const s = document.createElement("span");
-    s.style.setProperty("--sw", CAT_COLORS[cat]);
-    s.textContent = cat;
-    lg.appendChild(s);
+    ang += frac * 2 * Math.PI;
   }
-  container.appendChild(lg);
+  el("text", { x: cx, y: cy - 1, "text-anchor": "middle", "font-size": 21, "font-weight": 700, fill: "var(--ink-1)" }, svg)
+    .textContent = fmtEok(spec.center);
+  el("text", { x: cx, y: cy + 16, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+    .textContent = spec.centerLabel || "";
+  cell.appendChild(svg);
+
+  const lg = document.createElement("div"); lg.className = "legend";
+  for (const s of slices) {
+    const span = document.createElement("span"); span.style.setProperty("--sw", s.color);
+    span.textContent = `${s.label} ${(s.neg ? "−" : "")}${(Math.abs(s.value) / total * 100).toFixed(1)}%`;
+    lg.appendChild(span);
+  }
+  cell.appendChild(lg);
+}
+
+function donutCell(parent) {
+  const c = document.createElement("div"); c.className = "donut-cell";
+  parent.appendChild(c); return c;
 }
 
 /* ---- 추이 라인 차트 (크로스헤어 + 툴팁) ---- */
@@ -364,22 +378,57 @@ async function main() {
   if (debt) cards += kpiCard("부채", "−" + fmtEok(debt), "대출·상환 예정");
   document.getElementById("kpis").innerHTML = cards;
 
-  // 소유자별 자산 합계 (gross)
-  const owners = {};
-  for (const a of snap.assets) owners[a.owner] = (owners[a.owner] || 0) + a.value_krw;
+  // ---- 자산 구성 도넛 3종 ----
+  const A = snap.assets, L = snap.liabilities || [];
+  const sumV = arr => arr.reduce((s, x) => s + x.value_krw, 0);
+  const sumL = arr => arr.reduce((s, x) => s + x.amount_krw, 0);
+  const inCat = c => A.filter(a => a.category === c);
+  const re = sumV(inCat("부동산"));
+  const stockUH = sumV(A.filter(a => a.category === "주식" && a.owner === "우현"));
+  const stockGR = sumV(A.filter(a => a.category === "주식" && a.owner === "규리"));
+  const jeonse = sumV(inCat("전세보증금"));
+  const cash = sumV(inCat("현금"));
+  const rentalDep = sumL(L.filter(l => l.kind === "rental_deposit"));
+  const loan = sumL(L.filter(l => l.kind === "loan"));
+  const C = { re: "var(--c-re)", uh: "var(--c-us)", gr: "var(--c-vi)", jeonse: "var(--c-kr)", cash: "var(--c-cash)", debt: "var(--c-debt)" };
 
-  // 자산배분 (전체 1행)
-  const parts = {};
-  for (const a of snap.assets) parts[a.category] = (parts[a.category] || 0) + a.value_krw;
-  stackedBar(document.getElementById("alloc"), [{ label: "전체", parts }], () => gross);
+  // 소유자별 순자산 (공동 자산·부채는 개인에게 50:50 배분)
+  const onet = {};
+  for (const a of A) onet[a.owner] = (onet[a.owner] || 0) + a.value_krw;
+  for (const l of L) onet[l.owner] = (onet[l.owner] || 0) - l.amount_krw;
+  const joint = onet["공동"] || 0;
+  const uhNet = (onet["우현"] || 0) + joint / 2;
+  const grNet = (onet["규리"] || 0) + joint / 2;
 
-  // 소유자별
-  const orows = Object.keys(owners).map(o => {
-    const p = {};
-    for (const a of snap.assets) if (a.owner === o) p[a.category] = (p[a.category] || 0) + a.value_krw;
-    return { label: o, parts: p };
+  const dc = document.getElementById("donuts");
+  dc.innerHTML = "";
+  donut(donutCell(dc), {
+    title: "총자산 배분", caption: "부채 차감 전", center: gross, centerLabel: "총자산",
+    slices: [
+      { label: "부동산", value: re, color: C.re },
+      { label: "우현 주식", value: stockUH, color: C.uh },
+      { label: "규리 주식", value: stockGR, color: C.gr },
+      { label: "전세보증금", value: jeonse, color: C.jeonse },
+      { label: "현금", value: cash, color: C.cash },
+    ],
   });
-  stackedBar(document.getElementById("owners"), orows, r => owners[r.label]);
+  donut(donutCell(dc), {
+    title: "순자산 배분", caption: "전세보증금은 부동산에 상계", center: net, centerLabel: "순자산",
+    slices: [
+      { label: "부동산 순지분", value: re - rentalDep, color: C.re },
+      { label: "주식", value: stockUH + stockGR, color: C.uh },
+      { label: "전세보증금", value: jeonse, color: C.jeonse },
+      { label: "현금", value: cash, color: C.cash },
+      { label: "대출", value: loan, color: C.debt, neg: true },
+    ],
+  });
+  donut(donutCell(dc), {
+    title: "각자 순자산 배분", caption: "공동 자산·부채 50:50 배분", center: net, centerLabel: "순자산",
+    slices: [
+      { label: "우현", value: uhNet, color: C.uh },
+      { label: "규리", value: grNet, color: C.gr },
+    ],
+  });
 
   // 추이
   lineChart(document.getElementById("trend"), hist);
