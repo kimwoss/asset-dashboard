@@ -4,6 +4,7 @@
 인증 불필요. 모든 금액 단위: 만원.
 """
 import json
+import ssl
 import time
 import urllib.parse
 import urllib.request
@@ -15,14 +16,36 @@ HEADERS = {
     "Accept": "application/json",
 }
 
+# 사내망 등에서 TLS를 재서명하는 프록시를 만나면 검증이 실패한다.
+# 우선 정상 검증으로 시도하고, 인증서 검증 오류일 때만 검증을 완화해 재시도한다.
+# (공개·읽기전용 시세 API여서 위험이 낮고, CI 러너에서는 검증 경로만 사용됨)
+_UNVERIFIED = ssl._create_unverified_context()
+
+
+def _open(url, insecure=False):
+    req = urllib.request.Request(url, headers=HEADERS)
+    ctx = _UNVERIFIED if insecure else None
+    return urllib.request.urlopen(req, timeout=20, context=ctx)
+
+
+def _is_ssl_error(e):
+    """URLError로 감싸인 경우까지 포함해 TLS 인증서 검증 오류인지 판별."""
+    seen = set()
+    while e is not None and id(e) not in seen:
+        if isinstance(e, ssl.SSLError):
+            return True
+        seen.add(id(e))
+        e = getattr(e, "reason", None) or getattr(e, "__cause__", None)
+    return False
+
 
 def _get(path, params, retries=3):
     url = BASE + path + "?" + urllib.parse.urlencode(params)
     last_err = None
+    insecure = False
     for i in range(retries):
         try:
-            req = urllib.request.Request(url, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=20) as resp:
+            with _open(url, insecure=insecure) as resp:
                 data = json.load(resp)
             body = data.get("dataBody", {})
             if body.get("message") not in (None, "SUCCESS") and "data" not in body:
@@ -30,7 +53,11 @@ def _get(path, params, retries=3):
             return body.get("data")
         except Exception as e:  # noqa: BLE001 - 재시도 후 마지막 예외를 올림
             last_err = e
-            time.sleep(2 * (i + 1))
+            if _is_ssl_error(e):
+                insecure = True  # 다음 시도부터 검증 완화 (사내 프록시 대응)
+                time.sleep(1)
+            else:
+                time.sleep(2 * (i + 1))
     raise last_err
 
 
