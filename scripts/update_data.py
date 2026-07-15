@@ -145,6 +145,7 @@ def main():
     # 5) 부채
     liabilities = [{
         "name": l["name"], "owner": l.get("owner", ""),
+        "kind": l.get("kind", "loan"),
         "amount_krw": l["amount_krw"], "note": l.get("note", ""),
     } for l in (pf.get("liabilities") or [])]
 
@@ -174,7 +175,8 @@ def main():
     fields = ["date", "kind", "name", "owner", "category", "value_krw"]
 
     # 마스터 시트 순자산 이력 시드 (과거 고정값, 오늘 이전 날짜만)
-    seed = {s["date"]: int(s["net_krw"]) for s in (pf.get("networth_history") or [])}
+    # YAML이 날짜를 date 객체로 파싱하므로 문자열로 강제 변환 (CSV 비교/중복제거 위해)
+    seed = {str(s["date"]): int(s["net_krw"]) for s in (pf.get("networth_history") or [])}
     seed_dates = set(seed)
 
     rows = []
