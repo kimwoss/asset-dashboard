@@ -15,6 +15,7 @@ import yaml
 import yfinance as yf
 
 import kb_api
+import sheets_fire
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -154,6 +155,13 @@ def main():
     gross = sum(a["value_krw"] for a in assets)
     debt = sum(l["amount_krw"] for l in liabilities)
     net = gross - debt
+    # FIRE 목표 요약 (⭐️분당부부_MASTER ★종합 탭). 실패 시 {} — 섹션만 생략.
+    # 달성률은 대시보드가 위 net(실시간)으로 재계산한다 → 시트는 목표·가정치만 제공.
+    fire = sheets_fire.fetch_fire_summary()
+    if fire:
+        print(f"OK: FIRE 목표 {fire.get('target_basic', 0)/1e8:.2f}억(기본)/"
+              f"{fire.get('target_rich', 0)/1e8:.2f}억(부자) · 목표 {fire.get('target_year')}년")
+
     snapshot = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "fx_usdkrw": round(fx, 2),
@@ -164,6 +172,7 @@ def main():
         "total_krw": net,  # 하위호환: total = 순자산
         "assets": assets,
         "liabilities": liabilities,
+        "fire": fire,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=1)

@@ -68,6 +68,20 @@
     padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
     color: var(--ink-1);
   }
+  /* FIRE 목표 */
+  .fire-goals { display: grid; gap: 15px; }
+  .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; margin-bottom: 6px; }
+  .goal-head .gl { color: var(--ink-1); }
+  .goal-head .gl small { color: var(--ink-muted); font-weight: 400; }
+  .goal-head .pct { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .goal-track { height: 10px; background: var(--grid); border-radius: 6px; overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+  .goal-sub { font-size: 11.5px; color: var(--ink-muted); margin-top: 5px; }
+  .fire-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-top: 18px; }
+  .fact { background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; }
+  .fact .l { font-size: 11.5px; color: var(--ink-2); margin-bottom: 4px; }
+  .fact .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .fact .s { font-size: 11px; color: var(--ink-muted); margin-top: 3px; }
   #err { color: var(--down); padding: 30px 10px; font-size: 14px; display: none; }
   #gate {
     position: fixed; inset: 0; background: var(--page); z-index: 20;
@@ -107,6 +121,11 @@
 
 <div id="err"></div>
 <div class="cards" id="kpis"></div>
+
+<section class="card" id="fire-section" style="display:none">
+  <h2>FIRE 목표 달성</h2>
+  <div id="fire-body"></div>
+</section>
 
 <section class="card">
   <h2>자산 구성</h2>
@@ -279,6 +298,47 @@ function kpiCard(label, value, sub, hero) {
     ${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
 }
 
+/* ---- FIRE 목표 달성 (★종합 시트 목표 + 실시간 순자산 달성률) ---- */
+function renderFire(f, net) {
+  const sec = document.getElementById("fire-section");
+  if (!f || !f.target_basic) { sec.style.display = "none"; return; }
+  sec.style.display = "";
+
+  const goal = (label, note, target, color) => {
+    const pct = target > 0 ? net / target * 100 : 0;
+    const remain = target - net;
+    return `<div>
+      <div class="goal-head">
+        <span class="gl">${label} <small>· ${note} · 목표 ${fmtEok(target)}</small></span>
+        <span class="pct" style="color:${color}">${pct.toFixed(1)}%</span>
+      </div>
+      <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, pct).toFixed(1)}%;background:${color}"></div></div>
+      <div class="goal-sub">${remain > 0 ? "남은 목표 " + fmtEok(remain) : "목표 달성 🎉 (+" + fmtEok(-remain) + ")"}</div>
+    </div>`;
+  };
+
+  let html = `<div class="fire-goals">
+    ${goal("기본 루트", "기대수명까지 소진", f.target_basic, "var(--c-us)")}
+    ${goal("부자 루트", "자산 유지·증식", f.target_rich, "var(--c-vi)")}
+  </div>`;
+
+  const facts = [];
+  if (f.target_year) {
+    const dday = Math.round((new Date(f.target_year, 11, 31) - new Date()) / 864e5);
+    const sub = dday > 0 ? `D-${dday} · ${Math.floor(dday / 365)}년 ${Math.floor(dday % 365 / 30)}개월` : "목표 시점 도래";
+    facts.push(["은퇴 목표", `${f.retire_age ? f.retire_age + "세 · " : ""}${f.target_year}년`, sub]);
+  }
+  if (f.monthly_expense) facts.push(["은퇴 후 월생활비", fmtWon(f.monthly_expense), "물가 반영"]);
+  if (f.depletion_age) facts.push(["자산 소진 예상", `${f.depletion_age}세`, f.life_expectancy ? `기대수명 ${f.life_expectancy}세` : ""]);
+  if (f.real_return) facts.push(["세후 실질수익률", `${f.real_return}%`, "연 가정치"]);
+  if (facts.length)
+    html += `<div class="fire-facts">${facts.map(([l, v, s]) =>
+      `<div class="fact"><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`).join("")}</div>`;
+
+  html += `<div class="goal-sub" style="margin-top:13px">출처: ⭐️분당부부_MASTER ★종합 · 목표·가정치는 시트값, 달성률은 현재 순자산으로 실시간 재계산</div>`;
+  document.getElementById("fire-body").innerHTML = html;
+}
+
 /* ---- 복호화 (scripts/crypto_util.py와 동일 포맷) ---- */
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
@@ -377,6 +437,9 @@ async function main() {
   cards += kpiCard("총자산", fmtEok(gross), "부채 제외 전");
   if (debt) cards += kpiCard("부채", "−" + fmtEok(debt), "대출·상환 예정");
   document.getElementById("kpis").innerHTML = cards;
+
+  // FIRE 목표 달성 (★종합 시트) — 달성률은 위 실시간 net으로 재계산
+  renderFire(snap.fire, net);
 
   // ---- 자산 구성 도넛 3종 ----
   const A = snap.assets, L = snap.liabilities || [];
