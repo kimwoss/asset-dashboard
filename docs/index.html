@@ -112,7 +112,7 @@
 </section>
 
 <section class="card">
-  <h2>총자산 추이</h2>
+  <h2>순자산 추이</h2>
   <div id="trend"></div>
 </section>
 
@@ -125,12 +125,15 @@
 
 <script>
 const CAT_COLORS = {
-  "부동산":   "var(--c-re)",
-  "미국주식": "var(--c-us)",
-  "한국주식": "var(--c-kr)",
-  "현금":     "var(--c-cash)",
+  "부동산":     "var(--c-re)",
+  "주식":       "var(--c-us)",
+  "전세보증금": "var(--c-kr)",
+  "현금":       "var(--c-cash)",
+  "미국주식":   "var(--c-us)",
+  "한국주식":   "var(--c-kr)",
+  "기타":       "var(--baseline)",
 };
-const CATS = Object.keys(CAT_COLORS);
+const CATS = ["부동산", "주식", "전세보증금", "현금"];
 const fmtEok = v => (v / 1e8).toLocaleString("ko-KR", { maximumFractionDigits: 2 }) + "억";
 const fmtWon = v => Math.round(v).toLocaleString("ko-KR") + "원";
 const tooltip = document.getElementById("tooltip");
@@ -243,7 +246,7 @@ function lineChart(container, points) {
     cross.setAttribute("visibility", "visible");
     hot.setAttribute("cx", xs(best)); hot.setAttribute("cy", ys(p.total));
     hot.setAttribute("visibility", "visible");
-    showTip(ev, `<b>${p.date}</b><br>총자산 ${fmtEok(p.total)}<br><span style="color:var(--ink-muted)">${fmtWon(p.total)}</span>`);
+    showTip(ev, `<b>${p.date}</b><br>순자산 ${fmtEok(p.total)}<br><span style="color:var(--ink-muted)">${fmtWon(p.total)}</span>`);
   });
   svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hot.setAttribute("visibility", "hidden"); hideTip(); });
   container.replaceChildren(svg);
@@ -323,7 +326,9 @@ async function main() {
   }
 
   document.getElementById("updated").textContent = "갱신: " + snap.updated_at;
-  document.getElementById("fx").textContent = "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$ (" + snap.fx_asof + ")";
+  document.getElementById("fx").textContent = snap.fx_usdkrw
+    ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$ (" + snap.fx_asof + ")"
+    : "";
 
   // history → 일별 총자산
   const daily = new Map();
@@ -337,25 +342,29 @@ async function main() {
     .map(([date, total]) => ({ date, total }));
 
   // KPI
-  const total = snap.total_krw;
+  const net = snap.net_krw ?? snap.total_krw;
+  const gross = snap.gross_krw ?? snap.assets.reduce((s, a) => s + a.value_krw, 0);
+  const debt = snap.debt_krw ?? 0;
   let deltaHtml = "";
   if (hist.length >= 2) {
     const prev = hist[hist.length - 2];
-    const d = total - prev.total, pct = (d / prev.total * 100).toFixed(2);
+    const d = net - prev.total, pct = (d / prev.total * 100).toFixed(2);
     const cls = d >= 0 ? "delta-up" : "delta-down", arrow = d >= 0 ? "▲" : "▼";
     deltaHtml = `<span class="${cls}">${arrow} ${fmtEok(Math.abs(d))} (${pct}%)</span> vs ${prev.date}`;
   }
+  let cards = kpiCard("순자산", fmtEok(net), deltaHtml || "총자산 − 부채", true);
+  cards += kpiCard("총자산", fmtEok(gross), "부채 제외 전");
+  if (debt) cards += kpiCard("부채", "−" + fmtEok(debt), "대출·상환 예정");
+  document.getElementById("kpis").innerHTML = cards;
+
+  // 소유자별 자산 합계 (gross)
   const owners = {};
   for (const a of snap.assets) owners[a.owner] = (owners[a.owner] || 0) + a.value_krw;
-  let cards = kpiCard("총자산", fmtEok(total), deltaHtml, true);
-  for (const [o, v] of Object.entries(owners))
-    cards += kpiCard(o, fmtEok(v), (v / total * 100).toFixed(1) + "%");
-  document.getElementById("kpis").innerHTML = cards;
 
   // 자산배분 (전체 1행)
   const parts = {};
   for (const a of snap.assets) parts[a.category] = (parts[a.category] || 0) + a.value_krw;
-  stackedBar(document.getElementById("alloc"), [{ label: "전체", parts }], () => total);
+  stackedBar(document.getElementById("alloc"), [{ label: "전체", parts }], () => gross);
 
   // 소유자별
   const orows = Object.keys(owners).map(o => {
@@ -368,19 +377,26 @@ async function main() {
   // 추이
   lineChart(document.getElementById("trend"), hist);
 
-  // 상세 테이블
+  // 상세 테이블 (자산 + 부채)
   const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => `
     <tr>
       <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${a.name}</td>
       <td>${a.owner}</td><td>${a.category}</td>
-      <td>${a.quantity === 1 ? "-" : a.quantity.toLocaleString()}</td>
       <td>${a.currency === "USD" ? "$" + a.price.toLocaleString() : fmtWon(a.price)}</td>
       <td><b>${fmtEok(a.value_krw)}</b></td>
-      <td style="color:var(--ink-muted)">${a.asof}</td>
+      <td style="color:var(--ink-muted)">${a.asof}${a.note ? " · " + a.note : ""}</td>
+    </tr>`).join("");
+  const debtRows = (snap.liabilities || []).map(l => `
+    <tr>
+      <td class="name"><span class="chip" style="background:var(--down)"></span>${l.name}</td>
+      <td>${l.owner}</td><td>부채</td>
+      <td>${fmtWon(l.amount_krw)}</td>
+      <td class="delta-down"><b>−${fmtEok(l.amount_krw)}</b></td>
+      <td style="color:var(--ink-muted)">${l.note || ""}</td>
     </tr>`).join("");
   document.getElementById("detail").innerHTML = `
-    <thead><tr><th>자산</th><th>소유</th><th>분류</th><th>수량</th><th>가격</th><th>평가액</th><th>기준일</th></tr></thead>
-    <tbody>${rows}</tbody>`;
+    <thead><tr><th>항목</th><th>소유</th><th>분류</th><th>금액</th><th>평가액</th><th>비고</th></tr></thead>
+    <tbody>${rows}${debtRows}</tbody>`;
 }
 main();
 </script>
