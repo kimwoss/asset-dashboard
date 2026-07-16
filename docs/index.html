@@ -749,14 +749,6 @@ async function main() {
   const k = equitySum > 0 ? (equitySum - unsecured) / equitySum : 0;  // 안분 후 합 = 순자산
   const netSlices = equity.map(s => ({ ...s, value: s.value * k }));
 
-  // 소유자별 순자산 (공동 자산·부채는 개인에게 50:50 배분)
-  const onet = {};
-  for (const a of A) onet[a.owner] = (onet[a.owner] || 0) + a.value_krw;
-  for (const l of L) onet[l.owner] = (onet[l.owner] || 0) - l.amount_krw;
-  const joint = onet["공동"] || 0;
-  const uhNet = (onet["우현"] || 0) + joint / 2;
-  const grNet = (onet["규리"] || 0) + joint / 2;
-
   const dc = document.getElementById("donuts");
   dc.innerHTML = "";
   donut(donutCell(dc), {
@@ -777,14 +769,6 @@ async function main() {
     `순자산 배분: 임대 전세보증금·주택담보(${fmtEok(debtFor("부동산"))})는 부동산에, ` +
     `전세대출(${fmtEok(debtFor("전세보증금"))})은 전세보증금에 상계` +
     (unsecured > 0 ? ` · 무담보 대출 ${fmtEok(unsecured)}은 자산 비중대로 안분` : "");
-
-  donut(donutCell(dc), {
-    title: "각자 순자산 배분", caption: "공동 자산·부채 50:50 배분", center: net, centerLabel: "순자산",
-    slices: [
-      { label: "우현", value: uhNet, color: C.uh },
-      { label: "규리", value: grNet, color: C.gr },
-    ],
-  });
 
   // 추이
   lineChart(document.getElementById("trend"), hist);
