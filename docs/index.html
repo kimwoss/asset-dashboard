@@ -79,6 +79,12 @@
   .tab.on { color: var(--c-re); border-bottom-color: var(--c-re); }
   /* 배당 카드 */
   .div-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .seg { display: inline-flex; background: var(--grid); border-radius: 8px; padding: 2px; gap: 2px; margin-bottom: 12px; }
+  .seg-btn {
+    border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+    font-size: 12.5px; font-family: inherit; padding: 5px 12px; border-radius: 6px;
+  }
+  .seg-btn.on { background: var(--surface-1); color: var(--ink-1); font-weight: 600; }
   .div-card { background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
   .div-card .who { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
   .div-card .amt { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
@@ -189,6 +195,16 @@
     <h2>연 예상 배당금</h2>
     <div class="div-row" id="fin-div"></div>
     <div class="goal-sub" style="margin-top:10px">최근 12개월 실지급 배당(주당) × 보유수량 기준 · USD 종목은 현재 환율 적용</div>
+  </section>
+
+  <section class="card" id="fin-trend-card" style="display:none">
+    <h2>월별 흐름</h2>
+    <div class="seg" id="fin-trend-seg">
+      <button class="seg-btn on" data-mode="owner">소유자별</button>
+      <button class="seg-btn" data-mode="group">연금성·유동성</button>
+    </div>
+    <div id="fin-trend"></div>
+    <div class="goal-sub" style="margin-top:10px">출처: ⭐️분당부부_MASTER ★월별자산 · 매월 ★주식계좌 실시간값이 해당 월 칸에 자동 기록됩니다</div>
   </section>
 
   <section class="card">
@@ -443,6 +459,91 @@ function stackBar(label, pension, liquid) {
   </div>`;
 }
 
+/* ---- 월별 흐름 (스택 영역 + 크로스헤어) ---- */
+function stackedArea(container, periods, series) {
+  // series: [{label, color, values:[...]}]  values는 periods와 같은 길이
+  container.innerHTML = "";
+  const W = Math.min(container.clientWidth || 900, 1000), H = 260;
+  const m = { l: 56, r: 16, t: 12, b: 26 };
+  const n = periods.length;
+  if (!n) { container.textContent = "이력이 아직 없습니다."; return; }
+  const totals = periods.map((_, i) => series.reduce((s, x) => s + (x.values[i] || 0), 0));
+  const hi = Math.max(...totals) * 1.08 || 1;
+  const xs = i => n === 1 ? (m.l + W - m.r) / 2 : m.l + (W - m.l - m.r) * i / (n - 1);
+  const ys = v => m.t + (H - m.t - m.b) * (1 - v / hi);
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}` });
+
+  for (let g = 0; g <= 3; g++) {
+    const v = hi * g / 3, y = ys(v);
+    el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = fmtEok(v);
+  }
+  const step = Math.max(1, Math.ceil(n / 8));
+  for (let i = 0; i < n; i += step)
+    el("text", { x: xs(i), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = periods[i].label;
+
+  // 누적 스택 (아래→위)
+  const base = new Array(n).fill(0);
+  for (const s of series) {
+    const top = base.map((b, i) => b + (s.values[i] || 0));
+    const up = top.map((v, i) => `${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`);
+    const down = base.map((v, i) => `${xs(i).toFixed(1)} ${ys(v).toFixed(1)}`).reverse();
+    el("path", { d: `M${up.join(" L")} L${down.join(" L")} Z`, fill: s.color,
+                 "fill-opacity": 0.85, stroke: "var(--surface-1)", "stroke-width": 0.5 }, svg);
+    for (let i = 0; i < n; i++) base[i] = top[i];
+  }
+
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--baseline)", "stroke-width": 1, visibility: "hidden" }, svg);
+  svg.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const px = (ev.clientX - box.left) * W / box.width;
+    let best = 0, bd = 1e9;
+    for (let i = 0; i < n; i++) { const d = Math.abs(xs(i) - px); if (d < bd) { bd = d; best = i; } }
+    cross.setAttribute("x1", xs(best)); cross.setAttribute("x2", xs(best));
+    cross.setAttribute("visibility", "visible");
+    const rows = series.map(s =>
+      `<span style="color:${s.color}">■</span> ${s.label} ${fmtEok(s.values[best] || 0)}`).reverse().join("<br>");
+    showTip(ev, `<b>${periods[best].label}</b><br>${rows}<br><b>합계 ${fmtEok(totals[best])}</b>`);
+  });
+  svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hideTip(); });
+  container.appendChild(svg);
+
+  const lg = document.createElement("div"); lg.className = "legend";
+  for (const s of series) {
+    const sp = document.createElement("span"); sp.style.setProperty("--sw", s.color);
+    sp.textContent = s.label; lg.appendChild(sp);
+  }
+  container.appendChild(lg);
+}
+
+function renderMonthly(mon) {
+  const card = document.getElementById("fin-trend-card");
+  if (!mon || !mon.periods || !mon.periods.length) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const periods = mon.periods, accts = mon.accounts || [];
+  const sumBy = (key, val) => periods.map((_, i) =>
+    accts.filter(a => a[key] === val).reduce((s, a) => s + (a.values[i] || 0), 0));
+  const SERIES = {
+    owner: [
+      { label: "우현", color: "var(--c-us)", values: sumBy("owner", "우현") },
+      { label: "규리", color: "var(--c-vi)", values: sumBy("owner", "규리") },
+    ],
+    group: [
+      { label: "연금성", color: "var(--c-re)", values: sumBy("group", "연금성") },
+      { label: "유동성", color: "var(--c-kr)", values: sumBy("group", "유동성") },
+    ],
+  };
+  const draw = mode => stackedArea(document.getElementById("fin-trend"), periods, SERIES[mode]);
+  draw("owner");
+  document.querySelectorAll("#fin-trend-seg .seg-btn").forEach(b =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#fin-trend-seg .seg-btn").forEach(x => x.classList.toggle("on", x === b));
+      draw(b.dataset.mode);
+    }));
+}
+
 function renderFinancial(fin) {
   const H = (fin && fin.holdings) || [];
   if (!H.length) {
@@ -674,6 +775,7 @@ async function main() {
   // 금융자산 탭 (★주식계좌)
   initTabs();
   renderFinancial(snap.financial);
+  renderMonthly(snap.monthly);
 
   // 상세 테이블 (자산 + 부채)
   const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => `

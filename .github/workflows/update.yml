@@ -5,6 +5,10 @@ on:
     # KB시세는 매주 금요일 08:00(KST) 갱신 → 그 직후 08:30(KST) 실행
     # 금 08:30 KST = 목 23:30 UTC
     - cron: "30 23 * * 4"
+    # 월말 스냅샷 — ★월별자산의 그 달 값을 '말일' 기준으로 확정.
+    # cron에 말일 표현이 없어 28~31일 23:30 KST(=14:30 UTC)에 발화시키고,
+    # 아래 '말일 확인' 스텝이 실제 말일이 아니면 잡을 조기 종료시킨다.
+    - cron: "30 14 28-31 * *"
   workflow_dispatch:
 
 permissions:
@@ -18,16 +22,30 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
+      # 월말 크론(28~31일 발화)은 KST 기준 실제 말일에만 진행 — 나머지 날은 여기서 종료.
+      - name: 말일 확인 (월말 크론 전용)
+        id: eom
+        run: |
+          if [ "${{ github.event.schedule }}" = "30 14 28-31 * *" ] \
+             && [ "$(TZ=Asia/Seoul date -d tomorrow +%d)" != "01" ]; then
+            echo "KST $(TZ=Asia/Seoul date +%F) — 말일 아님, 스킵"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.eom.outputs.skip != 'true'
 
       - uses: actions/setup-python@v5
+        if: steps.eom.outputs.skip != 'true'
         with:
           python-version: "3.12"
 
       - name: Install dependencies
+        if: steps.eom.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
       - name: Update data
+        if: steps.eom.outputs.skip != 'true'
         env:
           ASSET_PASSPHRASE: ${{ secrets.ASSET_PASSPHRASE }}
           # FIRE 목표 섹션 — ⭐️분당부부_MASTER ★종합 읽기. 없으면 FIRE 섹션만 생략(그레이스풀).
@@ -35,6 +53,7 @@ jobs:
         run: python scripts/run_ci.py
 
       - name: Commit & push
+        if: steps.eom.outputs.skip != 'true'
         run: |
           git config user.name "asset-bot"
           git config user.email "actions@github.com"
