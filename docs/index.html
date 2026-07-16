@@ -68,6 +68,27 @@
     padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
     color: var(--ink-1);
   }
+  /* 탭 */
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .tab {
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    font-size: 14px; font-weight: 600; color: var(--ink-muted);
+    padding: 9px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--ink-2); }
+  .tab.on { color: var(--c-re); border-bottom-color: var(--c-re); }
+  /* 배당 카드 */
+  .div-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .div-card { background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .div-card .who { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+  .div-card .amt { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .div-card .mo { font-size: 11.5px; color: var(--ink-muted); margin-top: 4px; }
+  /* 스택 바 (연금성/유동성) */
+  .sb { margin-bottom: 14px; }
+  .sb-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-bottom: 6px; }
+  .sb-head b { font-weight: 600; }
+  .sb-track { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--grid); }
+  .sb-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
   /* FIRE 목표 */
   .fire-goals { display: grid; gap: 15px; }
   .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; margin-bottom: 6px; }
@@ -120,27 +141,61 @@
 </div>
 
 <div id="err"></div>
-<div class="cards" id="kpis"></div>
 
-<section class="card" id="fire-section" style="display:none">
-  <h2>FIRE 목표 달성</h2>
-  <div id="fire-body"></div>
-</section>
+<nav class="tabs" id="tabs" style="display:none">
+  <button class="tab on" data-tab="overview">자산 현황</button>
+  <button class="tab" data-tab="financial">금융자산</button>
+</nav>
 
-<section class="card">
-  <h2>자산 구성</h2>
-  <div class="donut-row" id="donuts"></div>
-</section>
+<div id="tab-overview">
+  <div class="cards" id="kpis"></div>
 
-<section class="card">
-  <h2>순자산 추이</h2>
-  <div id="trend"></div>
-</section>
+  <section class="card" id="fire-section" style="display:none">
+    <h2>FIRE 목표 달성</h2>
+    <div id="fire-body"></div>
+  </section>
 
-<section class="card">
-  <h2>자산 상세</h2>
-  <div style="overflow-x:auto"><table id="detail"></table></div>
-</section>
+  <section class="card">
+    <h2>자산 구성</h2>
+    <div class="donut-row" id="donuts"></div>
+  </section>
+
+  <section class="card">
+    <h2>순자산 추이</h2>
+    <div id="trend"></div>
+  </section>
+
+  <section class="card">
+    <h2>자산 상세</h2>
+    <div style="overflow-x:auto"><table id="detail"></table></div>
+  </section>
+</div>
+
+<div id="tab-financial" style="display:none">
+  <div class="cards" id="fin-kpis"></div>
+
+  <section class="card">
+    <h2>포트폴리오 구성</h2>
+    <div class="donut-row" id="fin-donuts"></div>
+  </section>
+
+  <section class="card">
+    <h2>계좌 성격 — 연금성 vs 유동성</h2>
+    <div id="fin-groups"></div>
+    <div class="goal-sub" style="margin-top:10px">연금성 = 연저펀·IRP·퇴직연금 (인출 제약) · 유동성 = ISA·CMA·청약·현금</div>
+  </section>
+
+  <section class="card">
+    <h2>연 예상 배당금</h2>
+    <div class="div-row" id="fin-div"></div>
+    <div class="goal-sub" style="margin-top:10px">최근 12개월 실지급 배당(주당) × 보유수량 기준 · USD 종목은 현재 환율 적용</div>
+  </section>
+
+  <section class="card">
+    <h2>계좌별 상세</h2>
+    <div style="overflow-x:auto"><table id="fin-detail"></table></div>
+  </section>
+</div>
 
 <div id="tooltip"></div>
 
@@ -339,6 +394,126 @@ function renderFire(f, net) {
   document.getElementById("fire-body").innerHTML = html;
 }
 
+/* ---- 금융자산 탭 (★주식계좌 원 소스) ---- */
+const TCOL = {
+  "KRX:360750": "#3182F6", "KRX:379810": "#7048E8", "KRX:435420": "#0CA678",
+  "KRX:458730": "#F59F00", "KRX:148020": "#E64980", "KRX:161510": "#37B24D",
+  "SCHD": "#1098AD",
+};
+const colorOf = t => TCOL[t] || "var(--baseline)";
+const fmtMan = v => Math.round(v / 1e4).toLocaleString("ko-KR") + "만원";
+
+function byName(hs) {
+  const m = new Map();
+  for (const h of hs) {
+    if (!(h.value_krw > 0)) continue;
+    const k = h.name || h.account;
+    const cur = m.get(k) || { value: 0, ticker: h.ticker };
+    cur.value += h.value_krw;
+    m.set(k, cur);
+  }
+  return [...m.entries()].sort((a, b) => b[1].value - a[1].value);
+}
+const sum = (hs, f = h => h.value_krw) => hs.reduce((s, h) => s + f(h), 0);
+
+function portfolioDonut(cell, title, hs) {
+  const total = sum(hs);
+  if (total <= 0) {
+    cell.innerHTML = `<h3>${title}</h3><div class="cap">보유내역 입력 전</div>
+      <div style="height:150px;display:flex;align-items:center;color:var(--ink-muted);font-size:12.5px">—</div>`;
+    return;
+  }
+  donut(cell, {
+    title, caption: "종목별 평가액", center: total, centerLabel: "금융자산",
+    slices: byName(hs).map(([name, o]) => ({ label: name, value: o.value, color: colorOf(o.ticker) })),
+  });
+}
+
+function stackBar(label, pension, liquid) {
+  const tot = pension + liquid;
+  if (tot <= 0) return "";
+  const pp = pension / tot * 100, lp = liquid / tot * 100;
+  return `<div class="sb">
+    <div class="sb-head"><b>${label}</b><span style="color:var(--ink-muted)">${fmtEok(tot)}</span></div>
+    <div class="sb-track">
+      ${pension > 0 ? `<div class="sb-seg" style="width:${pp}%;background:var(--c-vi)">${pp >= 10 ? pp.toFixed(0) + "%" : ""}</div>` : ""}
+      ${liquid > 0 ? `<div class="sb-seg" style="width:${lp}%;background:var(--c-us)">${lp >= 10 ? lp.toFixed(0) + "%" : ""}</div>` : ""}
+    </div>
+    <div class="goal-sub">연금성 ${fmtEok(pension)} · 유동성 ${fmtEok(liquid)}</div>
+  </div>`;
+}
+
+function renderFinancial(fin) {
+  const H = (fin && fin.holdings) || [];
+  if (!H.length) {
+    document.getElementById("tab-financial").innerHTML =
+      `<section class="card"><h2>금융자산</h2>
+       <div class="goal-sub">★주식계좌 시트를 불러오지 못했어요.</div></section>`;
+    return;
+  }
+  const uh = H.filter(h => h.owner === "우현"), gr = H.filter(h => h.owner === "규리");
+  const totAll = sum(H), divAll = sum(H, h => h.div_krw);
+  const pens = sum(H.filter(h => h.group === "연금성")), liq = totAll - pens;
+
+  // KPI
+  document.getElementById("fin-kpis").innerHTML =
+    kpiCard("금융자산 총액", fmtEok(totAll), `우현 ${fmtEok(sum(uh))} · 규리 ${fmtEok(sum(gr))}`, true) +
+    kpiCard("연 예상 배당금", fmtMan(divAll), `월 ${fmtMan(divAll / 12)} · 수익률 ${(divAll / totAll * 100).toFixed(2)}%`) +
+    kpiCard("연금성 비중", (pens / totAll * 100).toFixed(1) + "%", `연금성 ${fmtEok(pens)} · 유동성 ${fmtEok(liq)}`);
+
+  // 포트폴리오 도넛 3종
+  const dc = document.getElementById("fin-donuts");
+  dc.innerHTML = "";
+  portfolioDonut(donutCell(dc), "우리 (부부 합산)", H);
+  portfolioDonut(donutCell(dc), "우현", uh);
+  portfolioDonut(donutCell(dc), "규리", gr);
+
+  // 연금성 vs 유동성
+  const g = (hs, kind) => sum(hs.filter(h => h.group === kind));
+  document.getElementById("fin-groups").innerHTML =
+    stackBar("우리", pens, liq) +
+    stackBar("우현", g(uh, "연금성"), g(uh, "유동성")) +
+    stackBar("규리", g(gr, "연금성"), g(gr, "유동성"));
+
+  // 배당 카드
+  const divCard = (who, hs) => {
+    const amt = sum(hs, h => h.div_krw), base = sum(hs);
+    return `<div class="div-card"><div class="who">${who}</div>
+      <div class="amt">${fmtMan(amt)}</div>
+      <div class="mo">월 ${fmtMan(amt / 12)} · 수익률 ${base > 0 ? (amt / base * 100).toFixed(2) : "0.00"}%</div></div>`;
+  };
+  document.getElementById("fin-div").innerHTML =
+    divCard("우리 (부부 합산)", H) + divCard("우현", uh) + divCard("규리", gr);
+
+  // 계좌별 상세
+  const am = new Map();
+  for (const h of H) {
+    const k = h.owner + "|" + h.account;
+    const c = am.get(k) || { owner: h.owner, account: h.account, group: h.group, value: 0, div: 0 };
+    c.value += h.value_krw; c.div += h.div_krw;
+    am.set(k, c);
+  }
+  const rows = [...am.values()].filter(a => a.value > 0).sort((a, b) => b.value - a.value).map(a => `
+    <tr><td class="name">${a.account}</td><td>${a.owner}</td>
+      <td><span class="chip" style="background:${a.group === "연금성" ? "var(--c-vi)" : "var(--c-us)"}"></span>${a.group}</td>
+      <td><b>${fmtEok(a.value)}</b></td>
+      <td style="color:var(--ink-muted)">${a.div > 0 ? fmtMan(a.div) : "—"}</td></tr>`).join("");
+  document.getElementById("fin-detail").innerHTML =
+    `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>연 배당</th></tr></thead><tbody>${rows}</tbody>`;
+}
+
+function initTabs() {
+  const nav = document.getElementById("tabs");
+  nav.style.display = "flex";
+  nav.addEventListener("click", ev => {
+    const b = ev.target.closest(".tab");
+    if (!b) return;
+    for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
+    document.getElementById("tab-overview").style.display = b.dataset.tab === "overview" ? "" : "none";
+    document.getElementById("tab-financial").style.display = b.dataset.tab === "financial" ? "" : "none";
+  });
+}
+
 /* ---- 복호화 (scripts/crypto_util.py와 동일 포맷) ---- */
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
@@ -495,6 +670,10 @@ async function main() {
 
   // 추이
   lineChart(document.getElementById("trend"), hist);
+
+  // 금융자산 탭 (★주식계좌)
+  initTabs();
+  renderFinancial(snap.financial);
 
   // 상세 테이블 (자산 + 부채)
   const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => `
