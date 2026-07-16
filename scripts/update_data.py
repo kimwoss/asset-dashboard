@@ -17,6 +17,7 @@ import yfinance as yf
 import kb_api
 import sheets_fire
 import sheets_holdings
+import sheets_monthly
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -166,6 +167,12 @@ def main():
     # 금융자산 상세 (★주식계좌 탭) — 계좌별 보유·연 예상배당. 실패 시 {} → 탭만 생략.
     financial = sheets_holdings.fetch_holdings()
 
+    # 월별 흐름 — 이번 달 칸에 계좌별 합계를 기록(upsert)한 뒤 전체 이력을 읽어온다.
+    # GOOGLEFINANCE는 '지금'만 알기에, 각 달의 값을 이 시점에 얼려야 추이가 남는다.
+    if financial.get("holdings"):
+        sheets_monthly.write_current_month(financial["holdings"], now.date())
+    monthly = sheets_monthly.fetch_monthly(now.date())
+
     snapshot = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "fx_usdkrw": round(fx, 2),
@@ -178,6 +185,7 @@ def main():
         "liabilities": liabilities,
         "fire": fire,
         "financial": financial,
+        "monthly": monthly,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=1)
