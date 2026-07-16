@@ -16,6 +16,7 @@ import yfinance as yf
 
 import kb_api
 import sheets_fire
+import sheets_holdings
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -162,6 +163,9 @@ def main():
         print(f"OK: FIRE 목표 {fire.get('target_basic', 0)/1e8:.2f}억(기본)/"
               f"{fire.get('target_rich', 0)/1e8:.2f}억(부자) · 목표 {fire.get('target_year')}년")
 
+    # 금융자산 상세 (★주식계좌 탭) — 계좌별 보유·연 예상배당. 실패 시 {} → 탭만 생략.
+    financial = sheets_holdings.fetch_holdings()
+
     snapshot = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "fx_usdkrw": round(fx, 2),
@@ -173,6 +177,7 @@ def main():
         "assets": assets,
         "liabilities": liabilities,
         "fire": fire,
+        "financial": financial,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=1)
