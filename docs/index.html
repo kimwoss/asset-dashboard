@@ -164,6 +164,7 @@
   <section class="card">
     <h2>자산 구성</h2>
     <div class="donut-row" id="donuts"></div>
+    <div class="goal-sub" id="donut-note" style="margin-top:10px"></div>
   </section>
 
   <section class="card">
@@ -731,6 +732,23 @@ async function main() {
   const loan = sumL(L.filter(l => l.kind === "loan"));
   const C = { re: "var(--c-re)", uh: "var(--c-us)", gr: "var(--c-vi)", jeonse: "var(--c-kr)", cash: "var(--c-cash)", debt: "var(--c-debt)" };
 
+  // 순자산 배분 — 부채를 '그 부채가 산 자산'에 상계해 순지분만 남긴다.
+  // 순자산은 이미 부채를 뺀 결과이므로 대출을 조각으로 넣으면 범주 오류가 된다
+  // (구버전: 분모가 절대값 합이라 중앙 순자산값과 링 100%가 어긋났음).
+  const debtFor = t => sumL(L.filter(l => (l.target || "무담보") === t));
+  const reNet = re - debtFor("부동산");            // 부동산 − (임대보증금 + 주택담보)
+  const jeonseNet = jeonse - debtFor("전세보증금"); // 거주 전세 − 전세대출
+  const unsecured = debtFor("무담보");             // 담보 없는 대출 → 자산 비중대로 안분
+  const equity = [
+    { label: "부동산 순지분", value: reNet, color: C.re },
+    { label: "주식", value: stockUH + stockGR, color: C.uh },
+    { label: "전세 순지분", value: jeonseNet, color: C.jeonse },
+    { label: "현금", value: cash, color: C.cash },
+  ];
+  const equitySum = equity.reduce((s, x) => s + x.value, 0);
+  const k = equitySum > 0 ? (equitySum - unsecured) / equitySum : 0;  // 안분 후 합 = 순자산
+  const netSlices = equity.map(s => ({ ...s, value: s.value * k }));
+
   // 소유자별 순자산 (공동 자산·부채는 개인에게 50:50 배분)
   const onet = {};
   for (const a of A) onet[a.owner] = (onet[a.owner] || 0) + a.value_krw;
@@ -752,15 +770,14 @@ async function main() {
     ],
   });
   donut(donutCell(dc), {
-    title: "순자산 배분", caption: "전세보증금은 부동산에 상계", center: net, centerLabel: "순자산",
-    slices: [
-      { label: "부동산 순지분", value: re - rentalDep, color: C.re },
-      { label: "주식", value: stockUH + stockGR, color: C.uh },
-      { label: "전세보증금", value: jeonse, color: C.jeonse },
-      { label: "현금", value: cash, color: C.cash },
-      { label: "대출", value: loan, color: C.debt, neg: true },
-    ],
+    title: "순자산 배분", caption: "대출을 담보 자산에 상계한 순지분", center: net, centerLabel: "순자산",
+    slices: netSlices,
   });
+  document.getElementById("donut-note").textContent =
+    `순자산 배분: 임대 전세보증금·주택담보(${fmtEok(debtFor("부동산"))})는 부동산에, ` +
+    `전세대출(${fmtEok(debtFor("전세보증금"))})은 전세보증금에 상계` +
+    (unsecured > 0 ? ` · 무담보 대출 ${fmtEok(unsecured)}은 자산 비중대로 안분` : "");
+
   donut(donutCell(dc), {
     title: "각자 순자산 배분", caption: "공동 자산·부채 50:50 배분", center: net, centerLabel: "순자산",
     slices: [
