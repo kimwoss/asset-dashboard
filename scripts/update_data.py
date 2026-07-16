@@ -149,6 +149,8 @@ def main():
     liabilities = [{
         "name": l["name"], "owner": l.get("owner", ""),
         "kind": l.get("kind", "loan"),
+        # target: 이 부채가 조달한 자산군 — 대시보드가 순자산 배분에서 상계한다
+        "target": l.get("target", "무담보"),
         "amount_krw": l["amount_krw"], "note": l.get("note", ""),
     } for l in (pf.get("liabilities") or [])]
 
