@@ -220,6 +220,12 @@
   </section>
 
   <section class="card">
+    <h2>추종 지수별 노출</h2>
+    <div class="donut-row" id="fin-idx-donuts"></div>
+    <div class="goal-sub" id="fin-idx-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
     <h2>계좌 성격 — 연금성 vs 유동성</h2>
     <div id="fin-groups"></div>
     <div class="goal-sub" style="margin-top:10px">연금성 = 연저펀·IRP·퇴직연금 (인출 제약) · 유동성 = ISA·CMA·청약·현금</div>
@@ -477,6 +483,50 @@ const TCOL = {
 };
 const colorOf = t => TCOL[t] || "var(--baseline)";
 const fmtMan = v => Math.round(v / 1e4).toLocaleString("ko-KR") + "만원";
+
+/* 추종 지수별 분류 — 국내 상장 ETF도 실제로 추종하는 지수로 묶는다.
+   TIGER 미국배당다우존스는 SCHD와 같은 지수(Dow Jones US Dividend 100)라 합쳐야
+   실제 노출이 드러난다. 채권혼합50은 이름대로 나스닥100 50% + 채권 50%로 쪼갠다.
+   split: [[카테고리, 비중], ...] — 합이 1 */
+const IDX_GROUP = {
+  "SCHD":       [["미국 배당다우존스", 1]],
+  "KRX:458730": [["미국 배당다우존스", 1]],   // TIGER 미국배당다우존스 = 한국판 SCHD
+  "KRX:360750": [["S&P500", 1]],
+  "KRX:379810": [["나스닥100", 1]],
+  "KRX:435420": [["나스닥100", 0.5], ["채권", 0.5]],  // TIGER 미국나스닥100채권혼합50
+  "KRX:148020": [["국내 KOSPI200", 1]],
+  "KRX:161510": [["국내 고배당", 1]],
+};
+const IDX_COLOR = {
+  "미국 배당다우존스": "#1098AD", "나스닥100": "#7048E8", "S&P500": "#3182F6",
+  "국내 KOSPI200": "#E64980", "국내 고배당": "#37B24D",
+  "채권": "#0CA678", "현금": "var(--baseline)",
+};
+
+function byIndex(hs) {
+  const m = new Map();
+  for (const h of hs) {
+    if (!(h.value_krw > 0)) continue;
+    // 티커 없는 행(청약·CMA 예치금 등)은 현금
+    for (const [cat, w] of IDX_GROUP[h.ticker] || [["현금", 1]])
+      m.set(cat, (m.get(cat) || 0) + h.value_krw * w);
+  }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function indexDonut(cell, title, hs) {
+  const total = sum(hs);
+  if (total <= 0) {
+    cell.innerHTML = `<h3>${title}</h3><div class="cap">보유내역 입력 전</div>
+      <div style="height:150px;display:flex;align-items:center;color:var(--ink-muted);font-size:12.5px">—</div>`;
+    return;
+  }
+  donut(cell, {
+    title, caption: "추종 지수별", center: total, centerLabel: "금융자산",
+    slices: byIndex(hs).map(([cat, v]) => ({
+      label: cat, value: v, color: IDX_COLOR[cat] || "var(--baseline)" })),
+  });
+}
 
 function byName(hs) {
   const m = new Map();
@@ -829,6 +879,16 @@ function renderFinancial(fin) {
   portfolioDonut(donutCell(dc), "우리 (부부 합산)", H);
   portfolioDonut(donutCell(dc), "우현", uh);
   portfolioDonut(donutCell(dc), "규리", gr);
+
+  // 추종 지수별 — 국내 상장 ETF도 실제 추종 지수로 묶어 노출을 드러낸다
+  const ic = document.getElementById("fin-idx-donuts");
+  ic.innerHTML = "";
+  indexDonut(donutCell(ic), "우리 (부부 합산)", H);
+  indexDonut(donutCell(ic), "우현", uh);
+  indexDonut(donutCell(ic), "규리", gr);
+  document.getElementById("fin-idx-note").textContent =
+    "SCHD와 TIGER 미국배당다우존스는 같은 지수(Dow Jones US Dividend 100)라 합산 · " +
+    "TIGER 미국나스닥100채권혼합50은 나스닥100 50% + 채권 50%로 분리 · 티커 없는 예치금은 현금";
 
   // 연금성 vs 유동성
   const g = (hs, kind) => sum(hs.filter(h => h.group === kind));
