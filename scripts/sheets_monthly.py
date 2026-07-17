@@ -29,10 +29,6 @@ ACCT_ROW_FIRST, ACCT_ROW_LAST = 3, 15
 #   2026-07-17: 사용자가 5·6행의 과세/비과세 라벨을 맞바꿨는데 코드는 옛 행번호대로 써서
 #   두 계좌 값이 뒤바뀌었다. 이름 변경·행 삽입에 조용히 깨지는 구조라 라벨 기준으로 전환.
 
-# ★주식계좌 ↔ ★월별자산 이름이 다른 것만 별칭으로 잇는다 (그 외는 정규화 후 그대로 매칭)
-_ALIAS: Dict[tuple, tuple] = {
-    ("CMA(스토리지)", "규리"): ("현금", "규리"),  # 사용자 확인 — 월별자산 '현금'과 동일
-}
 _OWNER_KR = {"김우현": "우현", "문규리": "규리"}
 
 
@@ -74,6 +70,9 @@ LIAB_ROWS: Dict[int, tuple] = {
 }
 _OWNER_NORM = {"김우현": "우현", "문규리": "규리"}
 
+# 시트가 스스로 계산하는 월별 소계 행 (전월 대비 KPI의 폴백 기준값)
+SUMMARY_ROWS = {"gross": 25, "debt": 37, "net": 38}
+
 # 연간 열 (0-indexed): F~J = 2021~2025
 ANNUAL_COLS = {5: "2021", 6: "2022", 7: "2023", 8: "2024", 9: "2025"}
 MONTH_START_COL = 10   # K = 2026년 1월
@@ -103,23 +102,24 @@ def _group_of(name: str) -> str:
     return "연금성" if any(p in name for p in ("연저펀", "IRP", "퇴직연금", "연금저축")) else "유동성"
 
 
-def _totals_by_row(holdings: List[Dict], acct_rows: Dict[int, tuple]) -> Dict[int, float]:
-    """★주식계좌 보유내역 → ★월별자산 행별 합계. 행은 시트 라벨로 찾는다."""
-    # (정규화 계좌명, 소유자) → 행
-    index = {v: r for r, v in acct_rows.items()}
+def _totals_by_row(holdings: List[Dict], acct_rows: Dict[int, tuple]):
+    """★주식계좌 보유내역 → (행별 합계, 매핑 실패한 계좌들). 행은 시트 라벨로 찾는다.
+
+    두 탭의 계좌명은 _norm() 정규화 후 그대로 일치해야 한다. 별칭표를 두지 않는 이유:
+    한쪽 이름이 바뀌면 별칭이 조용히 엉뚱한 행을 가리키게 되기 때문이다
+    (2026-07-17 'CMA(스토리지)'→'현금' 별칭이 시트 이름 통일 후 오히려 매핑을 깨뜨렸다).
+    이름이 어긋나면 숨기지 말고 호출자가 기록을 멈추게 한다.
+    """
+    index = {v: r for r, v in acct_rows.items()}  # (정규화 계좌명, 소유자) → 행
     totals: Dict[int, float] = {}
     unmapped = set()
     for h in holdings:
-        key = (h["account"], h["owner"])
-        key = _ALIAS.get(key, key)
-        row = index.get((_norm(key[0]), key[1]))
+        row = index.get((_norm(h["account"]), h["owner"]))
         if row is None:
-            unmapped.add(key)
+            unmapped.add((h["account"], h["owner"]))
             continue
         totals[row] = totals.get(row, 0) + h["value_krw"]
-    if unmapped:
-        print(f"WARN: ★월별자산에 매핑 안 된 계좌 {unmapped} — 기록에서 제외됨")
-    return totals
+    return totals, unmapped
 
 
 def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> bool:
@@ -140,7 +140,13 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
         # 라벨을 먼저 읽어 행을 정한다 — 이름이 바뀌어도 따라간다
         acct_rows = _account_rows(ws.get(f"A1:D{ACCT_ROW_LAST}"))
-        totals = _totals_by_row(holdings, acct_rows)
+        totals, unmapped = _totals_by_row(holdings, acct_rows)
+        if unmapped:
+            # 부분 기록은 하지 않는다 — 매핑 못 한 계좌의 행에 0이 박혀 실제 잔액을
+            # 지워버린다 (2026-07-17 W13이 실제로 이렇게 0이 됐다).
+            print(f"ERROR: ★월별자산에 매핑 안 된 계좌 {unmapped} — 기록 전체 생략. "
+                  f"두 탭의 계좌명(C열)·소유자(D열)를 맞춰주세요.")
+            return False
         if not totals or sum(totals.values()) <= 0:
             print("WARN: 계좌 합계 0 — 기록 생략 (덮어쓰기 사고 방지)")
             return False
@@ -199,6 +205,41 @@ def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
         return {"periods": periods, "accounts": accounts}
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 월별 이력 읽기 실패 ({type(e).__name__}: {e})")
+        return {}
+
+
+def month_summary(y: int, m: int) -> Dict[str, float]:
+    """특정 달의 시트 기준 총자산·부채·순자산 소계. 그 달이 비었으면 {}.
+
+    전월 대비 KPI의 폴백 기준값 — 우리 history.csv에 그 달 실측이 없을 때만 쓴다.
+    시트는 부동산을 KB시세 대신 월 +0.9% 추정으로 굴리므로 우리 평가액과 몇 천만원
+    어긋난다 (2026-07: 시트 32.40억 vs 우리 32.63억). 부채는 우리도 이 시트에서
+    읽으므로 일치한다.
+    """
+    col = month_col(y, m)
+    if col is None:
+        return {}
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return {}
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        grid = ws.get(f"A{SUMMARY_ROWS['gross']}:BN{SUMMARY_ROWS['net']}",
+                      value_render_option="UNFORMATTED_VALUE")
+        base = SUMMARY_ROWS["gross"]
+
+        def cell(row1: int) -> float:
+            r = grid[row1 - base] if len(grid) > row1 - base else []
+            v = r[col] if len(r) > col else 0
+            return float(v) if isinstance(v, (int, float)) else 0.0
+
+        out = {k: cell(r) for k, r in SUMMARY_ROWS.items()}
+        if out["net"] <= 0:
+            return {}
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: {y}-{m:02d} 시트 소계 읽기 실패 ({type(e).__name__}: {e})")
         return {}
 
 

@@ -140,6 +140,8 @@
   .fact { background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; }
   .fact .l { font-size: 11.5px; color: var(--ink-2); margin-bottom: 4px; }
   .fact .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* 두 사람 나이 병기 — 한 줄에 들어가도록 조금 줄인다 */
+  .fact .v.dual { font-size: 13.5px; letter-spacing: -0.2px; white-space: nowrap; }
   .fact .s { font-size: 11px; color: var(--ink-muted); margin-top: 3px; }
   #err { color: var(--down); padding: 30px 10px; font-size: 14px; display: none; }
   #gate {
@@ -183,11 +185,13 @@
 <nav class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-tab="overview">자산 현황</button>
   <button class="tab" data-tab="financial">금융자산</button>
+  <button class="tab" data-tab="spending">월간 생활비</button>
   <button class="tab" data-tab="checkpoint">오늘의 체크포인트</button>
 </nav>
 
 <div id="tab-overview">
   <div class="cards" id="kpis"></div>
+  <div class="goal-sub" id="kpi-note" style="margin:-4px 0 14px"></div>
 
   <section class="card" id="fire-section" style="display:none">
     <h2>FIRE 목표 달성</h2>
@@ -264,6 +268,30 @@
   </section>
 </div>
 
+<div id="tab-spending" style="display:none">
+  <div class="cards" id="sp-kpis"></div>
+
+  <section class="card">
+    <h2>월별 카테고리 소비</h2>
+    <div id="sp-bars"></div>
+  </section>
+
+  <section class="card">
+    <h2>카테고리 비중</h2>
+    <div class="seg" id="sp-donut-seg">
+      <button class="seg-btn on" data-mode="ytd">올해 누적</button>
+      <button class="seg-btn" data-mode="last">이번 달</button>
+    </div>
+    <div class="donut-row" id="sp-donuts"></div>
+  </section>
+
+  <section class="card">
+    <h2>카테고리별 상세</h2>
+    <div style="overflow-x:auto"><table id="sp-table"></table></div>
+    <div class="goal-sub" id="sp-note" style="margin-top:10px"></div>
+  </section>
+</div>
+
 <div id="tab-checkpoint" style="display:none">
   <div id="cp-body"></div>
 </div>
@@ -314,7 +342,9 @@ function arcPath(cx, cy, rO, rI, a0, a1) {
 }
 
 function donut(cell, spec) {
-  // spec: {title, caption, center, centerLabel, slices:[{label,value,color,neg}]}
+  // spec: {title, caption, center, centerLabel, slices:[{label,value,color,neg}], fmt}
+  //   fmt: 값 표기 함수 (기본 억 단위). 생활비처럼 만원대 금액은 fmtMan을 넘긴다.
+  const F = spec.fmt || fmtEok;
   cell.innerHTML = "";
   const h3 = document.createElement("h3"); h3.textContent = spec.title; cell.appendChild(h3);
   const cap = document.createElement("div"); cap.className = "cap"; cap.textContent = spec.caption || ""; cell.appendChild(cap);
@@ -332,14 +362,14 @@ function donut(cell, spec) {
         stroke: "var(--surface-1)", "stroke-width": 1 }, svg);
       const sign = s.neg ? "−" : "";
       p.addEventListener("mousemove", ev => showTip(ev,
-        `<b>${s.label}</b><br>${sign}${fmtEok(Math.abs(s.value))} (${(frac * 100).toFixed(1)}%)` +
+        `<b>${s.label}</b><br>${sign}${F(Math.abs(s.value))} (${(frac * 100).toFixed(1)}%)` +
         `<br><span style="color:var(--ink-muted)">${sign}${fmtWon(Math.abs(s.value))}</span>`));
       p.addEventListener("mouseleave", hideTip);
     }
     ang += frac * 2 * Math.PI;
   }
   el("text", { x: cx, y: cy - 1, "text-anchor": "middle", "font-size": 21, "font-weight": 700, fill: "var(--ink-1)" }, svg)
-    .textContent = fmtEok(spec.center);
+    .textContent = F(spec.center);
   el("text", { x: cx, y: cy + 16, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
     .textContent = spec.centerLabel || "";
   cell.appendChild(svg);
@@ -458,18 +488,25 @@ function renderFire(f, net) {
     ${goal("부자 루트", "자산 유지·증식", f.target_rich, "var(--c-vi)")}
   </div>`;
 
+  // ★종합의 나이는 전부 우현 기준 한 사람 것이다. 규리는 age_gap살 아래(시트에 없어
+  // sheets_fire가 넘겨준다) — 나이가 나오는 자리마다 두 사람을 함께 적는다.
+  const dual = a => (f.age_gap && a) ? `${f.age_self} ${a} · ${f.age_spouse} ${a - f.age_gap}세` : `${a}세`;
+
   const facts = [];
   if (f.target_year) {
     const dday = Math.round((new Date(f.target_year, 11, 31) - new Date()) / 864e5);
-    const sub = dday > 0 ? `D-${dday} · ${Math.floor(dday / 365)}년 ${Math.floor(dday % 365 / 30)}개월` : "목표 시점 도래";
-    facts.push(["은퇴 목표", `${f.retire_age ? f.retire_age + "세 · " : ""}${f.target_year}년`, sub]);
+    const when = dday > 0 ? `D-${dday} · ${Math.floor(dday / 365)}년 ${Math.floor(dday % 365 / 30)}개월` : "목표 시점 도래";
+    facts.push(["은퇴 목표", f.retire_age ? dual(f.retire_age) : `${f.target_year}년`,
+                `${f.target_year}년 · ${when}`, !!f.retire_age]);
   }
   if (f.monthly_expense) facts.push(["은퇴 후 월생활비", fmtWon(f.monthly_expense), "물가 반영"]);
-  if (f.depletion_age) facts.push(["자산 소진 예상", `${f.depletion_age}세`, f.life_expectancy ? `기대수명 ${f.life_expectancy}세` : ""]);
+  if (f.depletion_age) facts.push(["자산 소진 예상", dual(f.depletion_age),
+                                   f.life_expectancy ? `기대수명 각 ${f.life_expectancy}세` : "", true]);
   if (f.real_return) facts.push(["세후 실질수익률", `${f.real_return}%`, "연 가정치"]);
+  if (f.current_age) facts.push(["현재 나이", dual(f.current_age), `${f.current_year || ""}년 기준`, true]);
   if (facts.length)
-    html += `<div class="fire-facts">${facts.map(([l, v, s]) =>
-      `<div class="fact"><div class="l">${l}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`).join("")}</div>`;
+    html += `<div class="fire-facts">${facts.map(([l, v, s, isDual]) =>
+      `<div class="fact"><div class="l">${l}</div><div class="v${isDual ? " dual" : ""}">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`).join("")}</div>`;
 
   html += `<div class="goal-sub" style="margin-top:13px">출처: ⭐️분당부부_MASTER ★종합 · 목표·가정치는 시트값, 달성률은 현재 순자산으로 실시간 재계산</div>`;
   document.getElementById("fire-body").innerHTML = html;
@@ -931,6 +968,148 @@ function renderFinancial(fin) {
     `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>연 배당(세전)</th><th>연 배당(세후)</th><th>세율 적용</th></tr></thead><tbody>${rows}</tbody>`;
 }
 
+/* ---- 월간 생활비 (시각화 탭 '상세항목별 지출 금액') ---- */
+const SP_COLORS = {
+  "생활": "#3182F6", "외식": "#FF6B6B", "교통": "#12B886", "쇼핑": "#F76707",
+  "여행": "#7048E8", "미용": "#E64980", "세금": "#868E96", "주거": "#0CA678",
+  "경조": "#FAB005", "가족": "#4C6EF5", "모임": "#15AABF", "기타": "#ADB5BD",
+};
+const spColor = (name, i) => SP_COLORS[name] || `hsl(${(i * 47) % 360} 62% 55%)`;
+// 만원 반올림 — Math.round(-2230/1e4)는 -0이라 그대로 찍으면 "-0"이 된다
+const manNum = v => { const r = Math.round(v / 1e4); return (r === 0 ? 0 : r).toLocaleString(); };
+
+/* 월별 스택 막대 — 막대 위에 합계, 모든 달 라벨 (마우스오버 없이 읽히게).
+   음수 항목(환급·정정)은 쌓지 않고 합계에만 반영한다. 스택 막대에 음수를 넣으면
+   기준선이 무너져 다른 달과 높이를 비교할 수 없게 되기 때문. */
+function stackedBars(container, months, series, totals) {
+  container.innerHTML = "";
+  const n = months.length;
+  if (!n) { container.textContent = "데이터가 아직 없습니다."; return; }
+  const W = Math.min(container.clientWidth || 900, 1000), H = 300;
+  const m = { l: 52, r: 12, t: 30, b: 30 };
+  const hi = Math.max(...totals, 1) * 1.12;
+  const bw = (W - m.l - m.r) / n;
+  const barW = Math.min(46, bw * 0.62);
+  const xc = i => m.l + bw * (i + 0.5);
+  const ys = v => m.t + (H - m.t - m.b) * (1 - v / hi);
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}` });
+
+  for (let g = 0; g <= 3; g++) {
+    const v = hi * g / 3, y = ys(v);
+    el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = manNum(v);
+  }
+
+  const base = new Array(n).fill(0);
+  for (const [si, s] of series.entries()) {
+    for (let i = 0; i < n; i++) {
+      const v = Math.max(0, s.values[i] || 0);
+      if (v <= 0) continue;
+      const y0 = ys(base[i]), y1 = ys(base[i] + v);
+      const r = el("rect", { x: xc(i) - barW / 2, y: y1, width: barW, height: Math.max(0.6, y0 - y1),
+                             fill: s.color, "fill-opacity": 0.92 }, svg);
+      r.addEventListener("mousemove", ev => showTip(ev,
+        `<b>${months[i].label}</b> · ${s.label}<br>${fmtWon(s.values[i])}` +
+        `<br><span style="color:var(--ink-muted)">합계 ${fmtWon(totals[i])} 중 ` +
+        `${totals[i] ? (s.values[i] / totals[i] * 100).toFixed(1) : 0}%</span>`));
+      r.addEventListener("mouseleave", hideTip);
+      base[i] += v;
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    el("text", { x: xc(i), y: ys(base[i]) - 8, "text-anchor": "middle", "font-size": 11.5,
+                 "font-weight": 700, fill: "var(--ink-1)" }, svg)
+      .textContent = manNum(totals[i]);
+    el("text", { x: xc(i), y: H - 9, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = months[i].label;
+  }
+  el("text", { x: m.l - 8, y: m.t - 12, "text-anchor": "end", "font-size": 10, fill: "var(--ink-muted)" }, svg)
+    .textContent = "만원";
+  container.appendChild(svg);
+
+  const lg = document.createElement("div"); lg.className = "legend";
+  for (const s of series) {
+    const sp = document.createElement("span"); sp.style.setProperty("--sw", s.color);
+    sp.textContent = s.label; lg.appendChild(sp);
+  }
+  container.appendChild(lg);
+}
+
+function renderSpending(sp) {
+  const tabBtn = document.querySelector('.tab[data-tab="spending"]');
+  if (!sp || !sp.categories || !sp.categories.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+
+  const months = sp.months.map(k => ({ key: k, label: `${+k.slice(5)}월` }));
+  const n = months.length;
+  const series = sp.categories.map((c, i) => ({ label: c.name, color: spColor(c.name, i), values: c.values }));
+  const totals = sp.total;
+
+  // KPI — 이번 달은 아직 진행 중이라 평균에서 뺀다 (반쪽 달이 평균을 끌어내린다)
+  const closed = totals.slice(0, -1);
+  const avg = closed.length ? closed.reduce((a, b) => a + b, 0) / closed.length : totals[n - 1];
+  const ytd = totals.reduce((a, b) => a + b, 0);
+  const cur = totals[n - 1];
+  const dv = avg ? (cur - avg) / avg * 100 : 0;
+  let cards = kpiCard(`${months[n - 1].label} 생활비`, fmtMan(cur),
+    closed.length ? `<span class="${dv <= 0 ? "delta-up" : "delta-down"}">${dv >= 0 ? "▲" : "▼"} ${Math.abs(dv).toFixed(0)}%</span> vs 월평균 · 진행 중` : "진행 중", true);
+  cards += kpiCard("월평균", fmtMan(avg), `${months[0].label}~${months[Math.max(0, n - 2)].label} 마감 ${closed.length}개월`);
+  cards += kpiCard(`${sp.year}년 누적`, fmtMan(ytd), `${n}개월 합계`);
+  document.getElementById("sp-kpis").innerHTML = cards;
+
+  stackedBars(document.getElementById("sp-bars"), months, series, totals);
+
+  // 카테고리 비중 도넛 (누적 / 이번 달)
+  const drawDonut = mode => {
+    const row = document.getElementById("sp-donuts"); row.innerHTML = "";
+    const pick = c => mode === "last" ? (c.values[n - 1] || 0) : c.values.reduce((a, b) => a + b, 0);
+    const slices = sp.categories.map((c, i) => ({ label: c.name, value: Math.max(0, pick(c)), color: spColor(c.name, i) }))
+      .filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+    const center = slices.reduce((s, x) => s + x.value, 0);
+    donut(donutCell(row), {
+      title: mode === "last" ? `${months[n - 1].label} 소비` : `${sp.year}년 누적 소비`,
+      caption: "카테고리별", center, centerLabel: "생활비", slices, fmt: fmtMan,
+    });
+  };
+  drawDonut("ytd");
+  document.getElementById("sp-donut-seg").addEventListener("click", ev => {
+    const b = ev.target.closest(".seg-btn"); if (!b) return;
+    for (const x of document.querySelectorAll("#sp-donut-seg .seg-btn")) x.classList.toggle("on", x === b);
+    drawDonut(b.dataset.mode);
+  });
+
+  // 표 — 카테고리 × 월 (연 누적 큰 순)
+  const rank = [...sp.categories].sort((a, b) =>
+    b.values.reduce((s, v) => s + v, 0) - a.values.reduce((s, v) => s + v, 0));
+  const cell = v => v ? `<td>${manNum(v)}</td>` : `<td style="color:var(--ink-muted)">·</td>`;
+  const body = rank.map(c => {
+    const i = sp.categories.indexOf(c);
+    return `<tr><td class="name"><span class="chip" style="background:${spColor(c.name, i)}"></span>${c.name}</td>
+      ${c.values.map(cell).join("")}
+      <td><b>${manNum(c.values.reduce((s, v) => s + v, 0))}</b></td></tr>`;
+  }).join("");
+  const totRow = `<tr style="border-top:2px solid var(--border)"><td class="name"><b>합계</b></td>
+    ${totals.map(v => `<td><b>${manNum(v)}</b></td>`).join("")}
+    <td><b>${manNum(ytd)}</b></td></tr>`;
+  // 제외 항목(분배)은 버리지 않고 아래에 남겨 원본과 대조할 수 있게 한다
+  const exRow = (sp.excluded || []).map(c =>
+    `<tr style="color:var(--ink-muted)"><td class="name">${c.name} <small>(제외)</small></td>
+      ${c.values.map(v => `<td>${manNum(v)}</td>`).join("")}
+      <td>${manNum(c.values.reduce((s, v) => s + v, 0))}</td></tr>`).join("");
+  document.getElementById("sp-table").innerHTML =
+    `<thead><tr><th>카테고리</th>${months.map(m => `<th>${m.label}</th>`).join("")}<th>누적</th></tr></thead>
+     <tbody>${body}${totRow}${exRow}</tbody>`;
+  document.getElementById("sp-table").insertAdjacentHTML("afterbegin",
+    `<caption style="caption-side:top;text-align:left;font-size:11.5px;color:var(--ink-muted);padding-bottom:6px">단위: 만원</caption>`);
+
+  const exNames = (sp.excluded || []).map(c => c.name).join("·");
+  document.getElementById("sp-note").innerHTML =
+    `출처: ⭐️분당부부_MASTER 시각화 · 상세항목별 지출 금액 (투자·대출/이자/보험은 생활비에서 제외)`
+    + (exNames ? `<br>${exNames}는 소비가 아니라 내부 배분이라 합계에서 뺐습니다 — 값은 표 맨 아래에 그대로 남겨뒀어요.` : "")
+    + `<br>환급·정정으로 음수인 항목은 막대에 쌓이지 않지만 합계에는 반영됩니다.`;
+}
+
 function initTabs() {
   const nav = document.getElementById("tabs");
   nav.style.display = "flex";
@@ -938,7 +1117,7 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["overview", "financial", "checkpoint"])
+    for (const id of ["overview", "financial", "spending", "checkpoint"])
       document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
   });
 }
@@ -1081,17 +1260,27 @@ async function main() {
   const net = snap.net_krw ?? snap.total_krw;
   const gross = snap.gross_krw ?? snap.assets.reduce((s, a) => s + a.value_krw, 0);
   const debt = snap.debt_krw ?? 0;
-  let deltaHtml = "";
-  if (hist.length >= 2) {
-    const prev = hist[hist.length - 2];
-    const d = net - prev.total, pct = (d / prev.total * 100).toFixed(2);
-    const cls = d >= 0 ? "delta-up" : "delta-down", arrow = d >= 0 ? "▲" : "▼";
-    deltaHtml = `<span class="${cls}">${arrow} ${fmtEok(Math.abs(d))} (${pct}%)</span> vs ${prev.date}`;
-  }
-  let cards = kpiCard("순자산", fmtEok(net), deltaHtml || "총자산 − 부채", true);
-  cards += kpiCard("총자산", fmtEok(gross), "부채 제외 전");
-  if (debt) cards += kpiCard("부채", "−" + fmtEok(debt), "대출·상환 예정");
+  // 전월 말 대비 — 자산은 하루로는 거의 움직이지 않아 '어제 대비'는 노이즈였다.
+  // 색은 방향이 아니라 '우리에게 좋은가'로 준다: 부채는 줄어드는 게 초록이다.
+  const pm = snap.prev_month;
+  const pmLabel = pm ? pm.key.replace("-", ".") + " 말" : "";
+  const delta = (now_, base, goodWhenDown) => {
+    if (!base) return "";
+    const d = now_ - base, pct = (d / base * 100).toFixed(2);
+    const good = goodWhenDown ? d <= 0 : d >= 0;
+    return `<span class="${good ? "delta-up" : "delta-down"}">${d >= 0 ? "▲" : "▼"} `
+         + `${fmtEok(Math.abs(d))} (${pct}%)</span> vs ${pmLabel}`;
+  };
+
+  let cards = kpiCard("순자산", fmtEok(net), (pm && delta(net, pm.net_krw)) || "총자산 − 부채", true);
+  cards += kpiCard("총자산", fmtEok(gross), (pm && delta(gross, pm.gross_krw)) || "부채 제외 전");
+  if (debt) cards += kpiCard("부채", "−" + fmtEok(debt), (pm && delta(debt, pm.debt_krw, true)) || "대출·상환 예정");
   document.getElementById("kpis").innerHTML = cards;
+  // 기준값이 어디서 왔는지 밝힌다 — 시트 소계는 부동산을 추정으로 굴려 우리 실시간
+  // 평가액과 계통 차이가 있다. 일별 기록이 한 달을 채우면 자동으로 실측 비교로 바뀐다.
+  document.getElementById("kpi-note").textContent = !pm ? "" : pm.source === "sheet"
+    ? `전월 대비 기준값은 ⭐️분당부부_MASTER ★월별자산 ${pm.key} 소계입니다 — 시트는 부동산을 추정으로 굴려 대시보드 실시간 평가액과 다소 차이가 납니다.`
+    : `전월 대비 기준값은 ${pm.key} 말 대시보드 자체 기록입니다.`;
 
   // FIRE 목표 달성 (★종합 시트) — 달성률은 위 실시간 net으로 재계산
   renderFire(snap.fire, net);
@@ -1155,6 +1344,7 @@ async function main() {
   initTabs();
   renderFinancial(snap.financial);
   renderMonthly(snap.monthly);
+  renderSpending(snap.spending);
   renderCheckpoint(snap.checkpoint);
 
   // 상세 테이블 (자산 + 부채)
