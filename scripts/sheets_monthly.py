@@ -8,6 +8,8 @@ GOOGLEFINANCE는 '지금' 시세만 안다 — 어제 값은 어디에도 남지
   write_current_month()  이번 달 칸에 계좌별 합계 upsert (실행할 때마다 덮어씀 →
                          달이 바뀌면 직전 달 마지막 값이 자연히 확정)
   fetch_monthly()        전체 이력 → 대시보드 monthly 블록
+  fetch_liabilities()    대출·전세보증금(26~35행) 최신 월 잔액 — 사용자가 매월초 수기
+                         갱신하는 영역을 읽기만 한다 (target 매핑은 코드가 유지)
 
 안전장치: 3~15행(말단 계좌)의 '값' 칸만 쓴다. 소계·증감률·과거 월은 건드리지 않는다.
 """
@@ -55,6 +57,22 @@ ACCOUNT_MAP: Dict[tuple, int] = {
     ("연금저축펀드", "규리"):     14,
     ("퇴직연금", "규리"):         15,
 }
+
+# 부채 행 (26~35) → (kind, target). 이름·소유자는 시트에서 읽는다.
+# target = 이 부채가 조달한 자산군 (순자산 배분 상계용) — 시트에 없는 정보라 코드가 유지.
+#   회사 대출(1.50%) → 전세보증금: 파크하비오 보증금 조달에 사용 (2026-07-17 사용자 확인)
+LIAB_ROWS: Dict[int, tuple] = {
+    26: ("loan", "무담보"),        # 우리은행 예금담보(4.18%)
+    27: ("loan", "무담보"),        # 회사 대출(2.50%)
+    28: ("loan", "부동산"),        # 디딤돌 주택담보(2.75%)
+    29: ("loan", "전세보증금"),    # 파크하비오 전세대출(4.08%)
+    30: ("loan", "전세보증금"),    # 회사 대출(1.50%)
+    31: ("loan", "무담보"),        # 부모님 대출(0%)
+    32: ("loan", "무담보"),        # 부모님 대출(5%)
+    34: ("rental_deposit", "부동산"),  # 인덕원삼호 전세보증금
+    35: ("rental_deposit", "부동산"),  # 송천센트레빌 전세보증금
+}
+_OWNER_NORM = {"김우현": "우현", "문규리": "규리"}
 
 # 연간 열 (0-indexed): F~J = 2021~2025
 ANNUAL_COLS = {5: "2021", 6: "2022", 7: "2023", 8: "2024", 9: "2025"}
@@ -176,6 +194,62 @@ def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 월별 이력 읽기 실패 ({type(e).__name__}: {e})")
         return {}
+
+
+def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
+    """★월별자산 26~35행에서 최신 월의 대출·전세보증금 잔액을 읽는다.
+
+    사용자가 매월초 수기 갱신하는 영역 — 이번 달이 비어 있으면(월초 갱신 전)
+    값이 있는 직전 달로 폴백한다. 실패/빈 결과 시 [] → 호출자가 yaml 폴백.
+    """
+    today = today or date.today()
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return []
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        grid = ws.get("A26:BN35", value_render_option="UNFORMATTED_VALUE")
+
+        def cell(row1: int, col0: int):
+            r = grid[row1 - 26] if len(grid) > row1 - 26 else []
+            return r[col0] if len(r) > col0 else ""
+
+        # 값이 있는 최신 월 열 탐색 (이번 달 → 과거로, 최대 12개월)
+        y, m = today.year, today.month
+        col, used = None, ""
+        for _ in range(12):
+            c = month_col(y, m)
+            if c is not None and any(
+                isinstance(cell(r, c), (int, float)) and cell(r, c) > 0 for r in LIAB_ROWS
+            ):
+                col, used = c, f"{y}-{m:02d}"
+                break
+            m -= 1
+            if m == 0:
+                y, m = y - 1, 12
+        if col is None:
+            print("WARN: ★월별자산 부채 영역에 최근 12개월 값 없음 — yaml 폴백")
+            return []
+
+        out: List[Dict] = []
+        for r, (kind, target) in LIAB_ROWS.items():
+            name = str(cell(r, 2)).strip()
+            amount = cell(r, col)
+            if not name or not isinstance(amount, (int, float)) or amount <= 0:
+                continue  # 상환 완료·빈 행은 제외
+            owner = _OWNER_NORM.get(str(cell(r, 3)).strip(), str(cell(r, 3)).strip() or "공동")
+            out.append({
+                "name": name, "owner": owner, "kind": kind, "target": target,
+                "amount_krw": round(amount),
+                "note": f"★월별자산 {used} 잔액" + (" · 파크하비오 보증금 조달" if r == 30 else ""),
+            })
+        total = sum(l["amount_krw"] for l in out)
+        print(f"OK: 부채 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {used})")
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 부채 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
+        return []
 
 
 if __name__ == "__main__":
