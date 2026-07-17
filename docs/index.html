@@ -278,11 +278,8 @@
 
   <section class="card">
     <h2>카테고리 비중</h2>
-    <div class="seg" id="sp-donut-seg">
-      <button class="seg-btn on" data-mode="ytd">올해 누적</button>
-      <button class="seg-btn" data-mode="last">이번 달</button>
-    </div>
     <div class="donut-row" id="sp-donuts"></div>
+    <div class="goal-sub" id="sp-donut-note" style="margin-top:10px"></div>
   </section>
 
   <section class="card">
@@ -1066,6 +1063,7 @@ function renderSpending(sp) {
 
   // KPI — 이번 달은 아직 진행 중이라 평균에서 뺀다 (반쪽 달이 평균을 끌어내린다)
   const closed = totals.slice(0, -1);
+  const cn = Math.max(1, closed.length);  // 마감 월 수 (1월뿐이면 그 달을 평균으로)
   const avg = closed.length ? closed.reduce((a, b) => a + b, 0) / closed.length : totals[n - 1];
   const ytd = totals.reduce((a, b) => a + b, 0);
   const cur = totals[n - 1];
@@ -1078,24 +1076,22 @@ function renderSpending(sp) {
 
   stackedBars(document.getElementById("sp-bars"), months, series, totals);
 
-  // 카테고리 비중 도넛 (누적 / 이번 달)
-  const drawDonut = mode => {
-    const row = document.getElementById("sp-donuts"); row.innerHTML = "";
-    const pick = c => mode === "last" ? (c.values[n - 1] || 0) : c.values.reduce((a, b) => a + b, 0);
+  // 카테고리 비중 — 누적·이번 달·월평균을 나란히. 탭으로 갈아끼우면 서로 비교가 안 됐다.
+  const row = document.getElementById("sp-donuts"); row.innerHTML = "";
+  const donutOf = (title, caption, pick) => {
     const slices = sp.categories.map((c, i) => ({ label: c.name, value: Math.max(0, pick(c)), color: spColor(c.name, i) }))
       .filter(s => s.value > 0).sort((a, b) => b.value - a.value);
-    const center = slices.reduce((s, x) => s + x.value, 0);
     donut(donutCell(row), {
-      title: mode === "last" ? `${months[n - 1].label} 소비` : `${sp.year}년 누적 소비`,
-      caption: "카테고리별", center, centerLabel: "생활비", slices, fmt: fmtMan,
+      title, caption, slices, fmt: fmtMan, centerLabel: "생활비",
+      center: slices.reduce((s, x) => s + x.value, 0),
     });
   };
-  drawDonut("ytd");
-  document.getElementById("sp-donut-seg").addEventListener("click", ev => {
-    const b = ev.target.closest(".seg-btn"); if (!b) return;
-    for (const x of document.querySelectorAll("#sp-donut-seg .seg-btn")) x.classList.toggle("on", x === b);
-    drawDonut(b.dataset.mode);
-  });
+  donutOf(`${sp.year}년 누적`, `${n}개월 합계`, c => c.values.reduce((a, b) => a + b, 0));
+  donutOf(months[n - 1].label, "진행 중", c => c.values[n - 1] || 0);
+  donutOf("월평균", `${months[0].label}~${months[cn - 1].label} 마감 ${cn}개월`,
+          c => c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn);
+  document.getElementById("sp-donut-note").textContent =
+    "월평균은 진행 중인 달을 뺀 마감 월만 평균냅니다 — 비중은 누적과 거의 같고, 가운데 금액이 '보통 달' 기준선입니다.";
 
   // 표 — 카테고리 × 월 (연 누적 큰 순)
   const rank = [...sp.categories].sort((a, b) =>
