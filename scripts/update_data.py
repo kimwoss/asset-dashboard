@@ -145,14 +145,18 @@ def main():
     if not assets:
         raise SystemExit("자산이 하나도 계산되지 않음 — 중단")
 
-    # 5) 부채
-    liabilities = [{
-        "name": l["name"], "owner": l.get("owner", ""),
-        "kind": l.get("kind", "loan"),
-        # target: 이 부채가 조달한 자산군 — 대시보드가 순자산 배분에서 상계한다
-        "target": l.get("target", "무담보"),
-        "amount_krw": l["amount_krw"], "note": l.get("note", ""),
-    } for l in (pf.get("liabilities") or [])]
+    # 5) 부채 — 원 소스는 ★월별자산 26~35행 (사용자가 매월초 잔액 수기 갱신).
+    #    시트를 못 읽으면 portfolio.yaml 값으로 폴백 (스냅샷이 오래됐을 수 있음).
+    liabilities = sheets_monthly.fetch_liabilities(now.date())
+    if not liabilities:
+        print("WARN: 부채를 yaml 폴백으로 사용 — ★월별자산 연결 확인 필요")
+        liabilities = [{
+            "name": l["name"], "owner": l.get("owner", ""),
+            "kind": l.get("kind", "loan"),
+            # target: 이 부채가 조달한 자산군 — 대시보드가 순자산 배분에서 상계한다
+            "target": l.get("target", "무담보"),
+            "amount_krw": l["amount_krw"], "note": l.get("note", ""),
+        } for l in (pf.get("liabilities") or [])]
 
     # 6) latest.json
     DATA_DIR.mkdir(parents=True, exist_ok=True)
