@@ -888,6 +888,44 @@ async function decryptEnvelope(envText, passphrase) {
   return new TextDecoder().decode(pt);
 }
 
+/* ---- 실시간 시세 (live-data 브랜치, 30분 갱신) ----
+   raw.githubusercontent.com은 CORS 허용 + 5분 캐시. 실패해도 무시하고 스냅샷을 쓴다. */
+const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/live.enc";
+
+async function loadLive(passphrase) {
+  try {
+    const r = await fetch(LIVE_URL + "?t=" + Math.floor(Date.now() / 60000));
+    if (!r.ok) return null;
+    return JSON.parse(await decryptEnvelope(await r.text(), passphrase));
+  } catch (e) {
+    console.warn("실시간 시세 실패 — 스냅샷 사용", e);
+    return null;
+  }
+}
+
+/* 스냅샷 위에 실시간 시세를 덮어쓴다. 뉴스·운세·부동산·배당은 그대로 둔다
+   (자주 안 바뀌고, 30분마다 재생성하면 AI 쿼터만 축낸다). */
+function applyLive(snap, live) {
+  if (!live) return null;
+  if (live.us && live.us.length && snap.checkpoint) snap.checkpoint.us = live.us;
+  if (live.fx && live.fx.length && snap.checkpoint) snap.checkpoint.fx = live.fx;
+  if (live.fx_usdkrw) snap.fx_usdkrw = live.fx_usdkrw;
+  // 계좌 평가액 — 보유 종목별 배분은 유지한 채 계좌 합계 비율로 스케일
+  if (live.accounts && snap.financial && snap.financial.holdings) {
+    const cur = {};
+    for (const h of snap.financial.holdings) {
+      const k = `${h.owner}|${h.account}`;
+      cur[k] = (cur[k] || 0) + h.value_krw;
+    }
+    for (const h of snap.financial.holdings) {
+      const k = `${h.owner}|${h.account}`;
+      if (live.accounts[k] != null && cur[k] > 0)
+        h.value_krw = Math.round(h.value_krw * (live.accounts[k] / cur[k]));
+    }
+  }
+  return live.updated_at || null;
+}
+
 async function loadData(passphrase) {
   const bust = "?t=" + Date.now();
   const [encSnap, encHist] = await Promise.all([
@@ -942,9 +980,13 @@ async function main() {
     return;
   }
 
-  document.getElementById("updated").textContent = "갱신: " + snap.updated_at;
+  // 실시간 시세 덮어쓰기 (30분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
+  const liveAt = applyLive(snap, await loadLive(localStorage.getItem("asset_pw")));
+
+  document.getElementById("updated").textContent =
+    liveAt ? `시세 ${liveAt} · 스냅샷 ${snap.updated_at}` : "갱신: " + snap.updated_at;
   document.getElementById("fx").textContent = snap.fx_usdkrw
-    ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$ (" + snap.fx_asof + ")"
+    ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$" + (liveAt ? "" : " (" + snap.fx_asof + ")")
     : "";
 
   // history → 일별 총자산

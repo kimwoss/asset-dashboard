@@ -1,0 +1,54 @@
+name: update-live-quotes
+
+# 30분마다 시세만 갱신 — 07:00 스냅샷을 온종일 보는 문제 해결용.
+# 무거운 잡(update.yml: AI·KB시세·배당·이력)과 분리했다. 미국장이 밤이라 24시간 돌린다.
+# public 레포라 Actions 무료·무제한. 시트 API는 회당 2~3콜(48회/일 ≈ 150콜)로 한도 여유.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+# main을 30분마다 더럽히지 않도록 live-data 고아 브랜치에 단일 커밋으로 굴린다.
+permissions:
+  contents: write
+
+concurrency:
+  group: update-live
+  cancel-in-progress: true   # 지연 누적 시 최신 것만 남기면 된다
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update live quotes
+        env:
+          ASSET_PASSPHRASE: ${{ secrets.ASSET_PASSPHRASE }}
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+        run: python scripts/update_live.py
+
+      - name: Publish to live-data branch
+        run: |
+          # 고아 브랜치에 live.enc 하나만. 매번 새로 만들어 force push →
+          # 히스토리가 1커밋으로 고정되고 main은 건드리지 않는다.
+          # 브라우저는 raw.githubusercontent.com/<repo>/live-data/live.enc 로 직접 받는다
+          # (CORS 허용 + 5분 캐시 확인 완료).
+          tmp=$(mktemp -d)
+          cp docs/data/live.enc "$tmp/live.enc"
+          cd "$tmp"
+          git init -q
+          git config user.name "asset-bot"
+          git config user.email "actions@github.com"
+          git checkout -q -b live-data
+          git add live.enc
+          git commit -q -m "live: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" live-data
+          echo "live-data 브랜치 갱신 완료"
