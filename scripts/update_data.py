@@ -20,6 +20,7 @@ import sheets_holdings
 import sheets_monthly
 import sheets_checkpoint
 import sheets_spending
+import sheets_cities
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -231,6 +232,9 @@ def main():
     # 월간 생활비 (시각화 탭 '상세항목별 지출 금액'). 실패 시 {} → 탭만 생략.
     spending = sheets_spending.fetch_spending(now.date())
 
+    # 살고싶은 도시 (🌍이주 대시보드) — Numbeo 기반 도시별 생활비. 실패 시 {} → 탭만 생략.
+    cities = sheets_cities.fetch_cities(now.date())
+
     # 전월 말 기준값 — KPI 3종의 '전월 대비'. history.csv를 다시 쓰기 전에 읽어야 한다.
     prev_month = prev_month_baseline(now.date(), DATA_DIR / "history.csv")
     if prev_month:
@@ -252,6 +256,7 @@ def main():
         "monthly": monthly,
         "checkpoint": checkpoint,
         "spending": spending,
+        "cities": cities,
         "prev_month": prev_month,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:

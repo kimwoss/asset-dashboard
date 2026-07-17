@@ -105,6 +105,23 @@
   .live-badge.on .dot { animation: livepulse 1.8s ease-in-out infinite; }
   @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
   .cp-mkt-note { font-size: 11.5px; color: var(--ink-muted); margin-top: 8px; }
+  /* 살고싶은 도시 */
+  .ct-bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .ct-bar-name { width: 92px; flex-shrink: 0; font-size: 13px; font-weight: 600; white-space: nowrap;
+                 overflow: hidden; text-overflow: ellipsis; }
+  .ct-bar-track { position: relative; flex: 1; height: 24px; background: var(--grid); border-radius: 6px; }
+  .ct-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+  .ct-bar-val { position: absolute; top: 0; left: 8px; height: 24px; display: flex; align-items: center;
+                font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink-1); white-space: nowrap; }
+  .ct-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+                    padding-bottom: 12px; border-bottom: 1px solid var(--grid); margin-bottom: 12px; }
+  .ct-detail-city { font-size: 19px; font-weight: 700; }
+  .ct-detail-sub { font-size: 11.5px; color: var(--ink-muted); margin-top: 3px; }
+  .ct-detail-fire { text-align: right; }
+  .ct-detail-fire-pct { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ct-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .ct-gtag { font-size: 10.5px; color: var(--ink-muted); background: var(--grid); border-radius: 4px;
+             padding: 1px 6px; margin-left: 5px; font-weight: 500; white-space: nowrap; }
   .news-item { padding: 11px 0; border-bottom: 1px solid var(--grid); }
   .news-item:last-child { border-bottom: none; }
   .news-title { font-size: 13.5px; font-weight: 600; color: var(--ink-1); line-height: 1.5; }
@@ -197,6 +214,7 @@
   <button class="tab on" data-tab="overview">자산 현황</button>
   <button class="tab" data-tab="financial">금융자산</button>
   <button class="tab" data-tab="spending">월간 생활비</button>
+  <button class="tab" data-tab="cities">살고싶은 도시</button>
   <button class="tab" data-tab="checkpoint">오늘의 체크포인트</button>
 </nav>
 
@@ -297,6 +315,28 @@
     <h2>카테고리별 상세</h2>
     <div style="overflow-x:auto"><table id="sp-table"></table></div>
     <div class="goal-sub" id="sp-note" style="margin-top:10px"></div>
+  </section>
+</div>
+
+<div id="tab-cities" style="display:none">
+  <div class="cards" id="ct-kpis"></div>
+
+  <section class="card">
+    <h2>도시별 월 생활비 — 서울 대비</h2>
+    <div id="ct-bars"></div>
+    <div class="goal-sub" id="ct-bars-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>도시 상세 비교</h2>
+    <div class="seg" id="ct-pick" style="flex-wrap:wrap"></div>
+    <div id="ct-detail"></div>
+  </section>
+
+  <section class="card">
+    <h2>전체 도시 한눈에</h2>
+    <div style="overflow-x:auto"><table id="ct-table"></table></div>
+    <div class="goal-sub" id="ct-note" style="margin-top:10px"></div>
   </section>
 </div>
 
@@ -1142,6 +1182,104 @@ function renderSpending(sp) {
     + `<br>환급·정정으로 음수인 항목은 막대에 쌓이지 않지만 합계에는 반영됩니다.`;
 }
 
+/* ---- 살고싶은 도시 (🌍이주 대시보드 · Numbeo 기반) ---- */
+const ctShort = n => String(n || "").split(",")[0].trim();          // "New York, NY, US" → "New York"
+const ctCountry = n => { const p = String(n || "").split(","); return p.slice(1).join(",").trim(); };
+
+function renderCities(ct, net) {
+  const tabBtn = document.querySelector('.tab[data-tab="cities"]');
+  if (!ct || !ct.cities || !ct.cities.length || !ct.seoul) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  const seoul = ct.seoul;
+  const byCost = [...ct.cities].sort((a, b) => a.avg_monthly - b.avg_monthly);
+  const cheapest = byCost[0];
+  const reachable = ct.cities.filter(c => c.fire_target > 0 && net >= c.fire_target).length;
+  const vsSeoul = c => seoul.avg_monthly ? c.avg_monthly / seoul.avg_monthly * 100 : 0;
+
+  // KPI — 서울 기준 · 최저 도시 · 지금 순자산으로 은퇴 가능한 도시 수
+  document.getElementById("ct-kpis").innerHTML =
+    kpiCard("서울 (기준)", fmtMan(seoul.avg_monthly) + "/월", `FIRE 필요 ${fmtEok(seoul.fire_target)} · 연 ${fmtMan(seoul.annual_budget)}`, true) +
+    kpiCard(`가장 저렴 · ${esc(ctShort(cheapest.name))}`, fmtMan(cheapest.avg_monthly) + "/월", `서울 대비 ${vsSeoul(cheapest).toFixed(0)}% · 월 ${fmtMan(seoul.avg_monthly - cheapest.avg_monthly)} 절약`) +
+    kpiCard("지금 순자산으로 은퇴 가능", `${reachable} / ${ct.cities.length}곳`, `현재 순자산 ${fmtEok(net)} 기준 · 도시별 FIRE 필요자금 대비`);
+
+  // 서울 대비 가로 막대 (도시명이 길어 가로가 읽기 좋다). 서울은 기준선으로 표시.
+  const rows = [{ ...seoul, _seoul: true }, ...byCost];
+  const maxV = Math.max(...rows.map(r => r.avg_monthly)) * 1.02;
+  document.getElementById("ct-bars").innerHTML = rows.map(c => {
+    const w = c.avg_monthly / maxV * 100, vs = vsSeoul(c);
+    const col = c._seoul ? "var(--baseline)" : vs <= 100 ? "var(--up)" : "var(--c-us)";
+    const tag = c._seoul ? "기준" : (vs <= 100 ? `-${(100 - vs).toFixed(0)}%` : `+${(vs - 100).toFixed(0)}%`);
+    return `<div class="ct-bar-row">
+      <div class="ct-bar-name" title="${esc(c.name)}">${esc(ctShort(c.name))}${c._seoul ? " ⭐" : ""}</div>
+      <div class="ct-bar-track"><div class="ct-bar-fill" style="width:${w}%;background:${col}"></div>
+        <span class="ct-bar-val">${fmtMan(c.avg_monthly)} <b style="color:${col}">${tag}</b></span></div>
+    </div>`;
+  }).join("");
+  document.getElementById("ct-bars-note").textContent =
+    "Numbeo 실시간 물가로 계산한 도시별 월 생활비 · 초록=서울보다 저렴 · 파랑=서울보다 비쌈";
+
+  // 도시 선택 → 상세 (카테고리별 서울 대비 + 실시간 순자산 달성률)
+  const pick = document.getElementById("ct-pick");
+  pick.innerHTML = byCost.map((c, i) =>
+    `<button class="seg-btn${i === 0 ? " on" : ""}" data-i="${i}">${esc(ctShort(c.name))}</button>`).join("");
+  const drawDetail = c => {
+    const pctFire = c.fire_target ? net / c.fire_target * 100 : 0;
+    const cats = (ct.categories || []).map((m, k) => ({
+      name: m.name, group: m.group, seoul: seoul.categories[k] || 0, city: c.categories[k] || 0,
+    })).filter(x => x.seoul || x.city).sort((a, b) => b.city - a.city);
+    const gTag = g => g ? `<span class="ct-gtag">${esc(g)}</span>` : "";
+    const catRows = cats.map(x => {
+      const r = x.seoul ? x.city / x.seoul : 1, dn = r < 1;
+      return `<tr><td class="name">${esc(x.name)} ${gTag(x.group)}</td>
+        <td>${fmtMan(x.seoul)}</td><td><b>${fmtMan(x.city)}</b></td>
+        <td class="${dn ? "delta-up" : r > 1 ? "delta-down" : ""}">×${r.toFixed(2)}</td></tr>`;
+    }).join("");
+    document.getElementById("ct-detail").innerHTML = `
+      <div class="ct-detail-head">
+        <div><div class="ct-detail-city">${esc(ctShort(c.name))}</div>
+          <div class="ct-detail-sub">${esc(ctCountry(c.name))} · ${esc(c.status || "")}</div></div>
+        <div class="ct-detail-fire">
+          <div class="ct-detail-fire-pct" style="color:${pctFire >= 100 ? "var(--up)" : "var(--c-us)"}">${pctFire.toFixed(1)}%</div>
+          <div class="ct-detail-sub">FIRE 달성 (필요 ${fmtEok(c.fire_target)})</div></div>
+      </div>
+      <div class="ct-facts">
+        <div class="fact"><div class="l">월 생활비</div><div class="v">${fmtMan(c.avg_monthly)}</div><div class="s">서울 대비 ${vsSeoul(c).toFixed(0)}%</div></div>
+        <div class="fact"><div class="l">연간 사용예산</div><div class="v">${fmtMan(c.annual_budget)}</div><div class="s">월 생활비×12 + 연 고정비</div></div>
+        <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${fmtMan(c.monthly_total)}</div><div class="s">현지 물가 연동 항목</div></div>
+        <div class="fact"><div class="l">연 고정비</div><div class="v">${fmtMan(c.annual_fixed)}</div><div class="s">한국 귀속·수동 항목</div></div>
+      </div>
+      <div style="overflow-x:auto;margin-top:14px"><table class="mkt">
+        <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
+        <tbody>${catRows}</tbody></table></div>`;
+  };
+  drawDetail(byCost[0]);
+  pick.addEventListener("click", ev => {
+    const b = ev.target.closest(".seg-btn"); if (!b) return;
+    for (const x of pick.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);
+    drawDetail(byCost[+b.dataset.i]);
+  });
+
+  // 전체 표
+  const trow = c => {
+    const pctFire = c.fire_target ? net / c.fire_target * 100 : 0, vs = vsSeoul(c);
+    return `<tr>
+      <td class="name">${esc(ctShort(c.name))}<span class="mkt-asof">${esc(ctCountry(c.name))}</span></td>
+      <td><b>${fmtMan(c.avg_monthly)}</b></td>
+      <td class="${vs <= 100 ? "delta-up" : "delta-down"}">${vs.toFixed(0)}%</td>
+      <td>${fmtMan(c.annual_budget)}</td>
+      <td>${fmtEok(c.fire_target)}</td>
+      <td class="${pctFire >= 100 ? "delta-up" : ""}"><b>${pctFire.toFixed(0)}%</b></td></tr>`;
+  };
+  document.getElementById("ct-table").innerHTML = `
+    <thead><tr><th>도시</th><th>월 생활비</th><th>서울대비</th><th>연 예산</th><th>FIRE 필요</th><th>달성률</th></tr></thead>
+    <tbody><tr style="background:var(--page)"><td class="name"><b>서울 ⭐</b></td>
+      <td><b>${fmtMan(seoul.avg_monthly)}</b></td><td>100%</td><td>${fmtMan(seoul.annual_budget)}</td>
+      <td>${fmtEok(seoul.fire_target)}</td><td><b>${seoul.fire_target ? (net / seoul.fire_target * 100).toFixed(0) : 0}%</b></td></tr>
+      ${byCost.map(trow).join("")}</tbody>`;
+  document.getElementById("ct-note").innerHTML =
+    "출처: ⭐️분당부부_MASTER 🌍이주 대시보드 · Numbeo 실시간 물가 기반. 달성률은 <b>현재 순자산</b>으로 재계산.<br>"
+    + "도시를 더하거나 바꾸려면 시트 4행에 Numbeo 영문 도시명을 입력하세요 — 다음 갱신 때 여기 반영됩니다. (웹은 정적 호스팅이라 브라우저에서 Numbeo를 직접 조회할 수 없어요.)";
+}
+
 function initTabs() {
   const nav = document.getElementById("tabs");
   nav.style.display = "flex";
@@ -1149,7 +1287,7 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["overview", "financial", "spending", "checkpoint"])
+    for (const id of ["overview", "financial", "spending", "cities", "checkpoint"])
       document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
   });
 }
@@ -1380,6 +1518,7 @@ async function main() {
   renderFinancial(snap.financial);
   renderMonthly(snap.monthly);
   renderSpending(snap.spending);
+  renderCities(snap.cities, net);
   renderCheckpoint(snap.checkpoint);
 
   // 상세 테이블 (자산 + 부채)
