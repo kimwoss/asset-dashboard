@@ -18,6 +18,7 @@ import kb_api
 import sheets_fire
 import sheets_holdings
 import sheets_monthly
+import sheets_checkpoint
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -179,6 +180,9 @@ def main():
         sheets_monthly.write_current_month(financial["holdings"], now.date())
     monthly = sheets_monthly.fetch_monthly(now.date())
 
+    # 오늘의 체크포인트 — 분당부부 모닝 리포트(별도 private 레포)가 시트에 남긴 페이로드.
+    checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
+
     snapshot = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "fx_usdkrw": round(fx, 2),
@@ -192,6 +196,7 @@ def main():
         "fire": fire,
         "financial": financial,
         "monthly": monthly,
+        "checkpoint": checkpoint,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=1)
