@@ -94,6 +94,17 @@
   table.mkt tr:last-child td { border-bottom: none; }
   .mkt-px { color: var(--ink-1); font-weight: 600; }
   .mkt-asof { font-size: 11px; color: var(--ink-muted); font-weight: 400; margin-left: 5px; }
+  /* 시세 카드 헤더 — 제목 왼쪽, 실시간 기준시각 배지 오른쪽 */
+  .cp-mkt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .cp-mkt-head h2 { margin: 0; }
+  .live-badge { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+                white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+  .live-badge.on  { color: var(--up); background: color-mix(in srgb, var(--up) 14%, transparent); }
+  .live-badge.off { color: var(--ink-muted); background: var(--grid); }
+  .live-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .live-badge.on .dot { animation: livepulse 1.8s ease-in-out infinite; }
+  @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .cp-mkt-note { font-size: 11.5px; color: var(--ink-muted); margin-top: 8px; }
   .news-item { padding: 11px 0; border-bottom: 1px solid var(--grid); }
   .news-item:last-child { border-bottom: none; }
   .news-title { font-size: 13.5px; font-weight: 600; color: var(--ink-1); line-height: 1.5; }
@@ -731,17 +742,24 @@ function renderCheckpoint(cp) {
     ${cp.summary ? `<div class="cp-quote">📌 ${esc(cp.summary)}</div>` : ""}
   </section>`;
 
-  // 지수 · 환율
+  // 지수 · 환율 — 제목은 고정("미국 지수" 등)으로, 실시간 여부는 기준시각 배지로 알린다.
+  // cp.live_at 은 30분 시세 잡(live.enc)이 붙었을 때만 채워진다. 없으면 07:00 스냅샷.
+  const badge = cp.live_at
+    ? `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`
+    : `<span class="live-badge off">오늘 아침 스냅샷${cp.generated_at ? ` · ${esc((cp.generated_at).slice(11,16))}` : ""}</span>`;
+  const mktSection = (title, arr, extra = "") => !(arr || []).length ? "" : `<section class="card">
+    <div class="cp-mkt-head"><h2>${title}</h2>${badge}</div>
+    ${mktTable(arr)}${extra}</section>`;
+
   const fg = cp.fear_greed || {};
   const fgLine = fg.score != null
     ? `공포탐욕 <b>${fg.score}</b> (${esc(fg.label || "")})${fg.vix ? ` · VIX ${fg.vix.toFixed(1)}` : ""}` : "";
-  h += `<section class="card">
-    <h2>${esc(cp.us_label || "미국장")}</h2>
-    ${mktTable(cp.us)}
-    ${fgLine ? `<div class="goal-sub" style="margin-top:10px">${fgLine}</div>` : ""}
-  </section>`;
-  if ((cp.kr || []).length) h += `<section class="card"><h2>국내 지수·ETF</h2>${mktTable(cp.kr)}</section>`;
-  if ((cp.fx || []).length) h += `<section class="card"><h2>환율</h2>${mktTable(cp.fx)}</section>`;
+  const usAsof = (cp.us || []).map(i => i.asof).filter(Boolean).sort().pop();
+  const usNote = `<div class="cp-mkt-note">${usAsof ? `가격은 ${esc(usAsof.slice(5))} 종가 기준 · ` : ""}수익률은 1일/1주/1개월/1년 전 종가 대비</div>`
+    + (fgLine ? `<div class="goal-sub" style="margin-top:6px">${fgLine}</div>` : "");
+  h += mktSection("미국 지수", cp.us, usNote);
+  h += mktSection("국내 지수·ETF", cp.kr, `<div class="cp-mkt-note">수익률은 1일/1주/1개월/1년 전 종가 대비</div>`);
+  h += mktSection("환율", cp.fx, `<div class="cp-mkt-note">원/달러·원/엔(100엔 기준)</div>`);
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
     <div style="font-size:13.5px">🗓️ ${esc(cp.macro_dday)}</div></section>`;
 
@@ -1169,8 +1187,11 @@ async function loadLive(passphrase) {
 function applyLive(snap, live) {
   if (!live) return null;
   if (snap.checkpoint) {
+    let applied = false;
     for (const k of ["us", "kr", "fx"])
-      if (live[k] && live[k].length) snap.checkpoint[k] = live[k];
+      if (live[k] && live[k].length) { snap.checkpoint[k] = live[k]; applied = true; }
+    // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
+    if (applied) snap.checkpoint.live_at = live.updated_at || null;
   }
   if (live.fx_usdkrw) snap.fx_usdkrw = live.fx_usdkrw;
   // 계좌 평가액 — 보유 종목별 배분은 유지한 채 계좌 합계 비율로 스케일
