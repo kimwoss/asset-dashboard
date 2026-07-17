@@ -22,41 +22,41 @@ import sheets_fire  # 인증 재사용
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "★월별자산(2026년)"
 
-# ★월별자산 계좌 행 (1-indexed) → (표시명, 소유자)
-MONTHLY_ROWS: Dict[int, tuple] = {
-    3:  ("주택청약종합저축", "우현"),
-    4:  ("주택청약종합저축", "규리"),
-    5:  ("연저펀(과세)", "우현"),
-    6:  ("연저펀(비과세)", "우현"),
-    7:  ("IRP", "우현"),
-    8:  ("ISA", "우현"),
-    9:  ("ISA", "규리"),
-    10: ("퇴직연금(DC)", "우현"),
-    11: ("CMA", "우현"),
-    12: ("CMA", "규리"),
-    13: ("현금", "규리"),
-    14: ("연금저축펀드", "규리"),
-    15: ("퇴직연금", "규리"),
-}
+# 계좌 행 탐색 범위 (3~15행이 말단 계좌, 16행부터 소계)
+ACCT_ROW_FIRST, ACCT_ROW_LAST = 3, 15
 
-# ★주식계좌 (계좌, 소유자) → ★월별자산 행. 2026-07 드라이런에서 13계좌 중
-# 11개가 1원도 차이 없이 일치해 매핑을 검증했다 (과세/비과세는 월별자산 쪽이 뒤바뀐 것으로 확인).
-ACCOUNT_MAP: Dict[tuple, int] = {
-    ("주택청약종합저축", "우현"): 3,
-    ("주택청약종합저축", "규리"): 4,
-    ("연저펀(과세)", "우현"):     5,
-    ("연저펀(비과세)", "우현"):   6,
-    ("IRP", "우현"):              7,
-    ("ISA", "우현"):              8,
-    ("ISA", "규리"):              9,
-    ("퇴직연금(DC)", "우현"):     10,
-    ("CMA", "우현"):              11,   # 직접투자 종목(RISE200·SCHD 등) 합산
-    ("CMA", "규리"):              12,
-    ("CMA(스토리지)", "규리"):    13,   # = 월별자산 '현금'(규리)
-    ("현금", "규리"):             13,
-    ("연금저축펀드", "규리"):     14,
-    ("퇴직연금", "규리"):         15,
+# ⚠️ 행 번호를 하드코딩하지 않는다. 매번 시트의 라벨(C=종류, D=이름)을 읽어 행을 찾는다.
+#   2026-07-17: 사용자가 5·6행의 과세/비과세 라벨을 맞바꿨는데 코드는 옛 행번호대로 써서
+#   두 계좌 값이 뒤바뀌었다. 이름 변경·행 삽입에 조용히 깨지는 구조라 라벨 기준으로 전환.
+
+# ★주식계좌 ↔ ★월별자산 이름이 다른 것만 별칭으로 잇는다 (그 외는 정규화 후 그대로 매칭)
+_ALIAS: Dict[tuple, tuple] = {
+    ("CMA(스토리지)", "규리"): ("현금", "규리"),  # 사용자 확인 — 월별자산 '현금'과 동일
 }
+_OWNER_KR = {"김우현": "우현", "문규리": "규리"}
+
+
+def _norm(name: str) -> str:
+    """'미래에셋 연저펀(과세)' → '연저펀(과세)' — 두 탭의 표기 차이를 흡수."""
+    n = str(name or "").strip()
+    for prefix in ("미래에셋 ", "미래에셋"):
+        if n.startswith(prefix):
+            n = n[len(prefix):]
+            break
+    return n.replace(" ", "")
+
+
+def _account_rows(grid: List[List]) -> Dict[int, tuple]:
+    """★월별자산 3~15행 → {행: (정규화 계좌명, 소유자)}. 시트 라벨이 유일한 근거."""
+    out: Dict[int, tuple] = {}
+    for r in range(ACCT_ROW_FIRST, ACCT_ROW_LAST + 1):
+        row = grid[r - 1] if len(grid) >= r else []
+        name = _norm(row[2] if len(row) > 2 else "")
+        owner_raw = str(row[3] if len(row) > 3 else "").strip()
+        owner = _OWNER_KR.get(owner_raw, owner_raw)
+        if name and owner:
+            out[r] = (name, owner)
+    return out
 
 # 부채 행 (26~35) → (kind, target). 이름·소유자는 시트에서 읽는다.
 # target = 이 부채가 조달한 자산군 (순자산 배분 상계용) — 시트에 없는 정보라 코드가 유지.
@@ -103,13 +103,16 @@ def _group_of(name: str) -> str:
     return "연금성" if any(p in name for p in ("연저펀", "IRP", "퇴직연금", "연금저축")) else "유동성"
 
 
-def _totals_by_row(holdings: List[Dict]) -> Dict[int, float]:
-    """★주식계좌 보유내역 → ★월별자산 행별 합계."""
+def _totals_by_row(holdings: List[Dict], acct_rows: Dict[int, tuple]) -> Dict[int, float]:
+    """★주식계좌 보유내역 → ★월별자산 행별 합계. 행은 시트 라벨로 찾는다."""
+    # (정규화 계좌명, 소유자) → 행
+    index = {v: r for r, v in acct_rows.items()}
     totals: Dict[int, float] = {}
     unmapped = set()
     for h in holdings:
         key = (h["account"], h["owner"])
-        row = ACCOUNT_MAP.get(key)
+        key = _ALIAS.get(key, key)
+        row = index.get((_norm(key[0]), key[1]))
         if row is None:
             unmapped.add(key)
             continue
@@ -128,10 +131,6 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
     if col is None:
         print(f"WARN: {today:%Y-%m}은 ★월별자산 범위 밖 — 기록 생략 (열 확장 필요)")
         return False
-    totals = _totals_by_row(holdings)
-    if not totals or sum(totals.values()) <= 0:
-        print("WARN: 계좌 합계 0 — 기록 생략 (덮어쓰기 사고 방지)")
-        return False
     try:
         import gspread
         gc = sheets_fire._authorize(gspread)
@@ -139,10 +138,16 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
             print("WARN: 시트 인증 없음 — 월별 기록 생략")
             return False
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        # 라벨을 먼저 읽어 행을 정한다 — 이름이 바뀌어도 따라간다
+        acct_rows = _account_rows(ws.get(f"A1:D{ACCT_ROW_LAST}"))
+        totals = _totals_by_row(holdings, acct_rows)
+        if not totals or sum(totals.values()) <= 0:
+            print("WARN: 계좌 합계 0 — 기록 생략 (덮어쓰기 사고 방지)")
+            return False
         a1 = _col_a1(col)
         # 말단 계좌 행만, 한 칸씩 (소계·증감률 절대 미접촉)
         cells = [{"range": f"{a1}{row}", "values": [[round(totals.get(row, 0))]]}
-                 for row in MONTHLY_ROWS]
+                 for row in acct_rows]
         ws.batch_update(cells, value_input_option="USER_ENTERED")
         print(f"OK: ★월별자산 {today:%Y-%m} ({a1}열) 기록 — 계좌 합계 "
               f"{sum(totals.values())/1e8:.2f}억")
@@ -162,6 +167,7 @@ def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
             return {}
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
         grid = ws.get("A1:BN16", value_render_option="UNFORMATTED_VALUE")
+        acct_rows = _account_rows(grid)  # 라벨 기준 — 이름이 바뀌어도 따라간다
 
         def cell(row1: int, col0: int) -> float:
             r = grid[row1 - 1] if len(grid) >= row1 else []
@@ -176,7 +182,7 @@ def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
             c = month_col(y, m)
             if c is None:
                 break
-            if any(cell(r, c) for r in MONTHLY_ROWS):  # 빈 달은 건너뜀
+            if any(cell(r, c) for r in acct_rows):  # 빈 달은 건너뜀
                 periods.append({"key": f"{y}-{m:02d}", "label": f"{str(y)[2:]}.{m:02d}"})
                 cols.append(c)
             m += 1
@@ -186,7 +192,7 @@ def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
         accounts = [{
             "name": name, "owner": owner, "group": _group_of(name),
             "values": [round(cell(row, c)) for c in cols],
-        } for row, (name, owner) in MONTHLY_ROWS.items()]
+        } for row, (name, owner) in acct_rows.items()]
 
         total = sum(a["values"][-1] for a in accounts) if periods else 0
         print(f"OK: 월별 이력 {len(periods)}기간 · 최신 {total/1e8:.2f}억")
