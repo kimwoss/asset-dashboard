@@ -23,6 +23,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
 import crypto_util
+import news_feed
 import sheets_holdings
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -130,6 +131,13 @@ def main():
     if not us and not fx and not accounts:
         raise SystemExit("실시간 데이터가 하나도 없음 — 중단 (빈 live.enc 방지)")
 
+    # 3) 관심 뉴스 — 30분마다 최신으로. 실패해도 시세는 나가야 하니 []로 폴백.
+    try:
+        news = news_feed.fetch_news()
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 뉴스 조회 실패 ({type(e).__name__}: {e})")
+        news = []
+
     live = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "updated_iso": now.isoformat(),
@@ -139,6 +147,7 @@ def main():
         "fx_usdkrw": round(fin.get("fx") or (fx[0]["rate"] if fx else 0), 2),
         "accounts": accounts,
         "financial_total": total,
+        "news": news,
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "live.json").write_text(
@@ -146,7 +155,7 @@ def main():
     crypto_util.encrypt_file(DATA_DIR / "live.json", DATA_DIR / "live.enc",
                              crypto_util.get_passphrase())
     print(f"OK: live.enc — 미국 {len(us)}건 · 국내 {len(kr)}건 · 환율 {len(fx)}건 · "
-          f"계좌 {len(accounts)}개 {total/1e8:.2f}억 ({now:%H:%M} KST)")
+          f"계좌 {len(accounts)}개 {total/1e8:.2f}억 · 뉴스 {len(news)}건 ({now:%H:%M} KST)")
 
 
 if __name__ == "__main__":
