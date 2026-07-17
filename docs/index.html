@@ -198,6 +198,17 @@
     <div class="goal-sub" style="margin-top:10px">최근 12개월 실지급 배당(주당) × 보유수량 기준 · USD 종목은 현재 환율 적용</div>
   </section>
 
+  <section class="card" id="fin-divmo-card" style="display:none">
+    <h2>월별 배당금</h2>
+    <div class="seg" id="fin-divmo-seg">
+      <button class="seg-btn on" data-mode="net">세후</button>
+      <button class="seg-btn" data-mode="gross">세전</button>
+    </div>
+    <div id="fin-divmo"></div>
+    <div style="overflow-x:auto; margin-top:14px"><table id="fin-divmo-tbl"></table></div>
+    <div class="goal-sub" id="fin-divmo-note" style="margin-top:10px"></div>
+  </section>
+
   <section class="card" id="fin-trend-card" style="display:none">
     <h2>월별 흐름</h2>
     <div class="seg" id="fin-trend-seg">
@@ -545,6 +556,112 @@ function renderMonthly(mon) {
     }));
 }
 
+/* ---- 월별 배당 (계좌별 스택 막대 + 세전/세후 토글) ---- */
+function barStack(container, labels, series) {
+  container.innerHTML = "";
+  const W = Math.min(container.clientWidth || 900, 1000), H = 250;
+  const m = { l: 56, r: 12, t: 12, b: 26 };
+  const n = labels.length;
+  const totals = labels.map((_, i) => series.reduce((s, x) => s + (x.values[i] || 0), 0));
+  const hi = Math.max(...totals, 1) * 1.12;
+  const bw = (W - m.l - m.r) / n * 0.62;
+  const xc = i => m.l + (W - m.l - m.r) * (i + 0.5) / n;
+  const ys = v => m.t + (H - m.t - m.b) * (1 - v / hi);
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}` });
+  for (let g = 0; g <= 3; g++) {
+    const v = hi * g / 3, y = ys(v);
+    el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = fmtMan(v);
+  }
+  labels.forEach((L, i) =>
+    el("text", { x: xc(i), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = L);
+  const base = new Array(n).fill(0);
+  for (const s of series) {
+    for (let i = 0; i < n; i++) {
+      const v = s.values[i] || 0;
+      if (v <= 0) continue;
+      const y0 = ys(base[i]), y1 = ys(base[i] + v);
+      const rect = el("rect", { x: xc(i) - bw / 2, y: y1, width: bw, height: Math.max(1, y0 - y1),
+                                fill: s.color, "fill-opacity": 0.9 }, svg);
+      rect.addEventListener("mousemove", ev => showTip(ev,
+        `<b>${labels[i]}</b><br><span style="color:${s.color}">■</span> ${s.label} ${fmtMan(v)}` +
+        `<br><b>합계 ${fmtMan(totals[i])}</b>`));
+      rect.addEventListener("mouseleave", hideTip);
+      base[i] += v;
+    }
+  }
+  container.appendChild(svg);
+  const lg = document.createElement("div"); lg.className = "legend";
+  for (const s of series) {
+    const sp = document.createElement("span"); sp.style.setProperty("--sw", s.color);
+    sp.textContent = s.label; lg.appendChild(sp);
+  }
+  container.appendChild(lg);
+}
+
+const ACCT_COLORS = ["var(--c-us)", "var(--c-vi)", "var(--c-re)", "var(--c-kr)",
+                     "var(--c-cash)", "var(--c-debt)", "var(--baseline)"];
+
+function renderDivMonthly(H) {
+  const card = document.getElementById("fin-divmo-card");
+  const paying = H.filter(h => h.div_krw > 0);
+  if (!paying.length || !paying[0].div_months) { card.style.display = "none"; return; }
+  card.style.display = "";
+  const MONTHS = [...Array(12)].map((_, i) => `${i + 1}월`);
+
+  // 계좌(소유자 포함)별 월별 집계
+  const accs = new Map();
+  for (const h of paying) {
+    const key = `${h.owner} ${h.account}`;
+    const a = accs.get(key) || { label: key, gross: new Array(12).fill(0), net: new Array(12).fill(0), rate: h.tax_rate, note: h.tax_note };
+    for (let i = 0; i < 12; i++) {
+      const g = h.div_months[i] || 0;
+      a.gross[i] += g;
+      a.net[i] += g * (1 - h.tax_rate);
+    }
+    accs.set(key, a);
+  }
+  const list = [...accs.values()].sort((a, b) =>
+    b.gross.reduce((s, v) => s + v, 0) - a.gross.reduce((s, v) => s + v, 0));
+
+  const draw = mode => {
+    const series = list.map((a, i) => ({
+      label: a.label, color: ACCT_COLORS[i % ACCT_COLORS.length],
+      values: (mode === "net" ? a.net : a.gross).map(Math.round),
+    }));
+    barStack(document.getElementById("fin-divmo"), MONTHS, series);
+    const rows = list.map((a, i) => {
+      const vals = mode === "net" ? a.net : a.gross;
+      const tot = vals.reduce((s, v) => s + v, 0);
+      return `<tr>
+        <td class="name"><span class="chip" style="background:${ACCT_COLORS[i % ACCT_COLORS.length]}"></span>${a.label}</td>
+        ${vals.map(v => `<td style="color:${v > 0 ? "var(--ink-1)" : "var(--ink-muted)"}">${v > 0 ? fmtMan(v) : "—"}</td>`).join("")}
+        <td><b>${fmtMan(tot)}</b></td></tr>`;
+    }).join("");
+    const totRow = MONTHS.map((_, i) =>
+      list.reduce((s, a) => s + (mode === "net" ? a.net : a.gross)[i], 0));
+    document.getElementById("fin-divmo-tbl").innerHTML = `
+      <thead><tr><th>계좌</th>${MONTHS.map(m => `<th>${m}</th>`).join("")}<th>연간</th></tr></thead>
+      <tbody>${rows}
+        <tr><td class="name"><b>합계</b></td>
+          ${totRow.map(v => `<td><b>${v > 0 ? fmtMan(v) : "—"}</b></td>`).join("")}
+          <td><b>${fmtMan(totRow.reduce((s, v) => s + v, 0))}</b></td></tr>
+      </tbody>`;
+  };
+  draw("net");
+  document.querySelectorAll("#fin-divmo-seg .seg-btn").forEach(b =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll("#fin-divmo-seg .seg-btn").forEach(x => x.classList.toggle("on", x === b));
+      draw(b.dataset.mode);
+    }));
+
+  const notes = [...new Set(list.map(a => a.note))];
+  document.getElementById("fin-divmo-note").textContent =
+    "세율: " + notes.join(" · ") + " · 최근 12개월 실지급월 기준 (분기 종목은 해당 월에만 계상)";
+}
+
 function renderFinancial(fin) {
   const H = (fin && fin.holdings) || [];
   if (!H.length) {
@@ -579,29 +696,36 @@ function renderFinancial(fin) {
 
   // 배당 카드
   const divCard = (who, hs) => {
-    const amt = sum(hs, h => h.div_krw), base = sum(hs);
+    const gross = sum(hs, h => h.div_krw), net = sum(hs, h => h.div_net_krw), base = sum(hs);
+    const tax = gross - net;
     return `<div class="div-card"><div class="who">${who}</div>
-      <div class="amt">${fmtMan(amt)}</div>
-      <div class="mo">월 ${fmtMan(amt / 12)} · 수익률 ${base > 0 ? (amt / base * 100).toFixed(2) : "0.00"}%</div></div>`;
+      <div class="amt">${fmtMan(net)}</div>
+      <div class="mo">세후 · 월 ${fmtMan(net / 12)} · 수익률 ${base > 0 ? (net / base * 100).toFixed(2) : "0.00"}%</div>
+      <div class="mo" style="margin-top:4px">세전 ${fmtMan(gross)}${tax > 0 ? ` · 세금 −${fmtMan(tax)}` : " · 세금 없음"}</div></div>`;
   };
   document.getElementById("fin-div").innerHTML =
     divCard("우리 (부부 합산)", H) + divCard("우현", uh) + divCard("규리", gr);
+
+  renderDivMonthly(H);
 
   // 계좌별 상세
   const am = new Map();
   for (const h of H) {
     const k = h.owner + "|" + h.account;
-    const c = am.get(k) || { owner: h.owner, account: h.account, group: h.group, value: 0, div: 0 };
-    c.value += h.value_krw; c.div += h.div_krw;
+    const c = am.get(k) || { owner: h.owner, account: h.account, group: h.group,
+                             value: 0, div: 0, divNet: 0, note: h.tax_note };
+    c.value += h.value_krw; c.div += h.div_krw; c.divNet += h.div_net_krw;
     am.set(k, c);
   }
   const rows = [...am.values()].filter(a => a.value > 0).sort((a, b) => b.value - a.value).map(a => `
     <tr><td class="name">${a.account}</td><td>${a.owner}</td>
       <td><span class="chip" style="background:${a.group === "연금성" ? "var(--c-vi)" : "var(--c-us)"}"></span>${a.group}</td>
       <td><b>${fmtEok(a.value)}</b></td>
-      <td style="color:var(--ink-muted)">${a.div > 0 ? fmtMan(a.div) : "—"}</td></tr>`).join("");
+      <td style="color:var(--ink-muted)">${a.div > 0 ? fmtMan(a.div) : "—"}</td>
+      <td>${a.div > 0 ? `<b>${fmtMan(a.divNet)}</b>` : "—"}</td>
+      <td style="color:var(--ink-muted)">${a.div > 0 ? a.note : "—"}</td></tr>`).join("");
   document.getElementById("fin-detail").innerHTML =
-    `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>연 배당</th></tr></thead><tbody>${rows}</tbody>`;
+    `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>연 배당(세전)</th><th>연 배당(세후)</th><th>세율 적용</th></tr></thead><tbody>${rows}</tbody>`;
 }
 
 function initTabs() {
