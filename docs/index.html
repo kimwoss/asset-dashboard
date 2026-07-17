@@ -1329,6 +1329,13 @@ async function loadLive(passphrase) {
    (자주 안 바뀌고, 30분마다 재생성하면 AI 쿼터만 축낸다). */
 function applyLive(snap, live) {
   if (!live) return null;
+  // 체크포인트(인사말·날씨·운세)를 30분 잡이 읽어온 최신본으로 교체 — 모닝 리포트가 이른
+  // 아침 시트에 올리면 무거운 일별 잡(07:30)을 기다리지 않고 30분 내 반영된다.
+  // 단, 일별 스냅샷이 더 최신이면(경계 시각) 밀어내지 않는다.
+  if (live.checkpoint && live.checkpoint.generated_at) {
+    const cur = snap.checkpoint && snap.checkpoint.generated_at;
+    if (!cur || live.checkpoint.generated_at >= cur) snap.checkpoint = live.checkpoint;
+  }
   if (snap.checkpoint) {
     let applied = false;
     for (const k of ["us", "kr", "fx"])

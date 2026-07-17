@@ -24,6 +24,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 import crypto_util
 import news_feed
+import sheets_checkpoint
 import sheets_holdings
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -138,6 +139,15 @@ def main():
         print(f"WARN: 뉴스 조회 실패 ({type(e).__name__}: {e})")
         news = []
 
+    # 4) 오늘의 체크포인트(인사말·날씨·운세) — 30분마다 시트에서 다시 읽는다.
+    #    모닝 리포트가 이른 아침(≈06:00) 시트에 올리면, 무거운 일별 잡(07:30)을 기다리지 않고
+    #    이 30분 잡이 30분 내 웹에 반영한다. 시트 셀 1회 읽기라 AI·쿼터 비용 없음.
+    try:
+        checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 체크포인트 조회 실패 ({type(e).__name__}: {e})")
+        checkpoint = {}
+
     live = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "updated_iso": now.isoformat(),
@@ -148,14 +158,17 @@ def main():
         "accounts": accounts,
         "financial_total": total,
         "news": news,
+        "checkpoint": checkpoint or None,
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "live.json").write_text(
         json.dumps(live, ensure_ascii=False, indent=1), encoding="utf-8")
     crypto_util.encrypt_file(DATA_DIR / "live.json", DATA_DIR / "live.enc",
                              crypto_util.get_passphrase())
+    cp_label = checkpoint.get("date_label", "없음") if checkpoint else "없음"
     print(f"OK: live.enc — 미국 {len(us)}건 · 국내 {len(kr)}건 · 환율 {len(fx)}건 · "
-          f"계좌 {len(accounts)}개 {total/1e8:.2f}억 · 뉴스 {len(news)}건 ({now:%H:%M} KST)")
+          f"계좌 {len(accounts)}개 {total/1e8:.2f}억 · 뉴스 {len(news)}건 · "
+          f"체크포인트 {cp_label} ({now:%H:%M} KST)")
 
 
 if __name__ == "__main__":
