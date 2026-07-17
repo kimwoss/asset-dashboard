@@ -128,6 +128,9 @@
   .news-title a { color: inherit; text-decoration: none; }
   .news-title a:hover { text-decoration: underline; }
   .news-meta { font-size: 11.5px; color: var(--ink-muted); margin-top: 3px; }
+  .news-tag { display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--c-us);
+              background: color-mix(in srgb, var(--c-us) 13%, transparent); border-radius: 4px;
+              padding: 1px 6px; margin-right: 6px; }
   .news-insight { font-size: 12.5px; color: var(--ink-2); margin-top: 5px; line-height: 1.55; }
   .luck { display: inline-block; background: var(--page); border-radius: 6px; padding: 3px 9px;
           font-size: 11.5px; color: var(--ink-2); margin-top: 8px; }
@@ -803,13 +806,15 @@ function renderCheckpoint(cp) {
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
     <div style="font-size:13.5px">🗓️ ${esc(cp.macro_dday)}</div></section>`;
 
-  // 뉴스
-  if ((cp.news || []).length) h += `<section class="card"><h2>데일리 뉴스 브리핑</h2>
+  // 뉴스 — 30분마다 관심 주제(보유 ETF·미국증시·환율금리·FIRE)로 갱신되는 실시간 피드.
+  if ((cp.news || []).length) h += `<section class="card">
+    <div class="cp-mkt-head"><h2>관심 뉴스</h2>${cp.news_live ? badge : ""}</div>
     ${cp.news.map((n, i) => `<div class="news-item">
       <div class="news-title">${i + 1}. ${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>` : esc(n.title)}</div>
-      ${n.source ? `<div class="news-meta">${esc(n.source)}</div>` : ""}
+      <div class="news-meta">${n.tag ? `<span class="news-tag">${esc(n.tag)}</span>` : ""}${n.source ? esc(n.source) : ""}${n.published ? ` · ${esc(n.published)}` : ""}</div>
       ${n.insight ? `<div class="news-insight">→ ${esc(n.insight)}</div>` : ""}
-    </div>`).join("")}</section>`;
+    </div>`).join("")}
+    ${cp.news_live ? `<div class="cp-mkt-note">관심 주제로 30분마다 최신 기사만 모읍니다 — 보유 ETF·배당 · 미국 증시 · 환율·금리 · FIRE·이주</div>` : ""}</section>`;
 
   // 운세
   const f = cp.fortune;
@@ -1328,6 +1333,8 @@ function applyLive(snap, live) {
     let applied = false;
     for (const k of ["us", "kr", "fx"])
       if (live[k] && live[k].length) { snap.checkpoint[k] = live[k]; applied = true; }
+    // 뉴스도 실시간(30분)으로 덮어쓴다 — 07:00 모닝 뉴스가 온종일 옛것으로 남던 문제 해결
+    if (live.news && live.news.length) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
   }
