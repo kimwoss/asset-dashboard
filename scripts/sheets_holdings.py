@@ -93,8 +93,12 @@ def _num(v: Any) -> float:
         return 0.0
 
 
-def fetch_holdings() -> Dict[str, Any]:
-    """★주식계좌 → {fx, holdings:[...]} . 실패 시 {}."""
+def fetch_holdings(with_dividends: bool = True) -> Dict[str, Any]:
+    """★주식계좌 → {fx, holdings:[...]} . 실패 시 {}.
+
+    with_dividends=False — 배당(yfinance 이력 조회)을 건너뛴다. 30분마다 도는
+    실시간 시세 잡용: 배당은 분기 단위로 바뀌므로 매번 조회할 이유가 없다.
+    """
     try:
         import gspread
         gc = sheets_fire._authorize(gspread)
@@ -127,7 +131,7 @@ def fetch_holdings() -> Dict[str, Any]:
             qty_n = _num(qty)
 
             div_ps, by_month = 0.0, {}
-            if ticker:
+            if ticker and with_dividends:
                 sym = _yf_symbol(ticker)
                 if sym not in div_cache:
                     div_cache[sym] = _ttm_dividend(sym)
@@ -162,10 +166,12 @@ def fetch_holdings() -> Dict[str, Any]:
             print("WARN: ★주식계좌 보유내역 없음")
             return {}
         total = sum(h["value_krw"] for h in holdings)
-        div = sum(h["div_krw"] for h in holdings)
-        div_net = sum(h["div_net_krw"] for h in holdings)
-        print(f"OK: 금융자산 {len(holdings)}건 총 {total/1e8:.2f}억 · "
-              f"연 배당 세전 {div/1e4:,.0f}만원 → 세후 {div_net/1e4:,.0f}만원")
+        msg = f"OK: 금융자산 {len(holdings)}건 총 {total/1e8:.2f}억"
+        if with_dividends:  # 배당을 스킵했으면 0원이라 적지 않는다 (오해 방지)
+            div = sum(h["div_krw"] for h in holdings)
+            div_net = sum(h["div_net_krw"] for h in holdings)
+            msg += f" · 연 배당 세전 {div/1e4:,.0f}만원 → 세후 {div_net/1e4:,.0f}만원"
+        print(msg)
         return {"fx": round(fx, 2), "holdings": holdings}
     except Exception as e:  # noqa: BLE001
         print(f"WARN: ★주식계좌 읽기 실패 ({type(e).__name__}: {e}) — 금융자산 탭 생략")

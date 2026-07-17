@@ -5,6 +5,9 @@ __pycache__/
 # 평문 민감 파일 — 암호화본(.enc)만 커밋된다
 config/portfolio.yaml
 docs/data/latest.json
+# 실시간 시세 — live-data 브랜치로만 배포된다 (main에 커밋하면 30분마다 히스토리가 더러워짐)
+docs/data/live.json
+docs/data/live.enc
 docs/data/history.csv
 
 # Google 서비스계정 키 (FIRE 시트 읽기 — CI는 Secret 사용, 로컬 폴백만 gitignore)
