@@ -22,6 +22,10 @@ SPREADSHEET_ID = "13xGH_kjWZbkNW_Me03pdVPkMjtmtDRcRZ8T2_Bz5SDc"
 SHEET_NAME = "★종합"
 ROOT = Path(__file__).resolve().parent.parent
 
+# 규리는 우현보다 8살 아래 (2026-07 사용자 확인). ★종합의 나이는 전부 우현 기준이라
+# 대시보드에 두 사람 나이를 병기하려면 이 차이가 필요하다.
+SPOUSE_AGE_GAP = 8
+
 # 레이블 → (결과키, 열 인덱스). 값은 레이블 오른쪽 n번째 비어있지 않은 셀.
 _LABEL_MAP: Dict[str, List[Union[str, Tuple[str, int]]]] = {
     "net_worth":        ["현재 순자산"],
@@ -127,13 +131,16 @@ def _coerce(key: str, raw: str) -> Any:
 
 
 def _derive(d: Dict[str, Any]) -> Dict[str, Any]:
-    """파생값 추가 — 목표연도, 소진 나이 숫자."""
+    """파생값 추가 — 목표연도, 소진 나이 숫자, 배우자 나이 기준."""
     year, accum = d.get("current_year") or 0, d.get("accum_years")
     if 2000 <= year <= 2100 and accum is not None and 0 <= accum <= 60:
         d["target_year"] = year + accum
     m = re.search(r"\d+", d.get("depletion_raw", ""))
     if m:
         d["depletion_age"] = int(m.group())
+    # 시트의 나이는 전부 우현 기준 한 사람 것뿐이다. 대시보드가 규리 나이를 함께
+    # 적으려면 나이차가 필요한데 시트엔 없어 여기서 넘긴다 (2026-07 사용자 확인).
+    d["age_self"], d["age_spouse"], d["age_gap"] = "우현", "규리", SPOUSE_AGE_GAP
     return d
 
 

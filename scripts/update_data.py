@@ -19,6 +19,7 @@ import sheets_fire
 import sheets_holdings
 import sheets_monthly
 import sheets_checkpoint
+import sheets_spending
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -55,6 +56,50 @@ def fetch_security_prices(tickers):
             continue
         out[t] = (float(series.iloc[-1]), series.index[-1].strftime("%Y-%m-%d"))
     return out
+
+
+def prev_month_baseline(today, hist_path):
+    """전월 말 기준 {key, net_krw, gross_krw, debt_krw, source}. 없으면 {}.
+
+    KPI를 '어제 대비'가 아니라 '전월 대비'로 읽기 위한 기준값. 자산은 하루 단위로는
+    거의 움직이지 않아 어제 대비는 노이즈였다.
+
+    1순위 history.csv의 전월 마지막 실측 행 — 지금 값과 완전히 같은 방식으로 계산돼
+           비교가 깨끗하다. 일별 기록을 2026-07-15에 시작했으므로 2026-08부터 가능.
+    2순위 ★월별자산 전월 소계 — 그 전까지의 유일한 과거값. 시트는 부동산을 추정으로
+           굴리므로 우리 평가액과 계통 오차가 있다 (source로 표시해 밝힌다).
+    """
+    y, m = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+    key = f"{y}-{m:02d}"
+
+    # 1순위 — 우리 실측
+    if hist_path.exists():
+        by_date = {}
+        with open(hist_path, encoding="utf-8", newline="") as f:
+            for r in csv.DictReader(f):
+                d = r.get("date", "")
+                if not d.startswith(key) or r.get("kind") not in ("asset", "liability"):
+                    continue
+                acc = by_date.setdefault(d, {"gross": 0.0, "debt": 0.0})
+                v = float(r.get("value_krw") or 0)
+                if r["kind"] == "asset":
+                    acc["gross"] += v
+                else:
+                    acc["debt"] += -v  # 부채는 음수로 저장돼 있다
+        if by_date:
+            last = by_date[max(by_date)]
+            return {"key": key, "source": "measured",
+                    "gross_krw": round(last["gross"]), "debt_krw": round(last["debt"]),
+                    "net_krw": round(last["gross"] - last["debt"])}
+
+    # 2순위 — 시트 소계
+    s = sheets_monthly.month_summary(y, m)
+    if not s:
+        print(f"WARN: {key} 기준값 없음 — 전월 대비 생략")
+        return {}
+    return {"key": key, "source": "sheet",
+            "gross_krw": round(s["gross"]), "debt_krw": round(s["debt"]),
+            "net_krw": round(s["net"])}
 
 
 def main():
@@ -183,6 +228,15 @@ def main():
     # 오늘의 체크포인트 — 분당부부 모닝 리포트(별도 private 레포)가 시트에 남긴 페이로드.
     checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
 
+    # 월간 생활비 (시각화 탭 '상세항목별 지출 금액'). 실패 시 {} → 탭만 생략.
+    spending = sheets_spending.fetch_spending(now.date())
+
+    # 전월 말 기준값 — KPI 3종의 '전월 대비'. history.csv를 다시 쓰기 전에 읽어야 한다.
+    prev_month = prev_month_baseline(now.date(), DATA_DIR / "history.csv")
+    if prev_month:
+        print(f"OK: 전월({prev_month['key']}) 기준 순자산 {prev_month['net_krw']/1e8:.2f}억 "
+              f"· 출처 {'우리 실측' if prev_month['source'] == 'measured' else '시트 소계'}")
+
     snapshot = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "fx_usdkrw": round(fx, 2),
@@ -197,6 +251,8 @@ def main():
         "financial": financial,
         "monthly": monthly,
         "checkpoint": checkpoint,
+        "spending": spending,
+        "prev_month": prev_month,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=1)
