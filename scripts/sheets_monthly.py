@@ -212,6 +212,77 @@ def write_current_month_realestate(re_assets: List[Dict], today: Optional[date] 
         return False
 
 
+def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
+    """자산 상세용 전월·전년 이력 → {prev_month, prev_year, assets:{key:{m1,y1}}, liabilities:{...}}.
+
+    각 항목의 전월(직전 달)·전년(2025 연말) 값을 ★월별자산에서 읽는다. 대시보드가 현재값(라이브)
+    과 비교해 증감을 표시한다. 키:
+      계좌 → '계좌:우현' / '계좌:규리' (계좌 행 소유자별 합)
+      부동산·전세 → 라벨 (인덕원삼호 / 송천센트레빌 / <전세 행 라벨>)
+      부채 → 라벨 (회사 대출(2.50%) 등, ★월별자산 라벨과 자산 상세 이름이 동일)
+    실패 시 {}.
+    """
+    today = today or date.today()
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return {}
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        grid = ws.get("A1:BN40", value_render_option="UNFORMATTED_VALUE")
+
+        def cell(r1: int, c0: Optional[int]) -> float:
+            if c0 is None:
+                return 0.0
+            r = grid[r1 - 1] if len(grid) >= r1 else []
+            v = r[c0] if len(r) > c0 else 0
+            return float(v) if isinstance(v, (int, float)) else 0.0
+
+        def label(r1: int) -> str:
+            r = grid[r1 - 1] if len(grid) >= r1 else []
+            return str(r[2]).strip() if len(r) > 2 else ""
+
+        cur_col = month_col(today.year, today.month)
+        py, pm = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+        prev_col = month_col(py, pm)
+        year_col = max(ANNUAL_COLS)  # 2025 = J열 (index 9)
+
+        assets: Dict[str, Dict] = {}
+        # 계좌 소유자별 합 (3~15행)
+        acct_rows = _account_rows(grid)
+        for owner in ("우현", "규리"):
+            rows = [r for r, (n, o) in acct_rows.items() if o == owner]
+            if rows:
+                assets[f"계좌:{owner}"] = {
+                    "cur": round(sum(cell(r, cur_col) for r in rows)),
+                    "m1": round(sum(cell(r, prev_col) for r in rows)),
+                    "y1": round(sum(cell(r, year_col) for r in rows)),
+                }
+        # 부동산·전세 (17~24행): 라벨을 키로
+        for r in range(RE_ROW_FIRST, RE_ROW_LAST + 1):
+            lab = label(r)
+            if not lab or "주식" in lab or "원달러" in lab:
+                continue
+            if cell(r, cur_col) or cell(r, prev_col):
+                assets[lab] = {"cur": round(cell(r, cur_col)), "m1": round(cell(r, prev_col)),
+                               "y1": round(cell(r, year_col))}
+        # 부채 (26~35행): 라벨을 키로 (자산 상세 이름과 동일)
+        liabilities: Dict[str, Dict] = {}
+        for r in LIAB_ROWS:
+            lab = label(r)
+            if lab and (cell(r, cur_col) or cell(r, prev_col)):
+                liabilities[lab] = {"cur": round(cell(r, cur_col)), "m1": round(cell(r, prev_col)),
+                                    "y1": round(cell(r, year_col))}
+
+        print(f"OK: 자산 이력 — 자산 {len(assets)}종 · 부채 {len(liabilities)}종 "
+              f"(전월 {py}-{pm:02d} · 전년 {ANNUAL_COLS[year_col]})")
+        return {"prev_month": f"{py}-{pm:02d}", "prev_year": ANNUAL_COLS[year_col],
+                "assets": assets, "liabilities": liabilities}
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 자산 이력 읽기 실패 ({type(e).__name__}: {e})")
+        return {}
+
+
 def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
     """★월별자산 → {periods, accounts} (대시보드 월별 흐름용). 실패 시 {}."""
     today = today or date.today()
