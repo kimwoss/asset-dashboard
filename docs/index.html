@@ -33,6 +33,20 @@
   header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 18px; }
   h1 { font-size: 20px; font-weight: 700; }
   .meta { color: var(--ink-muted); font-size: 12.5px; }
+  /* 업데이트하기 — 우측 상단, 최신 시세·뉴스·체크포인트 재조회 */
+  #refresh { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 6px;
+             font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-1); cursor: pointer;
+             background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; }
+  #refresh:hover { border-color: var(--c-re); color: var(--c-re); }
+  #refresh:disabled { cursor: default; opacity: .65; }
+  #refresh .ic { font-size: 14px; line-height: 1; }
+  #refresh.spin .ic { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+           background: var(--ink-1); color: var(--page); font-size: 13px; font-weight: 500;
+           padding: 9px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+           transition: opacity .25s, transform .25s; z-index: 30; }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .card {
     background: var(--surface-1); border: 1px solid var(--border);
@@ -200,6 +214,8 @@
   <h1>우리집 자산 대시보드</h1>
   <span class="meta" id="updated"></span>
   <span class="meta" id="fx"></span>
+  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다">
+    <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
 
 <div id="gate" style="display:none">
@@ -212,6 +228,7 @@
 </div>
 
 <div id="err"></div>
+<div id="toast"></div>
 
 <nav class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-tab="overview">자산 현황</button>
@@ -777,12 +794,21 @@ function renderCheckpoint(cp) {
   let h = "";
   if (cp.stale) h += `<div class="cp-stale">⚠️ ${cp.age_days}일 전(${esc(cp.date_label)}) 리포트입니다 — 최신 발송이 밀렸을 수 있어요.</div>`;
 
+  // 브리핑(인사말·날씨·운세)은 모닝 리포트가 하루 한 번 만든다 — 시세·뉴스(실시간)와 달리
+  // 오늘 것이 아닐 수 있다. 생성일이 오늘이 아니면 조용히 밝혀 혼동을 막는다.
+  const genDay = (cp.generated_at || "").slice(0, 10);
+  const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);  // KST 기준 오늘
+  const briefNote = (genDay && genDay !== today)
+    ? `<div class="cp-mkt-note">이 브리핑은 ${esc(cp.date_label)} 생성분입니다 — 인사말·운세는 매일 오전 6시대 모닝 리포트로 갱신되고, 아래 시세·뉴스는 실시간입니다.</div>`
+    : "";
+
   // 인사 + 날씨
   h += `<section class="card">
     <h2>${esc(cp.date_label)} 브리핑</h2>
     ${cp.greeting ? `<div class="cp-hero">${esc(cp.greeting)}</div>` : ""}
     ${cp.weather ? `<div class="cp-sub">${esc(cp.weather)}</div>` : ""}
     ${cp.summary ? `<div class="cp-quote">📌 ${esc(cp.summary)}</div>` : ""}
+    ${briefNote}
   </section>`;
 
   // 지수 · 환율 — 제목은 고정("미국 지수" 등)으로, 실시간 여부는 기준시각 배지로 알린다.
@@ -1285,9 +1311,12 @@ function renderCities(ct, net) {
     + "도시를 더하거나 바꾸려면 시트 4행에 Numbeo 영문 도시명을 입력하세요 — 다음 갱신 때 여기 반영됩니다. (웹은 정적 호스팅이라 브라우저에서 Numbeo를 직접 조회할 수 없어요.)";
 }
 
+let _tabsInited = false;
 function initTabs() {
   const nav = document.getElementById("tabs");
   nav.style.display = "flex";
+  if (_tabsInited) return;   // 재렌더(업데이트 버튼) 시 리스너 중복 방지
+  _tabsInited = true;
   nav.addEventListener("click", ev => {
     const b = ev.target.closest(".tab");
     if (!b) return;
@@ -1316,7 +1345,7 @@ const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live
 
 async function loadLive(passphrase) {
   try {
-    const r = await fetch(LIVE_URL + "?t=" + Math.floor(Date.now() / 60000));
+    const r = await fetch(LIVE_URL + "?t=" + Date.now());  // 매 호출 캐시 우회 (업데이트 버튼 대응)
     if (!r.ok) return null;
     return JSON.parse(await decryptEnvelope(await r.text(), passphrase));
   } catch (e) {
@@ -1405,18 +1434,21 @@ async function gate() {
   });
 }
 
-async function main() {
-  let snap, histText;
-  try {
-    [snap, histText] = await gate();
-  } catch (e) {
-    const err = document.getElementById("err");
-    err.style.display = "block";
-    err.textContent = "데이터를 불러오지 못했습니다. 로컬에서 열었다면 `python -m http.server`로 docs 폴더를 서빙해서 보세요. (" + e + ")";
-    return;
-  }
+// 게이트에서 받은 원본 스냅샷·이력은 그대로 보관하고, 렌더할 때마다 복제본에 실시간을
+// 덧입힌다 — '업데이트하기'가 여러 번 눌려도 원본이 오염(누적 스케일 등)되지 않는다.
+let baseSnap = null, histText = "";
 
-  // 실시간 시세 덮어쓰기 (30분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+async function render() {
+  const snap = structuredClone(baseSnap);
+
+  // 실시간 시세·뉴스·체크포인트 덮어쓰기 (30분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   const liveAt = applyLive(snap, await loadLive(localStorage.getItem("asset_pw")));
 
   document.getElementById("updated").textContent =
@@ -1555,6 +1587,38 @@ async function main() {
   document.getElementById("detail").innerHTML = `
     <thead><tr><th>항목</th><th>소유</th><th>분류</th><th>금액</th><th>평가액</th><th>비고</th></tr></thead>
     <tbody>${rows}${debtRows}</tbody>`;
+}
+
+async function main() {
+  try {
+    [baseSnap, histText] = await gate();
+  } catch (e) {
+    const err = document.getElementById("err");
+    err.style.display = "block";
+    err.textContent = "데이터를 불러오지 못했습니다. 로컬에서 열었다면 `python -m http.server`로 docs 폴더를 서빙해서 보세요. (" + e + ")";
+    return;
+  }
+  await render();
+
+  // 업데이트하기 — 최신 시세·뉴스·체크포인트(live.enc)를 다시 받아 재렌더. 정적 사이트라
+  // 서버 재계산을 강제할 순 없지만(CI가 30분마다 갱신), 브라우저 캐시를 우회해 가장 최근
+  // 발행본을 즉시 끌어온다.
+  const rb = document.getElementById("refresh");
+  rb.style.display = "";
+  rb.addEventListener("click", async () => {
+    if (rb.disabled) return;
+    rb.disabled = true; rb.classList.add("spin");
+    const t0 = Date.now();
+    try {
+      await render();
+      showToast("최신 데이터로 업데이트했어요");
+    } catch (e) {
+      showToast("업데이트 실패 — 잠시 후 다시 시도해 주세요");
+    } finally {
+      // 스핀이 너무 짧게 깜빡이지 않도록 최소 500ms 유지
+      setTimeout(() => { rb.disabled = false; rb.classList.remove("spin"); }, Math.max(0, 500 - (Date.now() - t0)));
+    }
+  });
 }
 main();
 </script>
