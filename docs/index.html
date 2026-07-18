@@ -220,6 +220,27 @@
   .rv-month .rv-m { font-size: var(--fs-body); font-weight: 700; color: var(--accent); }
   .rv-month .rv-mtxt { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.65; white-space: pre-line; }
 
+  /* 데이터 흐름 맵 */
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .flow-stage { width: 100%; max-width: 560px; background: var(--page); border: 1px solid var(--border);
+                border-radius: var(--r-sm); padding: 13px 16px; text-align: center; }
+  .flow-stage.accent { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: color-mix(in srgb, var(--accent) 7%, var(--page)); }
+  .flow-stage .fs-t { font-size: var(--fs-body); font-weight: 700; color: var(--ink-1); }
+  .flow-stage .fs-d { font-size: var(--fs-xs); color: var(--ink-2); margin-top: 4px; line-height: 1.5; }
+  .flow-arrow { color: var(--ink-muted); font-size: 15px; line-height: 1; padding: 7px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .flow-arrow small { font-size: var(--fs-xs); color: var(--accent); font-weight: 600; }
+  .flow-split { width: 100%; max-width: 560px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .flow-split .flow-stage { max-width: none; }
+  .tag-man { display: inline-block; font-size: var(--fs-xs); font-weight: 600; color: var(--c-kr);
+             background: color-mix(in srgb, var(--c-kr) 15%, transparent); border-radius: 4px; padding: 1px 7px; }
+  .tag-auto { display: inline-block; font-size: var(--fs-xs); font-weight: 600; color: var(--c-us);
+             background: color-mix(in srgb, var(--c-us) 14%, transparent); border-radius: 4px; padding: 1px 7px; }
+  .do-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .do-card { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 16px; }
+  .do-card h3 { font-size: var(--fs-body); font-weight: 700; margin-bottom: 8px; }
+  .do-card ul { margin: 0; padding-left: 18px; }
+  .do-card li { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.7; }
+
   /* 오늘의 체크포인트 */
   .cp-hero { font-size: 15px; line-height: 1.65; color: var(--ink-1); font-weight: 500; }
   .cp-sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 8px; white-space: pre-line; line-height: 1.6; }
@@ -298,6 +319,7 @@
   <button class="tab" data-tab="sim">은퇴 지도</button>
   <button class="tab" data-tab="review">연간 리뷰</button>
   <button class="tab" data-tab="checkpoint">오늘의 체크포인트</button>
+  <button class="tab" data-tab="flow">데이터 흐름</button>
 </nav>
 
 <div id="tab-overview">
@@ -449,6 +471,86 @@
 
 <div id="tab-checkpoint" style="display:none">
   <div id="cp-body"></div>
+</div>
+
+<div id="tab-flow" style="display:none">
+  <section class="card">
+    <h2>데이터가 흐르는 길</h2>
+    <div class="flow">
+      <div class="flow-stage">
+        <div class="fs-t">① 입력</div>
+        <div class="fs-d"><span class="tag-man">수동</span> 티커·수량 · 대출 잔액 · 가계부 · FIRE 가정 · 도시명 · 연간 리뷰
+          &nbsp;&nbsp;<span class="tag-auto">자동수식</span> 평가액(GOOGLEFINANCE) · 물가(Numbeo)</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-stage accent">
+        <div class="fs-t">② ⭐️분당부부_MASTER 시트</div>
+        <div class="fs-d">모든 정보의 단일 원본 (source of truth)</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-split">
+        <div class="flow-stage">
+          <div class="fs-t">③-A 리포트 봇</div>
+          <div class="fs-d">매일 <b>06시경</b> → 뉴스·운세·시세를<br>'★오늘의체크포인트'에 기록<br>(07시 카톡·메일 발송)</div>
+        </div>
+        <div class="flow-stage">
+          <div class="fs-t">③-B 대시보드 잡</div>
+          <div class="fs-d">일별 <b>07:30</b> 전체 재생성<br>실시간 <b>30분</b>마다 시세·뉴스<br>+ 월별 계좌값 자동 기록</div>
+        </div>
+      </div>
+      <div class="flow-arrow"><small>암호화(.enc)</small>↓</div>
+      <div class="flow-stage accent">
+        <div class="fs-t">④ 웹 대시보드</div>
+        <div class="fs-d">7개 탭 · 우측 상단 '업데이트하기'로 즉시 최신 반영</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>시트 탭별 — 수동 / 자동 / 연계</h2>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>시트 탭</th><th style="text-align:left">입력 방식</th><th style="text-align:left">주기</th><th style="text-align:left">→ 웹 탭</th></tr></thead>
+      <tbody>
+        <tr><td class="name">★주식계좌</td><td style="text-align:left"><span class="tag-man">수동</span> 티커·수량 / 평가액 자동</td><td style="text-align:left">매매할 때</td><td style="text-align:left">금융자산</td></tr>
+        <tr><td class="name">★월별자산</td><td style="text-align:left"><span class="tag-man">수동</span> 대출·전세보증금 / 계좌값 자동</td><td style="text-align:left">대출은 매월 초</td><td style="text-align:left">자산 현황</td></tr>
+        <tr><td class="name">★종합</td><td style="text-align:left"><span class="tag-man">수동</span> FIRE 가정치</td><td style="text-align:left">가정 바뀔 때</td><td style="text-align:left">자산 현황 · 은퇴 지도</td></tr>
+        <tr><td class="name">2026년(가계부)</td><td style="text-align:left"><span class="tag-man">수동</span> 지출 내역</td><td style="text-align:left">수시</td><td style="text-align:left">월간 생활비</td></tr>
+        <tr><td class="name">🌍이주 대시보드</td><td style="text-align:left"><span class="tag-man">수동</span> 도시명·서울 생활비 / 물가 자동</td><td style="text-align:left">도시 추가할 때</td><td style="text-align:left">살고싶은 도시</td></tr>
+        <tr><td class="name">시뮬레이션</td><td style="text-align:left"><span class="tag-auto">자동</span> ★종합 기반 수식</td><td style="text-align:left">자동</td><td style="text-align:left">은퇴 지도</td></tr>
+        <tr><td class="name">연간리뷰</td><td style="text-align:left"><span class="tag-man">수동</span> 베스트·월별 추억</td><td style="text-align:left">수시</td><td style="text-align:left">연간 리뷰</td></tr>
+        <tr><td class="name">★오늘의체크포인트</td><td style="text-align:left"><span class="tag-auto">자동</span> 리포트 봇이 기록</td><td style="text-align:left">매일 06시</td><td style="text-align:left">오늘의 체크포인트</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>직접 하실 일은 이것뿐</h2>
+    <div class="do-grid">
+      <div class="do-card">
+        <h3>📅 매월 초 (정기)</h3>
+        <ul><li>★월별자산 — 대출·전세보증금 잔액 갱신</li></ul>
+      </div>
+      <div class="do-card">
+        <h3>✍️ 수시 (변동 있을 때만)</h3>
+        <ul>
+          <li>★주식계좌 — 매매하면 수량 수정</li>
+          <li>2026년 — 가계부 지출 기입</li>
+          <li>연간리뷰 — 베스트·추억 기록</li>
+          <li>🌍이주 — 새 도시 궁금하면 입력</li>
+          <li>★종합 — FIRE 목표 바뀌면 수정</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">나머지(평가액·물가·시세·뉴스·운세·체크포인트·월별 계좌 기록)는 전부 자동입니다.</div>
+  </section>
+
+  <section class="card">
+    <h2>알아두면 좋은 점</h2>
+    <div class="note" style="font-size:var(--fs-sm); color:var(--ink-2); line-height:1.7">
+      • <b>부동산 값이 두 곳에서 다릅니다</b> — 웹 '자산 현황'은 KB 실시세, ★월별자산은 시트 추정 수식(전월×1.009). 그래서 전월 대비 기준값이 약간 차이 납니다.<br>
+      • <b>'업데이트하기' 버튼</b>은 시세·뉴스·체크포인트를 즉시 당겨오지만, 인사말·운세·자산평가처럼 시트/리포트가 원본인 값은 각자의 자동 주기(06시·07:30)를 따릅니다.
+    </div>
+  </section>
 </div>
 
 <div id="tooltip"></div>
@@ -1548,7 +1650,7 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["overview", "financial", "spending", "cities", "sim", "review", "checkpoint"])
+    for (const id of ["overview", "financial", "spending", "cities", "sim", "review", "checkpoint", "flow"])
       document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
   });
 }
