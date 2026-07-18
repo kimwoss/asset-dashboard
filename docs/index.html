@@ -7,206 +7,225 @@
 <title>우리집 자산 대시보드</title>
 <style>
   :root {
+    /* 색 — 표면/잉크 */
     --surface-1: #fcfcfb; --page: #f9f9f7;
-    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #898781;
-    --grid: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
-    --up: #006300; --down: #d03b3b;
-    --c-re: #2a78d6; --c-us: #1baf7a; --c-kr: #eda100; --c-cash: #008300;
-    --c-vi: #4a3aa7; --c-debt: #b0524f;
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #8b8983;
+    --grid: #e4e3dc; --baseline: #c7c6bb; --border: rgba(11,11,11,0.09);
+    /* 색 — 의미 */
+    --pos: #067a2e; --neg: #d03b3b; --accent: #2a78d6;
+    /* 색 — 자산 카테고리 (차트·칩 공용) */
+    --c-re: #2a78d6; --c-us: #17a074; --c-kr: #e0961a; --c-cash: #0a9668;
+    --c-vi: #6d5cd6; --c-debt: #c0645f;
+    /* 하위호환 별칭 */
+    --up: var(--pos); --down: var(--neg);
+    /* 타입 스케일 */
+    --fs-hero: 38px; --fs-1: 26px; --fs-2: 23px; --fs-3: 20px; --fs-4: 16px;
+    --fs-body: 13px; --fs-sm: 12.5px; --fs-xs: 11.5px;
+    /* 형태 */
+    --r: 12px; --r-sm: 8px; --r-pill: 999px;
+    --shadow: 0 1px 2px rgba(11,11,11,.04);
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --surface-1: #1a1a19; --page: #0d0d0d;
-      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
-      --grid: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
-      --up: #0ca30c; --down: #e66767;
-      --c-re: #3987e5; --c-us: #199e70; --c-kr: #c98500; --c-cash: #008300;
-      --c-vi: #9085e9; --c-debt: #d08a88;
+      --ink-1: #f5f5f2; --ink-2: #c3c2b7; --ink-muted: #8f8d86;
+      --grid: #2c2c2a; --baseline: #3a3a37; --border: rgba(255,255,255,0.10);
+      --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
+      --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
+      --c-vi: #9689ec; --c-debt: #d68a86;
+      --shadow: none;
     }
   }
   * { box-sizing: border-box; margin: 0; }
   body {
     background: var(--page); color: var(--ink-1);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    padding: 20px; max-width: 1080px; margin: 0 auto;
+    font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    font-size: var(--fs-body); line-height: 1.5;
+    padding: 22px 20px 60px; max-width: 1080px; margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
   }
-  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 18px; }
-  h1 { font-size: 20px; font-weight: 700; }
-  .meta { color: var(--ink-muted); font-size: 12.5px; }
-  /* 업데이트하기 — 우측 상단, 최신 시세·뉴스·체크포인트 재조회 */
-  #refresh { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 6px;
-             font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-1); cursor: pointer;
-             background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; }
-  #refresh:hover { border-color: var(--c-re); color: var(--c-re); }
-  #refresh:disabled { cursor: default; opacity: .65; }
+
+  /* 헤더 */
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
+  h1 { font-size: var(--fs-3); font-weight: 700; letter-spacing: -0.01em; }
+  .meta { color: var(--ink-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+  #refresh { margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+             font-family: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); cursor: pointer;
+             background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 13px;
+             transition: color .15s, border-color .15s; }
+  #refresh:hover { border-color: var(--accent); color: var(--accent); }
+  #refresh:disabled { cursor: default; opacity: .6; }
   #refresh .ic { font-size: 14px; line-height: 1; }
   #refresh.spin .ic { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
-           background: var(--ink-1); color: var(--page); font-size: 13px; font-weight: 500;
-           padding: 9px 16px; border-radius: 999px; opacity: 0; pointer-events: none;
+
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+           background: var(--ink-1); color: var(--page); font-size: var(--fs-body); font-weight: 500;
+           padding: 10px 18px; border-radius: var(--r-pill); opacity: 0; pointer-events: none;
            transition: opacity .25s, transform .25s; z-index: 30; }
   #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
-  .card {
-    background: var(--surface-1); border: 1px solid var(--border);
-    border-radius: 10px; padding: 16px 18px;
-  }
-  .card .label { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
-  .card .value { font-size: 26px; font-weight: 700; line-height: 1.15; }
-  .card.hero .value { font-size: 40px; }
-  .card .sub { font-size: 12.5px; color: var(--ink-muted); margin-top: 6px; }
-  .delta-up { color: var(--up); } .delta-down { color: var(--down); }
-  section.card { margin-bottom: 14px; }
-  h2 { font-size: 14px; font-weight: 600; color: var(--ink-2); margin-bottom: 12px; }
-  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 12px; justify-content: center; }
-  .legend span { white-space: nowrap; }
-  .legend span::before {
-    content: ""; display: inline-block; width: 10px; height: 10px;
-    border-radius: 3px; margin-right: 5px; background: var(--sw); vertical-align: 0px;
-  }
-  .donut-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
-  .donut-cell { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 2px; }
-  .donut-cell h3 { font-size: 13px; font-weight: 600; color: var(--ink-1); margin-bottom: 2px; text-align: center; }
-  .donut-cell .cap { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
-  svg text { font-family: inherit; }
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
-  th { color: var(--ink-muted); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--baseline); }
-  th:first-child, td:first-child { text-align: left; }
-  td.name { font-weight: 600; }
-  td .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
-  #tooltip {
-    position: fixed; pointer-events: none; z-index: 10; display: none;
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
-    padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.15);
-    color: var(--ink-1);
-  }
+
   /* 탭 */
-  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
-  .tab {
-    background: none; border: none; cursor: pointer; font-family: inherit;
-    font-size: 14px; font-weight: 600; color: var(--ink-muted);
-    padding: 9px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px;
-  }
+  .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { background: none; border: none; cursor: pointer; font-family: inherit; white-space: nowrap;
+         font-size: var(--fs-body); font-weight: 600; color: var(--ink-muted);
+         padding: 10px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; }
   .tab:hover { color: var(--ink-2); }
-  .tab.on { color: var(--c-re); border-bottom-color: var(--c-re); }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* 카드 */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r);
+          padding: 16px 18px; box-shadow: var(--shadow); }
+  section.card { margin-bottom: 14px; }
+  .card .label { font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 7px; }
+  .card .value { font-size: var(--fs-1); font-weight: 700; line-height: 1.1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+  .card.hero .value { font-size: var(--fs-hero); }
+  .card .sub { font-size: var(--fs-sm); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
+
+  /* 섹션 타이틀 */
+  h2 { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-bottom: 14px; letter-spacing: 0.01em; }
+
+  /* 설명 문구 (통일) */
+  .note, .goal-sub, .cp-mkt-note { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 10px; line-height: 1.5; }
+  .goal-sub { margin-top: 5px; }
+
+  /* 범례 */
+  .legend { display: flex; flex-wrap: wrap; gap: 7px 14px; font-size: var(--fs-sm); color: var(--ink-2); margin-top: 14px; justify-content: center; }
+  .legend span { white-space: nowrap; }
+  .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+                         margin-right: 5px; background: var(--sw); vertical-align: 0; }
+
+  /* 도넛 */
+  .donut-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+  .donut-cell { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 2px; }
+  .donut-cell h3 { font-size: var(--fs-body); font-weight: 600; color: var(--ink-1); margin-bottom: 2px; text-align: center; }
+  .donut-cell .cap { font-size: var(--fs-xs); color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
+  svg text { font-family: inherit; }
+
+  /* 표 (전 화면 공통 규격) */
+  table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th { color: var(--ink-muted); font-weight: 500; font-size: var(--fs-xs); border-bottom: 1px solid var(--baseline); }
+  th:first-child, td:first-child { text-align: left; white-space: normal; }
+  td.name { font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  td .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+  .mkt-px { color: var(--ink-1); font-weight: 600; }
+  .mkt-asof { font-size: var(--fs-xs); color: var(--ink-muted); font-weight: 400; margin-left: 6px; }
+  table.mkt td:first-child { font-weight: 600; }
+
+  #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
+             background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
+             padding: 8px 11px; font-size: var(--fs-sm); box-shadow: 0 4px 16px rgba(0,0,0,.16); color: var(--ink-1); }
+
+  /* 시세 카드 헤더 (제목 + 실시간 배지) */
+  .cp-mkt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cp-mkt-head h2 { margin: 0; }
+  .live-badge { font-size: var(--fs-xs); font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill);
+                white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+  .live-badge.on  { color: var(--pos); background: color-mix(in srgb, var(--pos) 13%, transparent); }
+  .live-badge.off { color: var(--ink-muted); background: var(--grid); }
+  .live-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .live-badge.on .dot { animation: livepulse 1.8s ease-in-out infinite; }
+  @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
   /* 배당 카드 */
   .div-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-  /* 오늘의 체크포인트 */
-  .cp-hero { font-size: 15px; line-height: 1.65; color: var(--ink-1); font-weight: 500; }
-  .cp-sub { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; white-space: pre-line; line-height: 1.6; }
-  .cp-quote { background: var(--page); border-left: 3px solid var(--c-re); border-radius: 0;
-              padding: 10px 14px; font-size: 13.5px; color: var(--ink-1); line-height: 1.6; margin-top: 12px; }
-  table.mkt { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.mkt th { font-size: 11.5px; color: var(--ink-muted); font-weight: 500; text-align: right;
-                 padding: 0 6px 7px; border-bottom: 1px solid var(--baseline); white-space: nowrap; }
-  table.mkt th:first-child { text-align: left; }
-  table.mkt td { padding: 8px 6px; border-bottom: 1px solid var(--grid); text-align: right;
-                 font-variant-numeric: tabular-nums; white-space: nowrap; }
-  table.mkt td:first-child { text-align: left; font-weight: 600; font-size: 13.5px; }
-  table.mkt tr:last-child td { border-bottom: none; }
-  .mkt-px { color: var(--ink-1); font-weight: 600; }
-  .mkt-asof { font-size: 11px; color: var(--ink-muted); font-weight: 400; margin-left: 5px; }
-  /* 시세 카드 헤더 — 제목 왼쪽, 실시간 기준시각 배지 오른쪽 */
-  .cp-mkt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .cp-mkt-head h2 { margin: 0; }
-  .live-badge { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
-                white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
-  .live-badge.on  { color: var(--up); background: color-mix(in srgb, var(--up) 14%, transparent); }
-  .live-badge.off { color: var(--ink-muted); background: var(--grid); }
-  .live-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-  .live-badge.on .dot { animation: livepulse 1.8s ease-in-out infinite; }
-  @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
-  .cp-mkt-note { font-size: 11.5px; color: var(--ink-muted); margin-top: 8px; }
-  /* 살고싶은 도시 */
-  .ct-bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
-  .ct-bar-name { width: 92px; flex-shrink: 0; font-size: 13px; font-weight: 600; white-space: nowrap;
-                 overflow: hidden; text-overflow: ellipsis; }
-  .ct-bar-track { position: relative; flex: 1; height: 24px; background: var(--grid); border-radius: 6px; }
-  .ct-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
-  .ct-bar-val { position: absolute; top: 0; left: 8px; height: 24px; display: flex; align-items: center;
-                font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--ink-1); white-space: nowrap; }
-  .ct-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-                    padding-bottom: 12px; border-bottom: 1px solid var(--grid); margin-bottom: 12px; }
-  .ct-detail-city { font-size: 19px; font-weight: 700; }
-  .ct-detail-sub { font-size: 11.5px; color: var(--ink-muted); margin-top: 3px; }
-  .ct-detail-fire { text-align: right; }
-  .ct-detail-fire-pct { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .ct-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-  .ct-gtag { font-size: 10.5px; color: var(--ink-muted); background: var(--grid); border-radius: 4px;
-             padding: 1px 6px; margin-left: 5px; font-weight: 500; white-space: nowrap; }
-  .news-item { padding: 11px 0; border-bottom: 1px solid var(--grid); }
-  .news-item:last-child { border-bottom: none; }
-  .news-title { font-size: 13.5px; font-weight: 600; color: var(--ink-1); line-height: 1.5; }
-  .news-title a { color: inherit; text-decoration: none; }
-  .news-title a:hover { text-decoration: underline; }
-  .news-meta { font-size: 11.5px; color: var(--ink-muted); margin-top: 3px; }
-  .news-tag { display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--c-us);
-              background: color-mix(in srgb, var(--c-us) 13%, transparent); border-radius: 4px;
-              padding: 1px 6px; margin-right: 6px; }
-  .news-insight { font-size: 12.5px; color: var(--ink-2); margin-top: 5px; line-height: 1.55; }
-  .luck { display: inline-block; background: var(--page); border-radius: 6px; padding: 3px 9px;
-          font-size: 11.5px; color: var(--ink-2); margin-top: 8px; }
-  .fortune-person { padding: 12px 0; border-bottom: 1px solid var(--grid); }
-  .fortune-person:last-child { border-bottom: none; }
-  .fortune-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
-  .fortune-name { font-size: 14px; font-weight: 700; }
-  .fortune-stars { font-size: 13px; color: var(--c-kr); letter-spacing: 1px; }
-  .fortune-body { font-size: 13.5px; color: var(--ink-1); line-height: 1.7; white-space: pre-line; }
-  .cp-stale { background: var(--red-weak, rgba(240,68,82,0.1)); color: var(--down);
-              border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
-  .seg { display: inline-flex; background: var(--grid); border-radius: 8px; padding: 2px; gap: 2px; margin-bottom: 12px; }
-  .seg-btn {
-    border: none; background: transparent; color: var(--ink-2); cursor: pointer;
-    font-size: 12.5px; font-family: inherit; padding: 5px 12px; border-radius: 6px;
-  }
-  .seg-btn.on { background: var(--surface-1); color: var(--ink-1); font-weight: 600; }
-  .div-card { background: var(--page); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-  .div-card .who { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
-  .div-card .amt { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
-  .div-card .mo { font-size: 11.5px; color: var(--ink-muted); margin-top: 4px; }
+  .div-card { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 16px; }
+  .div-card .who { font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 6px; }
+  .div-card .amt { font-size: var(--fs-2); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .div-card .mo { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 4px; }
+
   /* 스택 바 (연금성/유동성) */
   .sb { margin-bottom: 14px; }
-  .sb-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; margin-bottom: 6px; }
+  .sb:last-child { margin-bottom: 0; }
+  .sb-head { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--fs-body); margin-bottom: 6px; }
   .sb-head b { font-weight: 600; }
-  .sb-track { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: var(--grid); }
-  .sb-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; }
+  .sb-track { display: flex; height: 22px; border-radius: var(--r-sm); overflow: hidden; background: var(--grid); }
+  .sb-seg { display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); font-weight: 700; color: #fff; }
+
   /* FIRE 목표 */
   .fire-goals { display: grid; gap: 15px; }
-  .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; margin-bottom: 6px; }
+  .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: var(--fs-body); margin-bottom: 6px; }
   .goal-head .gl { color: var(--ink-1); }
   .goal-head .gl small { color: var(--ink-muted); font-weight: 400; }
-  .goal-head .pct { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .goal-track { height: 10px; background: var(--grid); border-radius: 6px; overflow: hidden; }
-  .goal-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
-  .goal-sub { font-size: 11.5px; color: var(--ink-muted); margin-top: 5px; }
+  .goal-head .pct { font-weight: 700; font-size: var(--fs-4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .goal-track { height: 9px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: var(--r-pill); transition: width .5s ease; }
   .fire-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-top: 18px; }
-  .fact { background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 11px 13px; }
-  .fact .l { font-size: 11.5px; color: var(--ink-2); margin-bottom: 4px; }
-  .fact .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  /* 두 사람 나이 병기 — 한 줄에 들어가도록 조금 줄인다 */
-  .fact .v.dual { font-size: 13.5px; letter-spacing: -0.2px; white-space: nowrap; }
-  .fact .s { font-size: 11px; color: var(--ink-muted); margin-top: 3px; }
-  #err { color: var(--down); padding: 30px 10px; font-size: 14px; display: none; }
-  #gate {
-    position: fixed; inset: 0; background: var(--page); z-index: 20;
-    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
-  }
-  #gate .box {
-    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
-    padding: 28px; width: min(340px, 90vw); display: flex; flex-direction: column; gap: 12px;
-  }
-  #gate h2 { margin: 0; }
-  #gate input {
-    font-size: 16px; padding: 10px 12px; border-radius: 8px;
-    border: 1px solid var(--baseline); background: var(--page); color: var(--ink-1);
-  }
-  #gate button {
-    font-size: 15px; font-weight: 600; padding: 10px; border-radius: 8px; border: none;
-    background: var(--c-re); color: #fff; cursor: pointer;
-  }
-  #gate .msg { font-size: 13px; color: var(--down); min-height: 18px; }
+  .fact { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; }
+  .fact .l { font-size: var(--fs-xs); color: var(--ink-2); margin-bottom: 5px; }
+  .fact .v { font-size: var(--fs-4); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .fact .v.dual { font-size: var(--fs-body); letter-spacing: -0.02em; white-space: nowrap; }
+  .fact .s { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 3px; }
+
+  /* 세그먼트 토글 */
+  .seg { display: inline-flex; background: var(--grid); border-radius: var(--r-sm); padding: 2px; gap: 2px; margin-bottom: 14px; }
+  .seg-btn { border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+             font-size: var(--fs-sm); font-family: inherit; padding: 6px 13px; border-radius: 6px; transition: background .15s; }
+  .seg-btn.on { background: var(--surface-1); color: var(--ink-1); font-weight: 600; }
+
+  /* 살고싶은 도시 */
+  .ct-bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .ct-bar-name { width: 92px; flex-shrink: 0; font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ct-bar-track { position: relative; flex: 1; height: 24px; background: var(--grid); border-radius: 6px; }
+  .ct-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+  .ct-bar-val { position: absolute; top: 0; left: 9px; height: 24px; display: flex; align-items: center;
+                font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink-1); white-space: nowrap; }
+  .ct-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+                    padding-bottom: 14px; border-bottom: 1px solid var(--grid); margin-bottom: 14px; }
+  .ct-detail-city { font-size: var(--fs-2); font-weight: 700; letter-spacing: -0.01em; }
+  .ct-detail-sub { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 3px; }
+  .ct-detail-fire { text-align: right; }
+  .ct-detail-fire-pct { font-size: var(--fs-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ct-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .ct-gtag { font-size: var(--fs-xs); color: var(--ink-muted); background: var(--grid); border-radius: 4px;
+             padding: 1px 6px; margin-left: 5px; font-weight: 500; white-space: nowrap; }
+
+  /* 오늘의 체크포인트 */
+  .cp-hero { font-size: 15px; line-height: 1.65; color: var(--ink-1); font-weight: 500; }
+  .cp-sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 8px; white-space: pre-line; line-height: 1.6; }
+  .cp-quote { background: var(--page); border-left: 3px solid var(--accent); padding: 10px 14px;
+              font-size: var(--fs-body); color: var(--ink-1); line-height: 1.6; margin-top: 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+  .cp-stale { background: color-mix(in srgb, var(--neg) 10%, transparent); color: var(--neg);
+              border-radius: var(--r-sm); padding: 10px 14px; font-size: var(--fs-body); margin-bottom: 12px; }
+
+  /* 뉴스 */
+  .news-item { padding: 12px 0; border-bottom: 1px solid var(--grid); }
+  .news-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .news-item:first-child { padding-top: 0; }
+  .news-title { font-size: var(--fs-body); font-weight: 600; color: var(--ink-1); line-height: 1.5; }
+  .news-title a { color: inherit; text-decoration: none; }
+  .news-title a:hover { color: var(--accent); }
+  .news-meta { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 4px; }
+  .news-tag { display: inline-block; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
+              background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 4px; padding: 1px 7px; margin-right: 7px; }
+  .news-insight { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 5px; line-height: 1.55; }
+
+  /* 운세 */
+  .luck { display: inline-block; background: var(--page); border-radius: var(--r-sm); padding: 4px 10px;
+          font-size: var(--fs-xs); color: var(--ink-2); margin-top: 8px; }
+  .fortune-person { padding: 14px 0; border-bottom: 1px solid var(--grid); }
+  .fortune-person:last-child { border-bottom: none; padding-bottom: 0; }
+  .fortune-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+  .fortune-name { font-size: var(--fs-4); font-weight: 700; }
+  .fortune-stars { font-size: var(--fs-body); color: var(--c-kr); letter-spacing: 1px; }
+  .fortune-body { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.7; white-space: pre-line; }
+
+  /* 오류 · 게이트 */
+  #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
+  #gate { position: fixed; inset: 0; background: var(--page); z-index: 20;
+          display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
+  #gate .box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r);
+               padding: 28px; width: min(340px, 90vw); display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow); }
+  #gate h2 { margin: 0; font-size: var(--fs-4); color: var(--ink-1); }
+  #gate input { font-size: 16px; padding: 11px 13px; border-radius: var(--r-sm);
+                border: 1px solid var(--baseline); background: var(--page); color: var(--ink-1); }
+  #gate button { font-size: 15px; font-weight: 600; padding: 11px; border-radius: var(--r-sm); border: none;
+                 background: var(--accent); color: #fff; cursor: pointer; }
+  #gate .msg { font-size: var(--fs-body); color: var(--neg); min-height: 18px; }
 </style>
 </head>
 <body>
@@ -281,13 +300,13 @@
   <section class="card">
     <h2>계좌 성격 — 연금성 vs 유동성</h2>
     <div id="fin-groups"></div>
-    <div class="goal-sub" style="margin-top:10px">연금성 = 연저펀·IRP·퇴직연금 (인출 제약) · 유동성 = ISA·CMA·청약·현금</div>
+    <div class="goal-sub">연금성 = 연저펀·IRP·퇴직연금 · 유동성 = ISA·CMA·청약·현금</div>
   </section>
 
   <section class="card">
     <h2 id="fin-div-h2">올해 예상 배당금</h2>
     <div class="div-row" id="fin-div"></div>
-    <div class="goal-sub" style="margin-top:10px">올해 지급월별 주당 분배금 × <b>현재</b> 보유수량 — 기준일이 지난 달은 확정, 남은 달은 작년 같은 달 실적으로 추정합니다. USD 종목은 현재 환율 적용.</div>
+    <div class="goal-sub">현재 보유수량 기준 · 지난 달은 확정, 남은 달은 작년 실적으로 추정</div>
   </section>
 
   <section class="card" id="fin-divmo-card" style="display:none">
@@ -308,7 +327,7 @@
       <button class="seg-btn" data-mode="group">연금성·유동성</button>
     </div>
     <div id="fin-trend"></div>
-    <div class="goal-sub" style="margin-top:10px">출처: ⭐️분당부부_MASTER ★월별자산 · 매월 ★주식계좌 실시간값이 해당 월 칸에 자동 기록됩니다</div>
+    <div class="goal-sub">매월 ★주식계좌 실시간값이 자동 기록됩니다</div>
   </section>
 
   <section class="card">
@@ -799,7 +818,7 @@ function renderCheckpoint(cp) {
   const genDay = (cp.generated_at || "").slice(0, 10);
   const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);  // KST 기준 오늘
   const briefNote = (genDay && genDay !== today)
-    ? `<div class="cp-mkt-note">이 브리핑은 ${esc(cp.date_label)} 생성분입니다 — 인사말·운세는 매일 오전 6시대 모닝 리포트로 갱신되고, 아래 시세·뉴스는 실시간입니다.</div>`
+    ? `<div class="cp-mkt-note">인사말·운세는 ${esc(cp.date_label)} 생성분 · 매일 오전 6시대 갱신 (아래 시세·뉴스는 실시간)</div>`
     : "";
 
   // 인사 + 날씨
@@ -824,11 +843,11 @@ function renderCheckpoint(cp) {
   const fgLine = fg.score != null
     ? `공포탐욕 <b>${fg.score}</b> (${esc(fg.label || "")})${fg.vix ? ` · VIX ${fg.vix.toFixed(1)}` : ""}` : "";
   const usAsof = (cp.us || []).map(i => i.asof).filter(Boolean).sort().pop();
-  const usNote = `<div class="cp-mkt-note">${usAsof ? `가격은 ${esc(usAsof.slice(5))} 종가 기준 · ` : ""}수익률은 1일/1주/1개월/1년 전 종가 대비</div>`
-    + (fgLine ? `<div class="goal-sub" style="margin-top:6px">${fgLine}</div>` : "");
+  const usNote = (usAsof ? `<div class="cp-mkt-note">${esc(usAsof.slice(5))} 종가 기준</div>` : "")
+    + (fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : "");
   h += mktSection("미국 지수", cp.us, usNote);
-  h += mktSection("국내 지수·ETF", cp.kr, `<div class="cp-mkt-note">수익률은 1일/1주/1개월/1년 전 종가 대비</div>`);
-  h += mktSection("환율", cp.fx, `<div class="cp-mkt-note">원/달러·원/엔(100엔 기준)</div>`);
+  h += mktSection("국내 지수·ETF", cp.kr, "");
+  h += mktSection("환율", cp.fx, `<div class="cp-mkt-note">원/엔은 100엔 기준</div>`);
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
     <div style="font-size:13.5px">🗓️ ${esc(cp.macro_dday)}</div></section>`;
 
@@ -840,7 +859,7 @@ function renderCheckpoint(cp) {
       <div class="news-meta">${n.tag ? `<span class="news-tag">${esc(n.tag)}</span>` : ""}${n.source ? esc(n.source) : ""}${n.published ? ` · ${esc(n.published)}` : ""}</div>
       ${n.insight ? `<div class="news-insight">→ ${esc(n.insight)}</div>` : ""}
     </div>`).join("")}
-    ${cp.news_live ? `<div class="cp-mkt-note">관심 주제로 30분마다 최신 기사만 모읍니다 — 보유 ETF·배당 · 미국 증시 · 환율·금리 · FIRE·이주</div>` : ""}</section>`;
+    ${cp.news_live ? `<div class="cp-mkt-note">관심 주제 최신순 · 30분마다 갱신</div>` : ""}</section>`;
 
   // 운세
   const f = cp.fortune;
@@ -985,9 +1004,9 @@ function renderDivMonthly(H, year) {
 
   const notes = [...new Set(list.map(a => a.note))];
   document.getElementById("fin-divmo-note").innerHTML =
-    `실제 <b>지급월</b> 기준 — 국내 ETF는 분배금 기준일이 월말이라 지급은 다음 달 초에 잡힙니다.`
-    + (estFrom >= 0 ? ` ${estFrom + 1}월부터는 아직 기준일 전이라 작년 같은 달 실적으로 <b>추정</b>했고, 막대를 흐리게 칠했습니다.` : "")
-    + `<br>세율: ${notes.join(" · ")}`;
+    `실제 지급월 기준`
+    + (estFrom >= 0 ? ` · ${estFrom + 1}월부터 흐린 막대는 작년 실적 기반 추정` : "")
+    + ` · 세율 ${notes.join(" · ")}`;
 }
 
 function renderFinancial(fin) {
@@ -1027,8 +1046,7 @@ function renderFinancial(fin) {
   indexDonut(donutCell(ic), "우현", uh);
   indexDonut(donutCell(ic), "규리", gr);
   document.getElementById("fin-idx-note").textContent =
-    "SCHD와 TIGER 미국배당다우존스는 같은 지수(Dow Jones US Dividend 100)라 합산 · " +
-    "TIGER 미국나스닥100채권혼합50은 나스닥100 50% + 채권 50%로 분리 · 티커 없는 예치금은 현금";
+    "SCHD·TIGER 미국배당다우존스는 같은 지수라 합산 · 채권혼합50은 나스닥100 절반만 반영";
 
   // 연금성 vs 유동성
   const g = (hs, kind) => sum(hs.filter(h => h.group === kind));
@@ -1180,7 +1198,7 @@ function renderSpending(sp) {
   donutOf("월평균", `${months[0].label}~${months[cn - 1].label} 마감 ${cn}개월`,
           c => c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn);
   document.getElementById("sp-donut-note").textContent =
-    "월평균은 진행 중인 달을 뺀 마감 월만 평균냅니다 — 비중은 누적과 거의 같고, 가운데 금액이 '보통 달' 기준선입니다.";
+    "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
 
   // 표 — 카테고리 × 월 (연 누적 큰 순)
   const rank = [...sp.categories].sort((a, b) =>
@@ -1208,9 +1226,7 @@ function renderSpending(sp) {
 
   const exNames = (sp.excluded || []).map(c => c.name).join("·");
   document.getElementById("sp-note").innerHTML =
-    `출처: ⭐️분당부부_MASTER 시각화 · 상세항목별 지출 금액 (투자·대출/이자/보험은 생활비에서 제외)`
-    + (exNames ? `<br>${exNames}는 소비가 아니라 내부 배분이라 합계에서 뺐습니다 — 값은 표 맨 아래에 그대로 남겨뒀어요.` : "")
-    + `<br>환급·정정으로 음수인 항목은 막대에 쌓이지 않지만 합계에는 반영됩니다.`;
+    `투자·대출·보험은 생활비에서 제외` + (exNames ? ` · ${exNames}는 내부 배분이라 합계에서 뺌 (표 하단 참고)` : "");
 }
 
 /* ---- 살고싶은 도시 (🌍이주 대시보드 · Numbeo 기반) ---- */
@@ -1237,7 +1253,7 @@ function renderCities(ct, net) {
   const maxV = Math.max(...rows.map(r => r.avg_monthly)) * 1.02;
   document.getElementById("ct-bars").innerHTML = rows.map(c => {
     const w = c.avg_monthly / maxV * 100, vs = vsSeoul(c);
-    const col = c._seoul ? "var(--baseline)" : vs <= 100 ? "var(--up)" : "var(--c-us)";
+    const col = c._seoul ? "var(--baseline)" : vs <= 100 ? "var(--pos)" : "var(--accent)";
     const tag = c._seoul ? "기준" : (vs <= 100 ? `-${(100 - vs).toFixed(0)}%` : `+${(vs - 100).toFixed(0)}%`);
     return `<div class="ct-bar-row">
       <div class="ct-bar-name" title="${esc(c.name)}">${esc(ctShort(c.name))}${c._seoul ? " ⭐" : ""}</div>
@@ -1246,7 +1262,7 @@ function renderCities(ct, net) {
     </div>`;
   }).join("");
   document.getElementById("ct-bars-note").textContent =
-    "Numbeo 실시간 물가로 계산한 도시별 월 생활비 · 초록=서울보다 저렴 · 파랑=서울보다 비쌈";
+    "Numbeo 물가 기준 · 초록=서울보다 저렴 · 파랑=비쌈";
 
   // 도시 선택 → 상세 (카테고리별 서울 대비 + 실시간 순자산 달성률)
   const pick = document.getElementById("ct-pick");
@@ -1307,8 +1323,7 @@ function renderCities(ct, net) {
       <td>${fmtEok(seoul.fire_target)}</td><td><b>${seoul.fire_target ? (net / seoul.fire_target * 100).toFixed(0) : 0}%</b></td></tr>
       ${byCost.map(trow).join("")}</tbody>`;
   document.getElementById("ct-note").innerHTML =
-    "출처: ⭐️분당부부_MASTER 🌍이주 대시보드 · Numbeo 실시간 물가 기반. 달성률은 <b>현재 순자산</b>으로 재계산.<br>"
-    + "도시를 더하거나 바꾸려면 시트 4행에 Numbeo 영문 도시명을 입력하세요 — 다음 갱신 때 여기 반영됩니다. (웹은 정적 호스팅이라 브라우저에서 Numbeo를 직접 조회할 수 없어요.)";
+    "달성률은 현재 순자산으로 재계산 · 도시 추가·변경은 시트 🌍이주 대시보드 4행에 입력하면 반영됩니다.";
 }
 
 let _tabsInited = false;
@@ -1498,8 +1513,8 @@ async function render() {
   // 기준값이 어디서 왔는지 밝힌다 — 시트 소계는 부동산을 추정으로 굴려 우리 실시간
   // 평가액과 계통 차이가 있다. 일별 기록이 한 달을 채우면 자동으로 실측 비교로 바뀐다.
   document.getElementById("kpi-note").textContent = !pm ? "" : pm.source === "sheet"
-    ? `전월 대비 기준값은 ⭐️분당부부_MASTER ★월별자산 ${pm.key} 소계입니다 — 시트는 부동산을 추정으로 굴려 대시보드 실시간 평가액과 다소 차이가 납니다.`
-    : `전월 대비 기준값은 ${pm.key} 말 대시보드 자체 기록입니다.`;
+    ? `전월 대비 기준: ★월별자산 ${pm.key} 소계 (부동산은 시트 추정가)`
+    : `전월 대비 기준: ${pm.key} 말 실측`;
 
   // FIRE 목표 달성 (★종합 시트) — 달성률은 위 실시간 net으로 재계산
   renderFire(snap.fire, net);
@@ -1552,9 +1567,8 @@ async function render() {
     slices: netSlices,
   });
   document.getElementById("donut-note").textContent =
-    `순자산 배분: 임대 전세보증금·주택담보(${fmtEok(debtFor("부동산"))})는 부동산에, ` +
-    `전세대출(${fmtEok(debtFor("전세보증금"))})은 전세보증금에 상계` +
-    (unsecured > 0 ? ` · 무담보 대출 ${fmtEok(unsecured)}은 자산 비중대로 안분` : "");
+    `대출을 담보 자산에 상계한 순지분 기준` +
+    (unsecured > 0 ? ` · 무담보 ${fmtEok(unsecured)}은 자산 비중대로 안분` : "");
 
   // 추이
   lineChart(document.getElementById("trend"), histM);
