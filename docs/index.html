@@ -95,7 +95,7 @@
   section.card { margin-bottom: 14px; }
   .card .label { font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 7px; }
   .card .value { font-size: var(--fs-1); font-weight: 700; line-height: 1.1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
-  .card.hero .value { font-size: var(--fs-hero); }
+  /* hero 카드도 같은 행의 다른 카드와 숫자 크기를 맞춘다 (행 내 크기 불일치 방지) */
   .card .sub { font-size: var(--fs-sm); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
   .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
   /* 순자산 → FIRE 목표 게이지 (hero 카드) */
