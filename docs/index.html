@@ -466,10 +466,16 @@ function donut(cell, spec) {
   const total = slices.reduce((s, x) => s + Math.abs(x.value), 0) || 1;
   const size = 200, cx = 100, cy = 100, rO = 84, rI = 55, gap = 0.025;
   const svg = el("svg", { viewBox: `0 0 ${size} ${size}`, style: "width:100%;max-width:200px;display:block" });
+  // 상위 N개 조각에 값 병기 (마우스오버 없이) — spec.annotateTop
+  const annFmt = spec.annFmt || F;
+  const topIdx = new Set(slices.map((s, i) => i)
+    .sort((a, b) => Math.abs(slices[b].value) - Math.abs(slices[a].value))
+    .slice(0, spec.annotateTop || 0));
   let ang = -Math.PI / 2;
-  for (const s of slices) {
+  slices.forEach((s, i) => {
     const frac = Math.abs(s.value) / total;
     const a0 = ang + gap / 2, a1 = ang + frac * 2 * Math.PI - gap / 2;
+    const mid = ang + frac * Math.PI;
     if (a1 > a0) {
       const p = el("path", { d: arcPath(cx, cy, rO, rI, a0, a1), fill: s.color,
         stroke: "var(--surface-1)", "stroke-width": 1 }, svg);
@@ -478,9 +484,18 @@ function donut(cell, spec) {
         `<b>${s.label}</b><br>${sign}${F(Math.abs(s.value))} (${(frac * 100).toFixed(1)}%)` +
         `<br><span style="color:var(--ink-muted)">${sign}${fmtWon(Math.abs(s.value))}</span>`));
       p.addEventListener("mouseleave", hideTip);
+      // 상위 조각이고 충분히 크면 링 위에 값 표기
+      if (topIdx.has(i) && frac > 0.06) {
+        const rM = (rO + rI) / 2;
+        el("text", { x: cx + rM * Math.cos(mid), y: cy + rM * Math.sin(mid),
+          "text-anchor": "middle", "dominant-baseline": "central",
+          "font-size": 9.5, "font-weight": 700, fill: "#fff",
+          style: "paint-order:stroke; stroke:rgba(0,0,0,.28); stroke-width:2px;" }, svg)
+          .textContent = annFmt(Math.abs(s.value));
+      }
     }
     ang += frac * 2 * Math.PI;
-  }
+  });
   el("text", { x: cx, y: cy - 1, "text-anchor": "middle", "font-size": 21, "font-weight": 700, fill: "var(--ink-1)" }, svg)
     .textContent = F(spec.center);
   el("text", { x: cx, y: cy + 16, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
@@ -490,7 +505,11 @@ function donut(cell, spec) {
   const lg = document.createElement("div"); lg.className = "legend";
   for (const s of slices) {
     const span = document.createElement("span"); span.style.setProperty("--sw", s.color);
-    span.textContent = `${s.label} ${(s.neg ? "−" : "")}${(Math.abs(s.value) / total * 100).toFixed(1)}%`;
+    const sign = s.neg ? "−" : "";
+    // 생활비 등은 비중(%)보다 실제 금액이 중요 → spec.legendValue면 값으로 표기
+    span.textContent = spec.legendValue
+      ? `${s.label} ${sign}${F(Math.abs(s.value))}`
+      : `${s.label} ${sign}${(Math.abs(s.value) / total * 100).toFixed(1)}%`;
     lg.appendChild(span);
   }
   cell.appendChild(lg);
@@ -1217,6 +1236,8 @@ function renderSpending(sp) {
     donut(donutCell(row), {
       title, caption, slices, fmt: fmtMan, centerLabel: "생활비",
       center: slices.reduce((s, x) => s + x.value, 0),
+      legendValue: true,                                  // 범례를 %가 아닌 금액으로
+      annotateTop: 3, annFmt: v => manNum(v) + "만",       // 상위 3개는 링 위에 값 병기
     });
   };
   donutOf(`${sp.year}년 누적`, `${n}개월 합계`, c => c.values.reduce((a, b) => a + b, 0));
