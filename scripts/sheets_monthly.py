@@ -163,6 +163,55 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
         return False
 
 
+# 부동산 KB 실시세를 기록할 후보 행 범위 (계좌 소계 16행 ~ 총자산소계 25행 사이).
+# 이 안에서 C라벨이 KB 자산 이름과 겹치는 행만 골라 쓴다 — 전세·회사주식 등은 자동으로 제외된다.
+RE_ROW_FIRST, RE_ROW_LAST = 17, 24
+
+
+def write_current_month_realestate(re_assets: List[Dict], today: Optional[date] = None) -> bool:
+    """KB 실시세 부동산을 이번 달 칸에 기록. re_assets=[{name, value_krw}] (category=='부동산').
+
+    ★월별자산 부동산 행(인덕원삼호·송천센트레빌 등)을 C라벨↔KB자산명 겹침으로 찾아 그 달 칸에
+    하드값으로 upsert한다. 기존엔 시트 추정 수식(=U*1.009)이라 KB 실시세와 드리프트했다.
+    전세·회사주식 등 KB와 무관한 행은 이름이 안 겹쳐 자동 제외 → 절대 건드리지 않는다.
+    """
+    if not re_assets:
+        return False
+    today = today or date.today()
+    col = month_col(today.year, today.month)
+    if col is None:
+        print(f"WARN: {today:%Y-%m}은 ★월별자산 범위 밖 — 부동산 기록 생략")
+        return False
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return False
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        labels = ws.get(f"C{RE_ROW_FIRST}:C{RE_ROW_LAST}")
+        a1 = _col_a1(col)
+        cells, matched = [], []
+        for i, row in enumerate(labels):
+            r = RE_ROW_FIRST + i
+            label = (row[0].strip() if row else "").replace(" ", "")
+            if not label:
+                continue
+            for a in re_assets:
+                if label in str(a.get("name", "")).replace(" ", "") and a.get("value_krw", 0) > 0:
+                    cells.append({"range": f"{a1}{r}", "values": [[round(a["value_krw"])]]})
+                    matched.append(f"{label}={a['value_krw']/1e8:.2f}억")
+                    break
+        if not cells:
+            print("WARN: ★월별자산 부동산 행 매칭 실패 — KB 기록 생략")
+            return False
+        ws.batch_update(cells, value_input_option="USER_ENTERED")
+        print(f"OK: ★월별자산 {today:%Y-%m} ({a1}열) 부동산 KB 기록 — {' · '.join(matched)}")
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 부동산 월별 기록 실패 ({type(e).__name__}: {e})")
+        return False
+
+
 def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
     """★월별자산 → {periods, accounts} (대시보드 월별 흐름용). 실패 시 {}."""
     today = today or date.today()

@@ -222,10 +222,15 @@ def main():
     # 금융자산 상세 (★주식계좌 탭) — 계좌별 보유·연 예상배당. 실패 시 {} → 탭만 생략.
     financial = sheets_holdings.fetch_holdings()
 
-    # 월별 흐름 — 이번 달 칸에 계좌별 합계를 기록(upsert)한 뒤 전체 이력을 읽어온다.
-    # GOOGLEFINANCE는 '지금'만 알기에, 각 달의 값을 이 시점에 얼려야 추이가 남는다.
+    # 월별 흐름 — 이번 달 칸에 자동 기록(upsert)한 뒤 전체 이력을 읽어온다.
+    # 매일 덮어쓰므로 달이 바뀌면 직전 달 '말일' 값이 자연히 확정된다.
+    #  (1) 금융자산 = ★주식계좌 계좌별 합계 (GOOGLEFINANCE는 '지금'만 알기에 얼려 저장)
+    #  (2) 부동산   = KB 실시세 (기존 시트 추정 수식 =U*1.009 를 실값으로 대체)
     if financial.get("holdings"):
         sheets_monthly.write_current_month(financial["holdings"], now.date())
+    re_assets = [{"name": a["name"], "value_krw": a["value_krw"]}
+                 for a in assets if a.get("category") == "부동산"]
+    sheets_monthly.write_current_month_realestate(re_assets, now.date())
     monthly = sheets_monthly.fetch_monthly(now.date())
 
     # 오늘의 체크포인트 — 분당부부 모닝 리포트(별도 private 레포)가 시트에 남긴 페이로드.
