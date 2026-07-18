@@ -98,6 +98,8 @@
   /* hero 카드도 같은 행의 다른 카드와 숫자 크기를 맞춘다 (행 내 크기 불일치 방지) */
   .card .sub { font-size: var(--fs-sm); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
   .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
+  .delta-none { color: var(--ink-muted); }
+  #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
   /* 순자산 → FIRE 목표 게이지 (hero 카드) */
   .kpi-gauge { margin-top: 14px; }
   .kpi-gauge-track { height: 6px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; }
@@ -1908,25 +1910,51 @@ async function render() {
   renderReview(snap.review);
   renderCheckpoint(snap.checkpoint);
 
-  // 상세 테이블 (자산 + 부채)
-  const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => `
-    <tr>
+  // 상세 테이블 (자산 + 부채) — 비고 대신 전월·전년 대비 증감
+  const H = snap.asset_history || {};
+  const hAssets = H.assets || {}, hLiab = H.liabilities || {};
+  // 자산 상세 라인 → ★월별자산 이력 키 매칭
+  const histFor = (name, category, owner) => {
+    if (category === "주식") return hAssets["계좌:" + owner];
+    if (category === "부동산") return Object.entries(hAssets).find(([k]) => name.includes(k))?.[1];
+    if (category === "전세보증금") return Object.entries(hAssets).find(([k]) => k.includes("전세"))?.[1];
+    return null;  // 현금 등 이력 없음
+  };
+  // 증감 셀: base(전월/전년값) 대비 cur의 변화. goodWhenUp=false면 감소가 초록(부채).
+  // 억/만원 혼합 — 대출 상환 등 소액도 '33만'처럼 보이게 (fmtEok만 쓰면 0.00억).
+  const fmtChg = v => Math.abs(v) >= 1e8 ? fmtEok(v) : fmtMan(v);
+  const deltaCell = (cur, base, goodWhenUp = true) => {
+    if (base == null || !base) return `<td class="delta-none">—</td>`;
+    const d = cur - base, pct = d / Math.abs(base) * 100;
+    if (Math.abs(d) < 5e4) return `<td class="delta-none">–</td>`;  // 5만 미만 무변동
+    const good = goodWhenUp ? d > 0 : d < 0;
+    return `<td class="${good ? "delta-up" : "delta-down"}">${d > 0 ? "▲" : "▼"} ${fmtChg(Math.abs(d))}`
+         + `<br><small>${d > 0 ? "+" : "−"}${Math.abs(pct).toFixed(1)}%</small></td>`;
+  };
+
+  const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => {
+    const h = histFor(a.name, a.category, a.owner) || {};
+    return `<tr>
       <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${a.name}</td>
       <td>${a.owner}</td><td>${a.category}</td>
-      <td>${a.currency === "USD" ? "$" + a.price.toLocaleString() : fmtWon(a.price)}</td>
       <td><b>${fmtEok(a.value_krw)}</b></td>
-      <td style="color:var(--ink-muted)">${a.asof}${a.note ? " · " + a.note : ""}</td>
-    </tr>`).join("");
-  const debtRows = (snap.liabilities || []).map(l => `
-    <tr>
+      ${deltaCell(h.cur ?? a.value_krw, h.m1, true)}
+      ${deltaCell(h.cur ?? a.value_krw, h.y1, true)}
+    </tr>`;
+  }).join("");
+  const debtRows = (snap.liabilities || []).map(l => {
+    const h = hLiab[l.name] || {};
+    return `<tr>
       <td class="name"><span class="chip" style="background:var(--down)"></span>${l.name}</td>
       <td>${l.owner}</td><td>부채</td>
-      <td>${fmtWon(l.amount_krw)}</td>
       <td class="delta-down"><b>−${fmtEok(l.amount_krw)}</b></td>
-      <td style="color:var(--ink-muted)">${l.note || ""}</td>
-    </tr>`).join("");
+      ${deltaCell(h.cur ?? l.amount_krw, h.m1, false)}
+      ${deltaCell(h.cur ?? l.amount_krw, h.y1, false)}
+    </tr>`;
+  }).join("");
+  const hpm = H.prev_month ? H.prev_month.replace("-", ".") : "전월";
   document.getElementById("detail").innerHTML = `
-    <thead><tr><th>항목</th><th>소유</th><th>분류</th><th>금액</th><th>평가액</th><th>비고</th></tr></thead>
+    <thead><tr><th>항목</th><th>소유</th><th>분류</th><th>평가액</th><th>${hpm} 대비</th><th>${H.prev_year || "전년"} 대비</th></tr></thead>
     <tbody>${rows}${debtRows}</tbody>`;
 }
 

@@ -232,6 +232,8 @@ def main():
                  for a in assets if a.get("category") == "부동산"]
     sheets_monthly.write_current_month_realestate(re_assets, now.date())
     monthly = sheets_monthly.fetch_monthly(now.date())
+    # 자산 상세용 전월·전년 이력 (각 항목의 증감 표시). 실패 시 {} → 증감만 생략.
+    asset_history = sheets_monthly.fetch_asset_history(now.date())
 
     # 오늘의 체크포인트 — 분당부부 모닝 리포트(별도 private 레포)가 시트에 남긴 페이로드.
     checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
@@ -265,6 +267,7 @@ def main():
         "fire": fire,
         "financial": financial,
         "monthly": monthly,
+        "asset_history": asset_history,
         "checkpoint": checkpoint,
         "spending": spending,
         "cities": cities,
