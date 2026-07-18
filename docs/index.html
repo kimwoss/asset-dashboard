@@ -205,6 +205,21 @@
   .ct-gtag { font-size: var(--fs-xs); color: var(--ink-muted); background: var(--grid); border-radius: 4px;
              padding: 1px 6px; margin-left: 5px; font-weight: 500; white-space: nowrap; }
 
+  /* 은퇴 지도 */
+  .sim-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-xs); color: var(--ink-2); margin-top: 10px; }
+  .sim-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; }
+
+  /* 연간 리뷰 */
+  .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .rv-card { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; }
+  .rv-card .rv-cat { font-size: var(--fs-xs); font-weight: 600; color: var(--accent); margin-bottom: 6px; letter-spacing: 0.01em; }
+  .rv-card .rv-txt { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.55; white-space: pre-line; }
+  .rv-month { display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--grid); }
+  .rv-month:last-child { border-bottom: none; padding-bottom: 0; }
+  .rv-month:first-child { padding-top: 0; }
+  .rv-month .rv-m { font-size: var(--fs-body); font-weight: 700; color: var(--accent); }
+  .rv-month .rv-mtxt { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.65; white-space: pre-line; }
+
   /* 오늘의 체크포인트 */
   .cp-hero { font-size: 15px; line-height: 1.65; color: var(--ink-1); font-weight: 500; }
   .cp-sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 8px; white-space: pre-line; line-height: 1.6; }
@@ -280,6 +295,8 @@
   <button class="tab" data-tab="financial">금융자산</button>
   <button class="tab" data-tab="spending">월간 생활비</button>
   <button class="tab" data-tab="cities">살고싶은 도시</button>
+  <button class="tab" data-tab="sim">은퇴 지도</button>
+  <button class="tab" data-tab="review">연간 리뷰</button>
   <button class="tab" data-tab="checkpoint">오늘의 체크포인트</button>
 </nav>
 
@@ -402,6 +419,31 @@
     <h2>전체 도시 한눈에</h2>
     <div style="overflow-x:auto"><table id="ct-table"></table></div>
     <div class="goal-sub" id="ct-note" style="margin-top:10px"></div>
+  </section>
+</div>
+
+<div id="tab-sim" style="display:none">
+  <div class="cards" id="sim-kpis"></div>
+  <section class="card">
+    <h2>순자산 궤적 — 39세부터 100세까지</h2>
+    <div class="seg" id="sim-seg">
+      <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+      <button class="seg-btn" data-mode="nominal">명목</button>
+    </div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
+  </section>
+</div>
+
+<div id="tab-review" style="display:none">
+  <div class="seg" id="review-years" style="flex-wrap:wrap"></div>
+  <section class="card" id="review-best-card">
+    <h2 id="review-best-h2">올해의 베스트</h2>
+    <div class="rv-grid" id="review-best"></div>
+  </section>
+  <section class="card" id="review-months-card">
+    <h2>월별 추억</h2>
+    <div id="review-months"></div>
   </section>
 </div>
 
@@ -1374,6 +1416,129 @@ function renderCities(ct, net) {
 }
 
 let _tabsInited = false;
+/* ---- 은퇴 100세 지도 (시뮬레이션) ---- */
+function simChart(container, series, mode, retireAge, depAge) {
+  container.innerHTML = "";
+  const key = mode === "nominal" ? "net" : "real_net";
+  // 소진 이후는 비현실적 부채나선 — 소진 +2년까지만 그린다 (0 교차를 보여주되 꼬리 절단)
+  const cut = depAge ? depAge + 2 : series[series.length - 1].age;
+  const pts = series.filter(s => s.age <= cut);
+  const W = Math.min(container.clientWidth || 900, 1000), H = 300;
+  const m = { l: 52, r: 14, t: 16, b: 42 };
+  const ages = pts.map(p => p.age), vals = pts.map(p => p[key]);
+  const aMin = ages[0], aMax = ages[ages.length - 1];
+  let hi = Math.max(...vals, 0), lo = Math.min(...vals, 0);
+  hi *= 1.08; lo = lo < 0 ? lo * 1.08 : 0;
+  const xs = a => m.l + (W - m.l - m.r) * (a - aMin) / (aMax - aMin);
+  const ys = v => m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo));
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}` });
+
+  // y 그리드 (억 단위)
+  const step = hi > 30e8 ? 10e8 : 5e8;
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+    const y = ys(v);
+    el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": v === 0 ? 1.5 : 1,
+                 ...(v === 0 ? { stroke: "var(--baseline)" } : {}) }, svg);
+    el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = fmtEok(v);
+  }
+  // x 축 나이 (10년 간격)
+  for (let a = Math.ceil(aMin / 10) * 10; a <= aMax; a += 10)
+    el("text", { x: xs(a), y: H - 22, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = a + "세";
+
+  // 은퇴·소진 마커
+  const marker = (age, label, color) => {
+    if (!age || age < aMin || age > aMax) return;
+    el("line", { x1: xs(age), x2: xs(age), y1: m.t, y2: H - m.b, stroke: color, "stroke-width": 1,
+                 "stroke-dasharray": "3 3", opacity: 0.7 }, svg);
+    el("text", { x: xs(age), y: H - 6, "text-anchor": "middle", "font-size": 10.5, "font-weight": 600, fill: color }, svg)
+      .textContent = `${label} ${age}세`;
+  };
+
+  // 면적 + 라인
+  const line = pts.map(p => `${xs(p.age).toFixed(1)} ${ys(p[key]).toFixed(1)}`);
+  const area = `M${xs(aMin).toFixed(1)} ${ys(0).toFixed(1)} L${line.join(" L")} L${xs(aMax).toFixed(1)} ${ys(0).toFixed(1)} Z`;
+  el("path", { d: area, fill: "var(--c-us)", "fill-opacity": 0.12 }, svg);
+  el("path", { d: `M${line.join(" L")}`, fill: "none", stroke: "var(--c-us)", "stroke-width": 2.5 }, svg);
+  marker(retireAge, "은퇴", "var(--c-vi)");
+  marker(depAge, "소진", "var(--neg)");
+
+  // 크로스헤어
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--baseline)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const dot = el("circle", { r: 4, fill: "var(--c-us)", stroke: "var(--surface-1)", "stroke-width": 1.5, visibility: "hidden" }, svg);
+  svg.addEventListener("mousemove", ev => {
+    const box = svg.getBoundingClientRect();
+    const a = Math.round(aMin + (aMax - aMin) * ((ev.clientX - box.left) * W / box.width - m.l) / (W - m.l - m.r));
+    const p = pts.find(x => x.age === a); if (!p) return;
+    cross.setAttribute("x1", xs(a)); cross.setAttribute("x2", xs(a)); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", xs(a)); dot.setAttribute("cy", ys(p[key])); dot.setAttribute("visibility", "visible");
+    showTip(ev, `<b>${p.age}세</b> (${esc(p.phase)})<br>${mode === "nominal" ? "순자산" : "실질 순자산"} ${fmtEok(p[key])}` +
+      (p.spend ? `<br><span style="color:var(--ink-muted)">연지출 ${fmtEok(p.spend)}${p.pension ? " · 연금 " + fmtEok(p.pension) : ""}</span>` : ""));
+  });
+  svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); });
+  container.appendChild(svg);
+
+  const lg = document.createElement("div"); lg.className = "sim-legend";
+  lg.innerHTML = `<span><i style="background:var(--c-us)"></i>${mode === "nominal" ? "명목 순자산" : "실질 순자산(오늘 가치)"}</span>`
+    + `<span><i style="background:var(--c-vi)"></i>은퇴 ${retireAge}세</span>`
+    + (depAge ? `<span><i style="background:var(--neg)"></i>자산 소진 ${depAge}세</span>` : "");
+  container.appendChild(lg);
+}
+
+function renderSim(sim) {
+  const tabBtn = document.querySelector('.tab[data-tab="sim"]');
+  if (!sim || !sim.series || !sim.series.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  const s = sim.summary || {};
+  const now = sim.series[0];
+  document.getElementById("sim-kpis").innerHTML =
+    kpiCard("은퇴 시점 자산", fmtEok(s.retire_asset), `${sim.retire_age}세 · 기본 필요 ${fmtEok(s.target_basic)}`, true) +
+    kpiCard("자산 소진 예상", sim.depletion_age ? `${sim.depletion_age}세` : "소진 없음",
+      sim.depletion_age ? `은퇴 후 ${sim.depletion_age - sim.retire_age}년` : "기대수명까지 유지") +
+    kpiCard("108세 실질 순자산", fmtEok(s.real_net_end),
+      s.real_net_end < 0 ? "오늘 가치 기준 · 적자" : "오늘 가치 기준");
+
+  let mode = "real";
+  const draw = () => simChart(document.getElementById("sim-chart"), sim.series, mode, sim.retire_age, sim.depletion_age);
+  draw();
+  document.getElementById("sim-seg").addEventListener("click", ev => {
+    const b = ev.target.closest(".seg-btn"); if (!b) return;
+    for (const x of document.querySelectorAll("#sim-seg .seg-btn")) x.classList.toggle("on", x === b);
+    mode = b.dataset.mode; draw();
+  });
+  document.getElementById("sim-note").textContent =
+    "출처: ⭐️분당부부_MASTER 시뮬레이션 · 소진 이후 구간은 표시에서 제외 (모델상 비현실적 부채 구간). 실질 = 물가를 반영한 오늘 돈 가치.";
+}
+
+/* ---- 우리 부부 연간 리뷰 (연간리뷰) ---- */
+function renderReview(rv) {
+  const tabBtn = document.querySelector('.tab[data-tab="review"]');
+  if (!rv || !rv.years || !rv.years.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  const seg = document.getElementById("review-years");
+  seg.innerHTML = rv.years.map(y => `<button class="seg-btn" data-y="${y}">${y}</button>`).join("");
+
+  const draw = year => {
+    const d = rv.byYear[String(year)] || { best: [], months: [] };
+    for (const b of seg.querySelectorAll(".seg-btn")) b.classList.toggle("on", b.dataset.y == year);
+    document.getElementById("review-best-h2").textContent = `${year} 베스트`;
+    const bestCard = document.getElementById("review-best-card");
+    bestCard.style.display = d.best.length ? "" : "none";
+    document.getElementById("review-best").innerHTML = d.best.map(b =>
+      `<div class="rv-card"><div class="rv-cat">${esc(b.label)}</div><div class="rv-txt">${esc(b.text)}</div></div>`).join("");
+    const mCard = document.getElementById("review-months-card");
+    mCard.style.display = d.months.length ? "" : "none";
+    document.getElementById("review-months").innerHTML = d.months.map(m =>
+      `<div class="rv-month"><div class="rv-m">${esc(m.label)}</div><div class="rv-mtxt">${esc(m.text)}</div></div>`).join("");
+  };
+  seg.addEventListener("click", ev => {
+    const b = ev.target.closest(".seg-btn"); if (!b) return;
+    draw(+b.dataset.y);
+  });
+  // 기본 선택 — 베스트가 채워진 가장 최근 연도 (진행 중이라 빈 올해는 건너뜀)
+  const rich = rv.years.find(y => (rv.byYear[String(y)]?.best || []).length >= 3);
+  draw(rich || rv.years[0]);
+}
+
 function initTabs() {
   const nav = document.getElementById("tabs");
   nav.style.display = "flex";
@@ -1383,7 +1548,7 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["overview", "financial", "spending", "cities", "checkpoint"])
+    for (const id of ["overview", "financial", "spending", "cities", "sim", "review", "checkpoint"])
       document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
   });
 }
@@ -1635,6 +1800,8 @@ async function render() {
   renderMonthly(snap.monthly);
   renderSpending(snap.spending);
   renderCities(snap.cities, net);
+  renderSim(snap.simulation);
+  renderReview(snap.review);
   renderCheckpoint(snap.checkpoint);
 
   // 상세 테이블 (자산 + 부채)
