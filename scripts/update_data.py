@@ -21,6 +21,8 @@ import sheets_monthly
 import sheets_checkpoint
 import sheets_spending
 import sheets_cities
+import sheets_sim
+import sheets_review
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -235,6 +237,10 @@ def main():
     # 살고싶은 도시 (🌍이주 대시보드) — Numbeo 기반 도시별 생활비. 실패 시 {} → 탭만 생략.
     cities = sheets_cities.fetch_cities(now.date())
 
+    # 은퇴 100세 지도 (시뮬레이션) · 우리 부부 연간 리뷰 (연간리뷰). 실패 시 {} → 탭만 생략.
+    simulation = sheets_sim.fetch_simulation()
+    review = sheets_review.fetch_review()
+
     # 전월 말 기준값 — KPI 3종의 '전월 대비'. history.csv를 다시 쓰기 전에 읽어야 한다.
     prev_month = prev_month_baseline(now.date(), DATA_DIR / "history.csv")
     if prev_month:
@@ -257,6 +263,8 @@ def main():
         "checkpoint": checkpoint,
         "spending": spending,
         "cities": cities,
+        "simulation": simulation,
+        "review": review,
         "prev_month": prev_month,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
