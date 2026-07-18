@@ -206,6 +206,10 @@
              padding: 1px 6px; margin-left: 5px; font-weight: 500; white-space: nowrap; }
 
   /* 은퇴 지도 */
+  .sim-stats { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 2px 0 14px; }
+  .sim-stats span { font-size: var(--fs-body); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .sim-stats em { font-style: normal; color: var(--ink-muted); font-size: var(--fs-sm); margin-right: 4px; }
+  .sim-stats b { font-weight: 700; }
   .sim-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-xs); color: var(--ink-2); margin-top: 10px; }
   .sim-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; }
 
@@ -316,7 +320,6 @@
   <button class="tab" data-tab="financial">금융자산</button>
   <button class="tab" data-tab="spending">월간 생활비</button>
   <button class="tab" data-tab="cities">살고싶은 도시</button>
-  <button class="tab" data-tab="sim">은퇴 지도</button>
   <button class="tab" data-tab="review">연간 리뷰</button>
   <button class="tab" data-tab="checkpoint">오늘의 체크포인트</button>
   <button class="tab" data-tab="flow">데이터 흐름</button>
@@ -329,6 +332,18 @@
   <section class="card" id="fire-section" style="display:none">
     <h2>FIRE 목표 달성</h2>
     <div id="fire-body"></div>
+  </section>
+
+  <section class="card" id="sim-section" style="display:none">
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적 — 39세부터 100세까지</h2>
+      <div class="seg" id="sim-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+        <button class="seg-btn" data-mode="nominal">명목</button>
+      </div>
+    </div>
+    <div class="sim-stats" id="sim-stats"></div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
   </section>
 
   <section class="card">
@@ -441,19 +456,6 @@
     <h2>전체 도시 한눈에</h2>
     <div style="overflow-x:auto"><table id="ct-table"></table></div>
     <div class="goal-sub" id="ct-note" style="margin-top:10px"></div>
-  </section>
-</div>
-
-<div id="tab-sim" style="display:none">
-  <div class="cards" id="sim-kpis"></div>
-  <section class="card">
-    <h2>순자산 궤적 — 39세부터 100세까지</h2>
-    <div class="seg" id="sim-seg">
-      <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-      <button class="seg-btn" data-mode="nominal">명목</button>
-    </div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
   </section>
 </div>
 
@@ -1589,16 +1591,16 @@ function simChart(container, series, mode, retireAge, depAge) {
 }
 
 function renderSim(sim) {
-  const tabBtn = document.querySelector('.tab[data-tab="sim"]');
-  if (!sim || !sim.series || !sim.series.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  const sec = document.getElementById("sim-section");
+  if (!sim || !sim.series || !sim.series.length) { if (sec) sec.style.display = "none"; return; }
+  sec.style.display = "";
   const s = sim.summary || {};
-  const now = sim.series[0];
-  document.getElementById("sim-kpis").innerHTML =
-    kpiCard("은퇴 시점 자산", fmtEok(s.retire_asset), `${sim.retire_age}세 · 기본 필요 ${fmtEok(s.target_basic)}`, true) +
-    kpiCard("자산 소진 예상", sim.depletion_age ? `${sim.depletion_age}세` : "소진 없음",
-      sim.depletion_age ? `은퇴 후 ${sim.depletion_age - sim.retire_age}년` : "기대수명까지 유지") +
-    kpiCard("108세 실질 순자산", fmtEok(s.real_net_end),
-      s.real_net_end < 0 ? "오늘 가치 기준 · 적자" : "오늘 가치 기준");
+  // FIRE 섹션과 나란히 놓이므로 큰 KPI 카드 대신 얇은 스탯 한 줄로 (소진 나이는 FIRE와도 겹침)
+  const stat = (l, v) => `<span><em>${l}</em> <b>${v}</b></span>`;
+  document.getElementById("sim-stats").innerHTML =
+    stat("은퇴 시점 자산", `${fmtEok(s.retire_asset)} · ${sim.retire_age}세`) +
+    stat("자산 소진", sim.depletion_age ? `${sim.depletion_age}세` : "없음") +
+    stat("108세 실질", `<span class="${s.real_net_end < 0 ? "delta-down" : ""}">${fmtEok(s.real_net_end)}</span>`);
 
   let mode = "real";
   const draw = () => simChart(document.getElementById("sim-chart"), sim.series, mode, sim.retire_age, sim.depletion_age);
@@ -1650,7 +1652,7 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["overview", "financial", "spending", "cities", "sim", "review", "checkpoint", "flow"])
+    for (const id of ["overview", "financial", "spending", "cities", "review", "checkpoint", "flow"])
       document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
   });
 }
