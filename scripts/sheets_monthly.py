@@ -274,10 +274,15 @@ def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
                 liabilities[lab] = {"cur": round(cell(r, cur_col)), "m1": round(cell(r, prev_col)),
                                     "y1": round(cell(r, year_col))}
 
+        # 합계 행용 — 시트 소계(총자산 25·총부채 37·순자산 38)의 전월·전년 값.
+        # 상단 KPI와 같은 기준: 현재값은 라이브(snap), 전월/전년 기준은 시트 소계.
+        totals = {k: {"m1": round(cell(r, prev_col)), "y1": round(cell(r, year_col))}
+                  for k, r in SUMMARY_ROWS.items()}
+
         print(f"OK: 자산 이력 — 자산 {len(assets)}종 · 부채 {len(liabilities)}종 "
               f"(전월 {py}-{pm:02d} · 전년 {ANNUAL_COLS[year_col]})")
         return {"prev_month": f"{py}-{pm:02d}", "prev_year": ANNUAL_COLS[year_col],
-                "assets": assets, "liabilities": liabilities}
+                "assets": assets, "liabilities": liabilities, "totals": totals}
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 자산 이력 읽기 실패 ({type(e).__name__}: {e})")
         return {}
