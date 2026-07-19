@@ -1739,19 +1739,31 @@ function applyLive(snap, live) {
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
   }
   if (live.fx_usdkrw) snap.fx_usdkrw = live.fx_usdkrw;
-  // 계좌 평가액 — 보유 종목별 배분은 유지한 채 계좌 합계 비율로 스케일
-  if (live.accounts && snap.financial && snap.financial.holdings) {
+
+  // 구글시트에서 끌어오는 블록을 30분 최신본으로 교체 — 사용자가 시트를 고치면 최대 30분 내,
+  // '업데이트하기'로는 즉시 반영된다 (서버 live 잡이 시트를 읽어 발행). 없으면 일별 스냅샷 유지.
+  for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
+                   "spending", "cities", "simulation", "review"])
+    if (live[k]) snap[k] = live[k];
+
+  // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
+  if (!live.financial && live.accounts && snap.financial && snap.financial.holdings) {
     const cur = {};
+    for (const h of snap.financial.holdings) { const k = `${h.owner}|${h.account}`; cur[k] = (cur[k] || 0) + h.value_krw; }
     for (const h of snap.financial.holdings) {
       const k = `${h.owner}|${h.account}`;
-      cur[k] = (cur[k] || 0) + h.value_krw;
-    }
-    for (const h of snap.financial.holdings) {
-      const k = `${h.owner}|${h.account}`;
-      if (live.accounts[k] != null && cur[k] > 0)
-        h.value_krw = Math.round(h.value_krw * (live.accounts[k] / cur[k]));
+      if (live.accounts[k] != null && cur[k] > 0) h.value_krw = Math.round(h.value_krw * (live.accounts[k] / cur[k]));
     }
   }
+
+  // 부채가 갱신됐으면 총부채·순자산 재계산 (KPI·합계 행 반영). 자산(부동산·주식)은 일별 유지.
+  if (live.liabilities && live.liabilities.length && snap.gross_krw != null) {
+    const debt = live.liabilities.reduce((s, l) => s + (l.amount_krw || 0), 0);
+    snap.debt_krw = debt;
+    snap.net_krw = snap.gross_krw - debt;
+    snap.total_krw = snap.net_krw;
+  }
+
   return live.updated_at || null;
 }
 
