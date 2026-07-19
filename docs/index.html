@@ -100,9 +100,11 @@
   .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
   .delta-none { color: var(--ink-muted); }
   #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
-  #detail tfoot .sum-row:first-child td { border-top: 2px solid var(--baseline); }
-  #detail tfoot .sum-row td { background: var(--page); padding-top: 11px; padding-bottom: 11px; }
-  #detail tfoot .sum-row td:first-child { font-size: var(--fs-body); }
+  #detail .sum-row td { background: var(--page); border-top: 1.5px solid var(--baseline);
+                        padding-top: 11px; padding-bottom: 11px; }
+  #detail .sum-row td:first-child { font-size: var(--fs-body); }
+  #detail .sum-row .sum-net { color: var(--ink-1); }
+  #detail .sum-row:last-child td { border-top: 2px solid var(--baseline); border-bottom: none; }
   /* 순자산 → FIRE 목표 게이지 (hero 카드) */
   .kpi-gauge { margin-top: 14px; }
   .kpi-gauge-track { height: 6px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; }
@@ -1955,7 +1957,8 @@ async function render() {
       ${deltaCell(h.cur ?? l.amount_krw, h.y1, false)}
     </tr>`;
   }).join("");
-  // 합계 행 — 총자산·총부채·순자산 (현재값은 KPI와 동일한 snap, 전월/전년은 시트 소계 기준)
+  // 합계 행 — 총자산은 자산 행 끝, 총부채는 부채 행 끝, 순자산은 맨 아래.
+  // 현재값은 KPI와 동일한 snap, 전월/전년 기준은 ★월별자산 소계(25·37·38행).
   const T = H.totals || {};
   const sumRow = (label, cur, base, goodWhenUp, cls) => `<tr class="sum-row">
     <td class="name" colspan="3"><b>${label}</b></td>
@@ -1963,15 +1966,14 @@ async function render() {
     ${deltaCell(cur, base && base.m1, goodWhenUp)}
     ${deltaCell(cur, base && base.y1, goodWhenUp)}
   </tr>`;
-  const sumRows = gross != null ? sumRow("총자산", gross, T.gross, true)
-    + sumRow("총부채", debt, T.debt, false, "delta-down")
-    + sumRow("순자산", net, T.net, true) : "";
+  const grossRow = gross != null ? sumRow("총자산", gross, T.gross, true) : "";
+  const debtSumRow = gross != null ? sumRow("총부채", debt, T.debt, false, "delta-down") : "";
+  const netRow = gross != null ? sumRow("순자산", net, T.net, true, "sum-net") : "";
 
   const hpm = H.prev_month ? H.prev_month.replace("-", ".") : "전월";
   document.getElementById("detail").innerHTML = `
     <thead><tr><th>항목</th><th>소유</th><th>분류</th><th>평가액</th><th>${hpm} 대비</th><th>${H.prev_year || "전년"} 대비</th></tr></thead>
-    <tbody>${rows}${debtRows}</tbody>
-    <tfoot>${sumRows}</tfoot>`;
+    <tbody>${rows}${grossRow}${debtRows}${debtSumRow}${netRow}</tbody>`;
 }
 
 /* 라이트/다크 수동 토글 — 버튼 아이콘은 현재 테마를 보여준다. SVG 차트는 CSS 변수를
