@@ -1756,12 +1756,20 @@ function applyLive(snap, live) {
     }
   }
 
-  // 부채가 갱신됐으면 총부채·순자산 재계산 (KPI·합계 행 반영). 자산(부동산·주식)은 일별 유지.
-  if (live.liabilities && live.liabilities.length && snap.gross_krw != null) {
-    const debt = live.liabilities.reduce((s, l) => s + (l.amount_krw || 0), 0);
-    snap.debt_krw = debt;
-    snap.net_krw = snap.gross_krw - debt;
-    snap.total_krw = snap.net_krw;
+  // 자산 현황의 주식계좌를 금융자산 탭(★주식계좌)과 같은 값으로 재연계 — 두 탭 액수 일치 유지.
+  if (live.financial && live.financial.holdings && Array.isArray(snap.assets)) {
+    const own = {};
+    for (const h of live.financial.holdings) own[h.owner] = (own[h.owner] || 0) + h.value_krw;
+    for (const a of snap.assets)
+      if (a.category === "주식" && own[a.owner] != null) a.value_krw = own[a.owner];
+  }
+
+  // 자산·부채가 갱신됐으면 총자산·총부채·순자산 재계산 (KPI·합계·도넛 반영).
+  if (Array.isArray(snap.assets)) {
+    snap.gross_krw = snap.assets.reduce((s, a) => s + (a.value_krw || 0), 0);
+    if (live.liabilities && live.liabilities.length)
+      snap.debt_krw = live.liabilities.reduce((s, l) => s + (l.amount_krw || 0), 0);
+    if (snap.debt_krw != null) { snap.net_krw = snap.gross_krw - snap.debt_krw; snap.total_krw = snap.net_krw; }
   }
 
   return live.updated_at || null;

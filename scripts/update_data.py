@@ -181,14 +181,30 @@ def main():
             "currency": "KRW", "asof": today, "value_krw": c["amount_krw"],
         })
 
-    # 4) 평가액 자산 (실시간 미연동, 고정 원화 평가액)
+    # 4) 평가액 자산 — 금융 부분을 구글드라이브(★주식계좌·★월별자산)와 연계해 두 탭 액수를 일치시킨다.
+    #    금융자산 상세를 먼저 읽어(★주식계좌) 소유자별 합을 구하고, 주식계좌 값을 그걸로 대체한다.
+    financial = sheets_holdings.fetch_holdings()  # ★주식계좌 (금융자산 탭과 동일 소스)
+    owner_sum: Dict[str, int] = {}
+    for h in financial.get("holdings", []):
+        owner_sum[h["owner"]] = owner_sum.get(h["owner"], 0) + h["value_krw"]
+    other_fin = sheets_monthly.fetch_other_assets(now.date())  # 회사주식·외화 (시트 순자산에 포함)
+
     for m in pf.get("manual_assets") or []:
+        name, cat, owner = m["name"], m.get("category", "기타"), m.get("owner", "")
+        value, note = m["amount_krw"], m.get("note", "")
+        if cat == "주식" and owner in owner_sum:
+            value, note = owner_sum[owner], "★주식계좌 실시간 연동"   # 금융자산 탭과 동일 값
+        elif cat == "현금" and name.startswith("현금성"):
+            # 이 별도 현금은 시트 순자산에 없다(이미 CMA로 계좌에 포함). 시트가 세는 회사주식·외화로
+            # 대체해 구글드라이브 순자산과 정확히 맞춘다. 시트값이 0이면 이 줄은 생략.
+            if other_fin <= 0:
+                continue
+            name, value, note = "회사주식·외화", other_fin, "★월별자산 기준"
         assets.append({
-            "name": m["name"], "ticker": "", "owner": m.get("owner", ""),
-            "category": m.get("category", "기타"), "quantity": 1,
-            "price": m["amount_krw"], "currency": "KRW",
-            "asof": m.get("asof", today), "value_krw": m["amount_krw"],
-            "note": m.get("note", ""),
+            "name": name, "ticker": "", "owner": owner,
+            "category": cat, "quantity": 1,
+            "price": value, "currency": "KRW",
+            "asof": m.get("asof", today), "value_krw": value, "note": note,
         })
 
     if not assets:
@@ -219,8 +235,7 @@ def main():
         print(f"OK: FIRE 목표 {fire.get('target_basic', 0)/1e8:.2f}억(기본)/"
               f"{fire.get('target_rich', 0)/1e8:.2f}억(부자) · 목표 {fire.get('target_year')}년")
 
-    # 금융자산 상세 (★주식계좌 탭) — 계좌별 보유·연 예상배당. 실패 시 {} → 탭만 생략.
-    financial = sheets_holdings.fetch_holdings()
+    # (financial = ★주식계좌 상세는 위 4)에서 이미 읽었다 — 재사용)
 
     # 월별 흐름 — 이번 달 칸에 자동 기록(upsert)한 뒤 전체 이력을 읽어온다.
     # 매일 덮어쓰므로 달이 바뀌면 직전 달 '말일' 값이 자연히 확정된다.

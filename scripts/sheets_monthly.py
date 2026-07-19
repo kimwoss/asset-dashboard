@@ -212,6 +212,36 @@ def write_current_month_realestate(re_assets: List[Dict], today: Optional[date] 
         return False
 
 
+def fetch_other_assets(today: Optional[date] = None) -> int:
+    """★월별자산의 비계좌·비부동산 금융자산 합 (회사주식·원달러/엔화 등, 이번 달). 없으면 0.
+
+    자산 현황 순자산을 구글드라이브(시트) 순자산과 정확히 맞추기 위한 소액 항목.
+    시트 총자산 = 계좌(★주식계좌) + 이 항목 + 부동산. 대시보드도 같은 구성으로 만든다.
+    """
+    today = today or date.today()
+    col = month_col(today.year, today.month)
+    if col is None:
+        return 0
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return 0
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        a1 = _col_a1(col)
+        grid = ws.get(f"A{RE_ROW_FIRST}:{a1}{RE_ROW_LAST}", value_render_option="UNFORMATTED_VALUE")
+        total = 0.0
+        for row in grid:
+            label = str(row[2]).replace(" ", "") if len(row) > 2 else ""
+            if any(k in label for k in ("회사주식", "원달러", "엔화", "외화")):
+                v = row[col] if len(row) > col else 0
+                total += float(v) if isinstance(v, (int, float)) else 0.0
+        return round(total)
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 회사주식·외화 읽기 실패 ({type(e).__name__}: {e})")
+        return 0
+
+
 def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
     """자산 상세용 전월·전년 이력 → {prev_month, prev_year, assets:{key:{m1,y1}}, liabilities:{...}}.
 
