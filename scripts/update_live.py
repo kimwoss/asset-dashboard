@@ -26,6 +26,12 @@ import crypto_util
 import news_feed
 import sheets_checkpoint
 import sheets_holdings
+import sheets_fire
+import sheets_monthly
+import sheets_spending
+import sheets_cities
+import sheets_sim
+import sheets_review
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "docs" / "data"
@@ -148,6 +154,26 @@ def main():
         print(f"WARN: 체크포인트 조회 실패 ({type(e).__name__}: {e})")
         checkpoint = {}
 
+    # 5) 구글시트에서 끌어오는 나머지 블록도 30분마다 갱신 — 사용자가 시트를 고치고
+    #    '업데이트하기'를 누르면 최대 30분 내 반영된다. 정적 사이트라 브라우저가 시트를 직접
+    #    못 읽으니, 서버(이 잡)가 대신 읽어 live.enc로 발행하고 프론트가 덮어쓴다.
+    #    각 읽기는 독립적으로 감싼다 — 하나 실패해도 시세·나머지는 나간다.
+    def _safe(fn, label, *a):
+        try:
+            return fn(*a)
+        except Exception as e:  # noqa: BLE001
+            print(f"WARN: {label} 조회 실패 ({type(e).__name__}: {e})")
+            return None
+    financial     = _safe(sheets_holdings.fetch_holdings, "금융자산 상세")          # 배당 포함
+    fire          = _safe(sheets_fire.fetch_fire_summary, "FIRE")
+    monthly       = _safe(sheets_monthly.fetch_monthly, "월별 흐름", now.date())
+    asset_history = _safe(sheets_monthly.fetch_asset_history, "자산 이력", now.date())
+    liabilities   = _safe(sheets_monthly.fetch_liabilities, "부채", now.date())
+    spending      = _safe(sheets_spending.fetch_spending, "월간 생활비", now.date())
+    cities        = _safe(sheets_cities.fetch_cities, "살고싶은 도시", now.date())
+    simulation    = _safe(sheets_sim.fetch_simulation, "은퇴 지도")
+    review        = _safe(sheets_review.fetch_review, "연간 리뷰")
+
     live = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "updated_iso": now.isoformat(),
@@ -159,6 +185,16 @@ def main():
         "financial_total": total,
         "news": news,
         "checkpoint": checkpoint or None,
+        # 시트 파생 블록 (30분 갱신). None이면 프론트가 일별 스냅샷을 유지한다.
+        "financial": financial or None,
+        "fire": fire or None,
+        "monthly": monthly or None,
+        "asset_history": asset_history or None,
+        "liabilities": liabilities or None,
+        "spending": spending or None,
+        "cities": cities or None,
+        "simulation": simulation or None,
+        "review": review or None,
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "live.json").write_text(
@@ -166,9 +202,11 @@ def main():
     crypto_util.encrypt_file(DATA_DIR / "live.json", DATA_DIR / "live.enc",
                              crypto_util.get_passphrase())
     cp_label = checkpoint.get("date_label", "없음") if checkpoint else "없음"
+    sheet_ok = sum(1 for x in (financial, fire, monthly, asset_history, liabilities,
+                               spending, cities, simulation, review) if x)
     print(f"OK: live.enc — 미국 {len(us)}건 · 국내 {len(kr)}건 · 환율 {len(fx)}건 · "
           f"계좌 {len(accounts)}개 {total/1e8:.2f}억 · 뉴스 {len(news)}건 · "
-          f"체크포인트 {cp_label} ({now:%H:%M} KST)")
+          f"체크포인트 {cp_label} · 시트블록 {sheet_ok}/9 ({now:%H:%M} KST)")
 
 
 if __name__ == "__main__":
