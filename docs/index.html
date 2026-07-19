@@ -221,10 +221,19 @@
   .sim-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; }
 
   /* 연간 리뷰 */
-  .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-  .rv-card { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; }
-  .rv-card .rv-cat { font-size: var(--fs-xs); font-weight: 600; color: var(--accent); margin-bottom: 6px; letter-spacing: 0.01em; }
-  .rv-card .rv-txt { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.55; white-space: pre-line; }
+  /* 베스트 카드 — 파스텔 스티키 노트 (라이트·다크 배경 모두에서 뜨도록 항상 파스텔+진한 잉크) */
+  .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 22px 16px; padding: 8px 4px 4px; }
+  .rv-card { --rot: 0deg; position: relative; background: #FFE08A; border-radius: 3px; padding: 16px 16px 18px;
+             box-shadow: 0 4px 10px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
+             transform: rotate(var(--rot)); transition: transform .18s ease, box-shadow .18s ease; }
+  .rv-card:hover { transform: rotate(0deg) translateY(-4px) scale(1.03);
+                   box-shadow: 0 14px 26px rgba(0,0,0,.30); z-index: 3; }
+  .rv-card::before { content: ""; position: absolute; top: -9px; left: 50%; width: 54px; height: 17px;
+                     transform: translateX(-50%) rotate(-2.5deg); background: rgba(255,255,255,.5);
+                     box-shadow: 0 1px 2px rgba(0,0,0,.10); }
+  .rv-card .rv-cat { font-size: var(--fs-sm); font-weight: 800; color: var(--note-ink, #7a5c00);
+                     margin-bottom: 8px; letter-spacing: -0.01em; }
+  .rv-card .rv-txt { font-size: var(--fs-body); color: #37322b; line-height: 1.55; white-space: pre-line; }
   .rv-month { display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--grid); }
   .rv-month:last-child { border-bottom: none; padding-bottom: 0; }
   .rv-month:first-child { padding-top: 0; }
@@ -1622,6 +1631,14 @@ function renderSim(sim) {
 }
 
 /* ---- 우리 부부 연간 리뷰 (연간리뷰) ---- */
+/* 베스트 카드용 파스텔 스티키 팔레트 [배경, 카테고리 잉크] + 살짝 기운 각도 */
+const RV_STICKY = [
+  ["#FFE08A", "#7a5c00"], ["#FFC7D3", "#93334f"], ["#BDEACB", "#1f6e46"],
+  ["#AAD6F6", "#1a5480"], ["#FFD3A8", "#8a5320"], ["#DAC6F3", "#553a8c"],
+  ["#EAE79B", "#5e5c1a"], ["#A9E7E1", "#1a6a63"], ["#FBBFA6", "#94401f"],
+];
+const RV_ROT = [-2.4, 1.7, -1.3, 2.1, -1.9, 1.2, -2.2, 1.5];
+
 function renderReview(rv) {
   const tabBtn = document.querySelector('.tab[data-tab="review"]');
   if (!rv || !rv.years || !rv.years.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
@@ -1634,8 +1651,12 @@ function renderReview(rv) {
     document.getElementById("review-best-h2").textContent = `${year} 베스트`;
     const bestCard = document.getElementById("review-best-card");
     bestCard.style.display = d.best.length ? "" : "none";
-    document.getElementById("review-best").innerHTML = d.best.map(b =>
-      `<div class="rv-card"><div class="rv-cat">${esc(b.label)}</div><div class="rv-txt">${esc(b.text)}</div></div>`).join("");
+    document.getElementById("review-best").innerHTML = d.best.map((b, i) => {
+      const [bg, ink] = RV_STICKY[i % RV_STICKY.length];
+      const rot = RV_ROT[i % RV_ROT.length];
+      return `<div class="rv-card" style="background:${bg};--note-ink:${ink};--rot:${rot}deg">
+        <div class="rv-cat">${esc(b.label)}</div><div class="rv-txt">${esc(b.text)}</div></div>`;
+    }).join("");
     const mCard = document.getElementById("review-months-card");
     mCard.style.display = d.months.length ? "" : "none";
     document.getElementById("review-months").innerHTML = d.months.map(m =>
