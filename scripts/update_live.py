@@ -32,6 +32,7 @@ import sheets_spending
 import sheets_cities
 import sheets_sim
 import sheets_review
+import sheets_yearly
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "docs" / "data"
@@ -167,8 +168,8 @@ def main():
     financial     = _safe(sheets_holdings.fetch_holdings, "금융자산 상세")          # 배당 포함
     fire          = _safe(sheets_fire.fetch_fire_summary, "FIRE")
     monthly       = _safe(sheets_monthly.fetch_monthly, "월별 흐름", now.date())
-    asset_history = _safe(sheets_monthly.fetch_asset_history, "자산 이력", now.date())
-    liabilities   = _safe(sheets_monthly.fetch_liabilities, "부채", now.date())
+    asset_history = _safe(sheets_yearly.fetch_asset_history, "자산 이력", now.date())
+    liabilities   = _safe(sheets_yearly.fetch_liabilities, "부채", now.date())
     spending      = _safe(sheets_spending.fetch_spending, "월간 생활비", now.date())
     cities        = _safe(sheets_cities.fetch_cities, "살고싶은 도시", now.date())
     simulation    = _safe(sheets_sim.fetch_simulation, "은퇴 지도")

@@ -23,6 +23,7 @@ import sheets_spending
 import sheets_cities
 import sheets_sim
 import sheets_review
+import sheets_yearly
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -187,8 +188,7 @@ def main():
     owner_sum: Dict[str, int] = {}
     for h in financial.get("holdings", []):
         owner_sum[h["owner"]] = owner_sum.get(h["owner"], 0) + h["value_krw"]
-    other_fin = sheets_monthly.fetch_other_assets(now.date())  # 회사주식·외화 (시트 순자산에 포함)
-    residence = sheets_monthly.fetch_residence_deposits(now.date())  # 거주 전세보증금(파크하비오 등)
+    other_fin = sheets_yearly.fetch_other_assets(now.date())  # 회사주식·외화 (★연도별자산 올해 열)
 
     for m in pf.get("manual_assets") or []:
         name, cat, owner = m["name"], m.get("category", "기타"), m.get("owner", "")
@@ -200,10 +200,7 @@ def main():
             # 대체해 구글드라이브 순자산과 정확히 맞춘다. 시트값이 0이면 이 줄은 생략.
             if other_fin <= 0:
                 continue
-            name, value, note = "회사주식·외화", other_fin, "★월별자산 기준"
-        elif cat == "전세보증금" and residence:
-            # 거주 전세보증금은 ★월별자산에서 직접 읽어 아래에서 추가 (yaml 값은 시트 실패 시 폴백)
-            continue
+            name, value, note = "회사주식·외화", other_fin, "★연도별자산 기준"
         assets.append({
             "name": name, "ticker": "", "owner": owner,
             "category": cat, "quantity": 1,
@@ -225,7 +222,7 @@ def main():
 
     # 5) 부채 — 원 소스는 ★월별자산 26~35행 (사용자가 매월초 잔액 수기 갱신).
     #    시트를 못 읽으면 portfolio.yaml 값으로 폴백 (스냅샷이 오래됐을 수 있음).
-    liabilities = sheets_monthly.fetch_liabilities(now.date())
+    liabilities = sheets_yearly.fetch_liabilities(now.date())
     if not liabilities:
         print("WARN: 부채를 yaml 폴백으로 사용 — ★월별자산 연결 확인 필요")
         liabilities = [{
@@ -261,7 +258,7 @@ def main():
     sheets_monthly.write_current_month_realestate(re_assets, now.date())
     monthly = sheets_monthly.fetch_monthly(now.date())
     # 자산 상세용 전월·전년 이력 (각 항목의 증감 표시). 실패 시 {} → 증감만 생략.
-    asset_history = sheets_monthly.fetch_asset_history(now.date())
+    asset_history = sheets_yearly.fetch_asset_history(now.date())
 
     # 오늘의 체크포인트 — 분당부부 모닝 리포트(별도 private 레포)가 시트에 남긴 페이로드.
     checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
