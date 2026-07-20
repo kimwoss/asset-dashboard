@@ -242,6 +242,71 @@ def fetch_other_assets(today: Optional[date] = None) -> int:
         return 0
 
 
+def fetch_residence_deposits(today: Optional[date] = None) -> List[Dict]:
+    """★월별자산 부동산 구분의 '거주 전세보증금'(받을 돈)을 읽는다.
+
+    파크하비오 전세·인텔리지 전세처럼 부부가 거주하려고 맡긴 전세보증금(자산, 받을 돈)이
+    부동산 영역(17~24행) 안에 라벨 '~전세'로 들어 있다. 소유 아파트(인덕원삼호·송천센트레빌)는
+    '전세'가 아니라 자동 제외된다. 이번 달이 비면 값 있는 직전 달로 폴백.
+    반환 [{name, owner, value_krw, note}], 실패/빈 결과 시 [] → 호출자가 yaml 폴백.
+    """
+    today = today or date.today()
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return []
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        grid = ws.get(f"A{RE_ROW_FIRST}:BN{RE_ROW_LAST}",
+                      value_render_option="UNFORMATTED_VALUE")
+
+        def cell(r_abs: int, c0: int) -> float:
+            r = grid[r_abs - RE_ROW_FIRST] if len(grid) > r_abs - RE_ROW_FIRST else []
+            v = r[c0] if len(r) > c0 else 0
+            return float(v) if isinstance(v, (int, float)) else 0.0
+
+        # '전세' 라벨 행 수집 (소유 아파트는 라벨에 '전세'가 없어 자동 제외)
+        dep_rows = []
+        for r_abs in range(RE_ROW_FIRST, RE_ROW_LAST + 1):
+            r = grid[r_abs - RE_ROW_FIRST] if len(grid) > r_abs - RE_ROW_FIRST else []
+            label = (str(r[2]).strip() if len(r) > 2 else "")
+            if "전세" in label.replace(" ", ""):
+                owner_raw = str(r[3]).strip() if len(r) > 3 else ""
+                owner = _OWNER_NORM.get(owner_raw, owner_raw or "공동")
+                dep_rows.append((r_abs, label, owner))
+        if not dep_rows:
+            return []
+
+        # 값이 있는 최신 월 열 탐색 (이번 달 → 과거, 최대 18개월)
+        y, m = today.year, today.month
+        col, used = None, ""
+        for _ in range(18):
+            c = month_col(y, m)
+            if c is not None and any(cell(r_abs, c) > 0 for r_abs, _, _ in dep_rows):
+                col, used = c, f"{y}-{m:02d}"
+                break
+            m -= 1
+            if m == 0:
+                y, m = y - 1, 12
+        if col is None:
+            print("WARN: ★월별자산 거주 전세보증금 최근값 없음 — yaml 폴백")
+            return []
+
+        out: List[Dict] = []
+        for r_abs, label, owner in dep_rows:
+            v = cell(r_abs, col)
+            if v > 0:
+                out.append({"name": label, "owner": owner, "value_krw": round(v),
+                            "note": f"★월별자산 {used} 기준"})
+        if out:
+            total = sum(d["value_krw"] for d in out)
+            print(f"OK: 거주 전세보증금 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {used})")
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 거주 전세보증금 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
+        return []
+
+
 def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
     """자산 상세용 전월·전년 이력 → {prev_month, prev_year, assets:{key:{m1,y1}}, liabilities:{...}}.
 

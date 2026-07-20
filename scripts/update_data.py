@@ -188,6 +188,7 @@ def main():
     for h in financial.get("holdings", []):
         owner_sum[h["owner"]] = owner_sum.get(h["owner"], 0) + h["value_krw"]
     other_fin = sheets_monthly.fetch_other_assets(now.date())  # 회사주식·외화 (시트 순자산에 포함)
+    residence = sheets_monthly.fetch_residence_deposits(now.date())  # 거주 전세보증금(파크하비오 등)
 
     for m in pf.get("manual_assets") or []:
         name, cat, owner = m["name"], m.get("category", "기타"), m.get("owner", "")
@@ -200,11 +201,23 @@ def main():
             if other_fin <= 0:
                 continue
             name, value, note = "회사주식·외화", other_fin, "★월별자산 기준"
+        elif cat == "전세보증금" and residence:
+            # 거주 전세보증금은 ★월별자산에서 직접 읽어 아래에서 추가 (yaml 값은 시트 실패 시 폴백)
+            continue
         assets.append({
             "name": name, "ticker": "", "owner": owner,
             "category": cat, "quantity": 1,
             "price": value, "currency": "KRW",
             "asof": m.get("asof", today), "value_krw": value, "note": note,
+        })
+
+    # 거주 전세보증금 — ★월별자산 기준 (실패 시 위 yaml manual_assets가 이미 추가됨)
+    for d in residence:
+        assets.append({
+            "name": d["name"], "ticker": "", "owner": d["owner"],
+            "category": "전세보증금", "quantity": 1,
+            "price": d["value_krw"], "currency": "KRW",
+            "asof": today, "value_krw": d["value_krw"], "note": d.get("note", ""),
         })
 
     if not assets:
