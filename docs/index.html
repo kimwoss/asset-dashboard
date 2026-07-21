@@ -305,20 +305,22 @@
            opacity: 1; transition: opacity 1.05s cubic-bezier(.4,0,.2,1); }
   #intro.out { opacity: 0; pointer-events: none; }
   #intro .bg { position: absolute; inset: 0;
-    /* assets/hero.jpg 가 있으면 그 사진이, 없으면 아래 포르투 톤 그라디언트가 보인다 */
+    /* assets/hero.jpg 가 있으면 그 사진이, 없으면 아래 포르투 톤 그라디언트가 보인다.
+       초점 60% — 하늘(위)보다 도시·강(아래)이 더 보이도록 아래쪽으로 내렸다. */
     background:
-      url("assets/hero.jpg") center 42%/cover no-repeat,
+      url("assets/hero.jpg") center 60%/cover no-repeat,
       radial-gradient(92% 26% at 50% 56%, rgba(214,126,66,.20), transparent 62%),
       radial-gradient(120% 82% at 50% 15%, #2f6f9c 0%, #235c85 42%, transparent 72%),
       linear-gradient(180deg, #16466f 0%, #1e5680 40%, #17496a 62%, #103a54 82%, #0b2b3d 100%);
-    opacity: 0; transform: scale(1.09); transform-origin: 55% 42%;
-    animation: introBg 1.6s ease forwards, introZoom 19s ease-out forwards; }
+    opacity: 0; transform: scale(1.045); transform-origin: 50% 62%;
+    animation: introBg 1.6s ease forwards, introZoom 22s ease-out forwards; }
   #intro .scrim { position: absolute; inset: 0; pointer-events: none;
+    /* 글자 영역만 은은하게 — 하단을 너무 어둡게 덮지 않아 강·수변이 드러난다 */
     background:
-      linear-gradient(180deg, rgba(8,18,28,.30) 0%, rgba(8,18,28,.04) 33%, rgba(8,18,28,.52) 73%, rgba(8,18,28,.92) 100%),
-      radial-gradient(135% 90% at 50% 122%, rgba(8,18,28,.55), transparent 58%); }
+      linear-gradient(180deg, rgba(8,18,28,.22) 0%, rgba(8,18,28,0) 34%, rgba(8,18,28,.30) 72%, rgba(8,18,28,.72) 100%),
+      radial-gradient(140% 80% at 22% 128%, rgba(8,18,28,.55), transparent 52%); }
   #intro .vig { position: absolute; inset: 0; pointer-events: none;
-    box-shadow: inset 0 0 220px 46px rgba(5,12,20,.55); }
+    box-shadow: inset 0 0 200px 40px rgba(5,12,20,.42); }
   #intro .wrap { position: relative; z-index: 3; width: 100%; max-width: 760px;
     padding: clamp(30px,7vw,78px); }
   #intro .cap { display: flex; align-items: center; gap: 11px; margin-bottom: 17px;
@@ -354,7 +356,7 @@
   #intro .enter .load i { position: absolute; inset: 0; width: 42%; border-radius: 3px; background: #fff;
     animation: introLoad 1.15s ease-in-out infinite; }
   @keyframes introBg { to { opacity: 1; } }
-  @keyframes introZoom { from { transform: scale(1.09); } to { transform: scale(1); } }
+  @keyframes introZoom { from { transform: scale(1.05); } to { transform: scale(1); } }
   @keyframes introUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes introLoad { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
   @media (prefers-reduced-motion: reduce) {
