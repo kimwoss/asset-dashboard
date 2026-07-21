@@ -1407,7 +1407,8 @@ const SP_COLORS = {
 };
 const spColor = (name, i) => SP_COLORS[name] || `hsl(${(i * 47) % 360} 62% 55%)`;
 
-/* 은퇴 목표 생활비 (월, 오늘 가치·고정) — 사용자 확정값. 월평균 카테고리와 맞춰 비교한다. */
+/* 은퇴 목표 생활비 (월, 오늘 가치) — 폴백값. 우선은 참조.연간 생활비 시트의
+   '카테고리예산' 섹션(sp.retire.category_budget)을 쓰고, 시트에 없으면 이 값으로 떨어진다. */
 const RETIRE_BUDGET = {
   "생활": 900000, "외식": 800000, "교통": 500000, "주거": 300000, "쇼핑": 300000,
   "미용": 400000, "여행": 400000, "가족": 533333, "자기계발": 200000,
@@ -1534,12 +1535,14 @@ function renderSpending(sp) {
     ? "월평균은 마감된 달만 반영 · 은퇴시 생활비는 참조.연간 생활비 시트 기준(수시 변동 자동 반영)."
     : "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
 
-  // 은퇴 목표 vs 현재 월평균 — 카테고리별 나란히 비교 (은퇴 예산은 고정값 RETIRE_BUDGET)
+  // 은퇴 목표 vs 현재 월평균 — 카테고리별 나란히 비교.
+  //   은퇴 예산은 참조.연간 생활비 시트의 '카테고리예산' 섹션 우선, 없으면 하드코딩 폴백.
+  const RB = (re && re.category_budget && Object.keys(re.category_budget).length) ? re.category_budget : RETIRE_BUDGET;
   const avgMap = {};
   for (const c of sp.categories) avgMap[c.name] = c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn;
   const catIdx = name => sp.categories.findIndex(c => c.name === name);
-  const cmp = [...new Set([...Object.keys(RETIRE_BUDGET), ...sp.categories.map(c => c.name)])]
-    .map(name => ({ name, avg: Math.round(avgMap[name] || 0), ret: RETIRE_BUDGET[name] || 0 }))
+  const cmp = [...new Set([...Object.keys(RB), ...sp.categories.map(c => c.name)])]
+    .map(name => ({ name, avg: Math.round(avgMap[name] || 0), ret: RB[name] || 0 }))
     .filter(x => x.avg > 0 || x.ret > 0)
     .sort((a, b) => Math.max(b.avg, b.ret) - Math.max(a.avg, a.ret));
   const cmpMax = Math.max(...cmp.map(x => Math.max(x.avg, x.ret)), 1) * 1.02;
@@ -1564,7 +1567,8 @@ function renderSpending(sp) {
     + `<span class="${dTot > 0 ? "delta-down" : "delta-up"}"><b>${dTot > 0 ? "+" : "−"}${fmtMan(Math.abs(dTot))}/월</b></span>`;
   document.getElementById("sp-retire-note").innerHTML =
     "위 막대(연함)=현재 월평균 · 아래 막대(진함)=은퇴 목표. 은퇴가 더 많으면 빨강·적으면 초록. "
-    + "은퇴 목표는 오늘 가치 고정값이며 물가 반영 전입니다.";
+    + "은퇴 목표는 오늘 가치이며 물가 반영 전 — "
+    + (RB === RETIRE_BUDGET ? "내장 기본값입니다." : "참조.연간 생활비 시트의 '카테고리예산' 기준입니다.");
 
   // 표 — 카테고리 × 월 (연 누적 큰 순)
   const rank = [...sp.categories].sort((a, b) =>
