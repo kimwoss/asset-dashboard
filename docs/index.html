@@ -298,16 +298,69 @@
 
   /* 오류 · 게이트 */
   #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
-  #gate { position: fixed; inset: 0; background: var(--page); z-index: 20;
-          display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
-  #gate .box { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r);
-               padding: 28px; width: min(340px, 90vw); display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow); }
-  #gate h2 { margin: 0; font-size: var(--fs-4); color: var(--ink-1); }
-  #gate input { font-size: 16px; padding: 11px 13px; border-radius: var(--r-sm);
-                border: 1px solid var(--baseline); background: var(--page); color: var(--ink-1); }
-  #gate button { font-size: 15px; font-weight: 600; padding: 11px; border-radius: var(--r-sm); border: none;
-                 background: var(--accent); color: #fff; cursor: pointer; }
-  #gate .msg { font-size: var(--fs-body); color: var(--neg); min-height: 18px; }
+
+  /* ── 진입 인트로 · 시네마틱 랜딩 (포르투 도오루 강변, 2022) ─────────────── */
+  #intro { position: fixed; inset: 0; z-index: 100; overflow: hidden; background: #0a1826;
+           display: flex; flex-direction: column; justify-content: flex-end;
+           opacity: 1; transition: opacity 1.05s cubic-bezier(.4,0,.2,1); }
+  #intro.out { opacity: 0; pointer-events: none; }
+  #intro .bg { position: absolute; inset: 0;
+    /* assets/hero.jpg 가 있으면 그 사진이, 없으면 아래 포르투 톤 그라디언트가 보인다 */
+    background:
+      url("assets/hero.jpg") center 42%/cover no-repeat,
+      radial-gradient(92% 26% at 50% 56%, rgba(214,126,66,.20), transparent 62%),
+      radial-gradient(120% 82% at 50% 15%, #2f6f9c 0%, #235c85 42%, transparent 72%),
+      linear-gradient(180deg, #16466f 0%, #1e5680 40%, #17496a 62%, #103a54 82%, #0b2b3d 100%);
+    opacity: 0; transform: scale(1.09); transform-origin: 55% 42%;
+    animation: introBg 1.6s ease forwards, introZoom 19s ease-out forwards; }
+  #intro .scrim { position: absolute; inset: 0; pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(8,18,28,.30) 0%, rgba(8,18,28,.04) 33%, rgba(8,18,28,.52) 73%, rgba(8,18,28,.92) 100%),
+      radial-gradient(135% 90% at 50% 122%, rgba(8,18,28,.55), transparent 58%); }
+  #intro .vig { position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 220px 46px rgba(5,12,20,.55); }
+  #intro .wrap { position: relative; z-index: 3; width: 100%; max-width: 760px;
+    padding: clamp(30px,7vw,78px); }
+  #intro .cap { display: flex; align-items: center; gap: 11px; margin-bottom: 17px;
+    font-size: 11.5px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600;
+    color: rgba(255,255,255,.76); opacity: 0; animation: introUp .95s cubic-bezier(.2,.7,.2,1) .55s both; }
+  #intro .cap i { display: inline-block; width: 28px; height: 1px; background: rgba(255,255,255,.55); }
+  #intro .title { font-size: clamp(31px,6.2vw,56px); font-weight: 760; line-height: 1.05; color: #fff;
+    letter-spacing: -.023em; text-shadow: 0 2px 42px rgba(0,0,0,.32);
+    opacity: 0; animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) .82s both; }
+  #intro .sub { margin-top: 16px; max-width: 30em; font-size: clamp(14px,2.4vw,18px); font-weight: 400;
+    line-height: 1.5; color: rgba(255,255,255,.87); text-shadow: 0 1px 20px rgba(0,0,0,.3);
+    opacity: 0; animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) 1.15s both; }
+  #intro .cta { margin-top: clamp(24px,4vw,38px); opacity: 0;
+    animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) 1.55s both; }
+  #intro .pwrow { display: flex; gap: 10px; max-width: 410px; }
+  #intro .pwrow input { flex: 1; min-width: 0; font-size: 15px; padding: 13px 16px; border-radius: 12px;
+    color: #fff; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.30);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color .2s, background .2s; }
+  #intro .pwrow input:focus { outline: none; border-color: rgba(255,255,255,.72); background: rgba(255,255,255,.19); }
+  #intro .pwrow input::placeholder { color: rgba(255,255,255,.6); }
+  #intro .pwrow button { flex: none; padding: 0 24px; font-size: 15px; font-weight: 700; border: none;
+    border-radius: 12px; color: #123049; background: #fff; cursor: pointer; white-space: nowrap;
+    transition: transform .12s, box-shadow .25s; }
+  #intro .pwrow button:hover { box-shadow: 0 10px 34px rgba(255,255,255,.22); }
+  #intro .pwrow button:active { transform: translateY(1px); }
+  #intro .pwrow button:disabled { opacity: .6; cursor: default; }
+  #intro .msg { margin-top: 11px; min-height: 17px; font-size: 12.5px; color: #ffd6d1;
+    text-shadow: 0 1px 8px rgba(0,0,0,.45); }
+  #intro .enter { display: inline-flex; align-items: center; gap: 12px; font-size: 14.5px; letter-spacing: .01em;
+    color: rgba(255,255,255,.9); text-shadow: 0 1px 12px rgba(0,0,0,.35); }
+  #intro .enter .load { position: relative; width: 40px; height: 3px; border-radius: 3px; overflow: hidden;
+    background: rgba(255,255,255,.24); }
+  #intro .enter .load i { position: absolute; inset: 0; width: 42%; border-radius: 3px; background: #fff;
+    animation: introLoad 1.15s ease-in-out infinite; }
+  @keyframes introBg { to { opacity: 1; } }
+  @keyframes introZoom { from { transform: scale(1.09); } to { transform: scale(1); } }
+  @keyframes introUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes introLoad { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
+  @media (prefers-reduced-motion: reduce) {
+    #intro .bg { animation: introBg .4s ease forwards; transform: none; }
+    #intro .cap, #intro .title, #intro .sub, #intro .cta { animation: introUp .4s ease both; }
+  }
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -324,12 +377,22 @@
     <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
 
-<div id="gate" style="display:none">
-  <div class="box">
-    <h2>비밀번호 입력</h2>
-    <input type="password" id="pw" placeholder="공유한 비밀번호" autocomplete="current-password">
-    <button id="pwbtn">열기</button>
-    <div class="msg" id="pwmsg"></div>
+<div id="intro">
+  <div class="bg"></div>
+  <div class="scrim"></div>
+  <div class="vig"></div>
+  <div class="wrap">
+    <div class="cap"><i></i>Porto · Douro 2022</div>
+    <div class="title">우리집 자산 대시보드</div>
+    <div class="sub">우현 &amp; 규리의 경제적 자유를 향한 여정 — 오늘의 순자산을 한눈에.</div>
+    <div class="cta">
+      <div class="pwrow" id="introPw" style="display:none">
+        <input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password">
+        <button id="pwbtn">들어가기</button>
+      </div>
+      <div class="enter" id="introAuto" style="display:none"><span>들어가는 중</span><span class="load"><i></i></span></div>
+      <div class="msg" id="pwmsg"></div>
+    </div>
   </div>
 </div>
 
@@ -1799,15 +1862,39 @@ async function loadData(passphrase) {
   return [snap, histText];
 }
 
+// 인트로를 부드럽게 걷어낸다 — render()가 끝난 뒤 호출해 빈 화면 깜빡임을 없앤다.
+function dismissIntro() {
+  const intro = document.getElementById("intro");
+  if (!intro) return;
+  intro.classList.add("out");
+  setTimeout(() => intro.remove(), 1100);
+}
+
+// 시네마틱 인트로 겸 게이트. 데이터가 준비되면 resolve하되 인트로는 유지 —
+// main()이 render() 후 dismissIntro()로 걷어내 완성된 대시보드가 곧바로 드러난다.
 async function gate() {
-  const g = document.getElementById("gate"), input = document.getElementById("pw"),
-        btn = document.getElementById("pwbtn"), msg = document.getElementById("pwmsg");
+  const pwRow = document.getElementById("introPw"), autoRow = document.getElementById("introAuto");
+  const input = document.getElementById("pw"), btn = document.getElementById("pwbtn"),
+        msg = document.getElementById("pwmsg");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 인트로 연출을 끝까지 보여줄 최소 시간 (재방문 자동진입도 이 시간은 머문다)
+  const minShow = new Promise(r => setTimeout(r, reduce ? 300 : 2400));
+
   const saved = localStorage.getItem("asset_pw");
   if (saved) {
-    try { return await loadData(saved); }
-    catch { localStorage.removeItem("asset_pw"); }
+    autoRow.style.display = "";
+    try {
+      const [data] = await Promise.all([loadData(saved), minShow]);
+      return data;
+    } catch {
+      localStorage.removeItem("asset_pw");
+      autoRow.style.display = "none";
+    }
   }
-  g.style.display = "flex";
+
+  // 신규 방문 또는 저장된 비밀번호 실패 — 비밀번호 입력
+  pwRow.style.display = "";
+  setTimeout(() => input.focus(), reduce ? 350 : 1750);
   return new Promise(resolve => {
     const attempt = async () => {
       const pw = input.value;
@@ -1816,18 +1903,16 @@ async function gate() {
       try {
         const data = await loadData(pw);
         localStorage.setItem("asset_pw", pw);
-        g.style.display = "none";
         resolve(data);
       } catch (e) {
         btn.disabled = false;
         msg.textContent = String(e).includes("HTTP")
-          ? "데이터 파일을 불러오지 못했습니다 (" + e + ")"
-          : "비밀번호가 틀렸습니다.";
+          ? "데이터를 불러오지 못했어요 (" + e + ")"
+          : "비밀번호가 맞지 않아요.";
       }
     };
     btn.addEventListener("click", attempt);
     input.addEventListener("keydown", ev => { if (ev.key === "Enter") attempt(); });
-    input.focus();
   });
 }
 
@@ -2058,12 +2143,14 @@ async function main() {
   try {
     [baseSnap, histText] = await gate();
   } catch (e) {
+    dismissIntro();
     const err = document.getElementById("err");
     err.style.display = "block";
     err.textContent = "데이터를 불러오지 못했습니다. 로컬에서 열었다면 `python -m http.server`로 docs 폴더를 서빙해서 보세요. (" + e + ")";
     return;
   }
   await render();
+  dismissIntro();  // 렌더 완료 후 인트로 걷어내기 — 완성된 화면이 바로 드러난다
 
   // 업데이트하기 — 브라우저가 할 수 있는 최대: 발행된 최신본을 모두 다시 받아 재렌더.
   //   · latest.enc + history (일별 자산·부동산·FIRE·생활비·이력) ← loadData
