@@ -114,6 +114,40 @@ def fetch_other_assets(today: Optional[date] = None) -> int:
         return 0
 
 
+def fetch_residence_deposits(today: Optional[date] = None) -> List[Dict]:
+    """★연도별자산 올해 열의 거주 전세보증금(파크하비오·인텔리지 전세, 받을 돈).
+
+    부동산 영역(20~23행) 중 라벨에 '전세'가 든 행 = 거주용으로 맡긴 전세보증금(자산).
+    소유 아파트(인덕원삼호·송천센트레빌)는 '전세'가 없어 자동 제외.
+    반환 [{name, owner, value_krw, note}], 실패/빈 결과 시 [] → 호출자가 yaml 폴백.
+    """
+    today = today or date.today()
+    col = year_col(today.year)
+    try:
+        grid = _grid(today)
+        if grid is None or col is None:
+            return []
+        out: List[Dict] = []
+        for r in range(sm.RE_ROW_FIRST, sm.RE_ROW_LAST + 1):
+            label = _label(grid, r)
+            if "전세" not in label.replace(" ", ""):
+                continue
+            amount = _cell(grid, r, col)
+            if amount <= 0:
+                continue
+            owner_raw = str(grid[r - 1][3]).strip() if len(grid) >= r and len(grid[r - 1]) > 3 else ""
+            owner = sm._OWNER_KR.get(owner_raw, owner_raw or "공동")
+            out.append({"name": label, "owner": owner, "value_krw": round(amount),
+                        "note": f"★연도별자산 {today.year} 기준"})
+        if out:
+            total = sum(d["value_krw"] for d in out)
+            print(f"OK: 거주 전세보증금 {len(out)}건 {total/1e8:.2f}억 (★연도별자산 {today.year})")
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 거주 전세보증금 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
+        return []
+
+
 def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
     """자산 상세 증감용 — 현재·전년은 ★연도별자산(올해·작년 열), 전월은 ★월별자산에 위임.
 
