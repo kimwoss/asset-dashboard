@@ -1007,18 +1007,31 @@ function renderCheckpoint(cp) {
     : unit === "pt" ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "pt"
     : unit === "$" ? "$" + v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "₩" + v.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+  // 등락을 '몇 원'으로 — 현재가와 %로 역산 (base=price/(1+p/100), Δ=price-base).
+  // 환율은 %보다 실제 원(₩) 변동이 직관적이라는 요청(2026-07-21)으로 환율 표만 이 모드를 쓴다.
+  const wonD = (price, p) => (price == null || p == null) ? "—"
+    : (() => {
+        const d = price * (p / 100) / (1 + p / 100);
+        return Math.abs(d) < 0.05 ? "0원"
+          : (d > 0 ? "+" : "−") + Math.abs(d).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + "원";
+      })();
   // 증권사 시세 화면식 표 — 1일/1주/1개월/1년. 스냅샷 폴백은 1일만 있어 나머지는 '—'.
+  // mode "won": 등락을 % 대신 실제 원(₩) 변동으로 표기 (환율 전용).
   const HZ = [["d1", "1일"], ["w1", "1주"], ["m1", "1개월"], ["y1", "1년"]];
-  const mktTable = arr => {
+  const mktTable = (arr, mode) => {
     if (!(arr || []).length) return "";
-    const cell = v => v == null ? `<td style="color:var(--ink-muted)">—</td>`
-      : `<td class="${cls(v)}"><b>${pct(v)}</b></td>`;
+    const cell = (i, k) => {
+      const p = i[k] !== undefined ? i[k] : (k === "d1" ? i.change_pct : null);
+      if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
+      const body = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
+      return `<td class="${cls(p)}"><b>${body}</b></td>`;
+    };
     return `<div style="overflow-x:auto"><table class="mkt">
       <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
       <tbody>${arr.map(i => `<tr>
         <td>${esc(i.name)}${i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}</td>
         <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
-        ${HZ.map(([k]) => cell(i[k] !== undefined ? i[k] : (k === "d1" ? i.change_pct : null))).join("")}
+        ${HZ.map(([k]) => cell(i, k)).join("")}
       </tr>`).join("")}</tbody></table></div>`;
   };
 
@@ -1047,9 +1060,9 @@ function renderCheckpoint(cp) {
   const badge = cp.live_at
     ? `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`
     : `<span class="live-badge off">오늘 아침 스냅샷${cp.generated_at ? ` · ${esc((cp.generated_at).slice(11,16))}` : ""}</span>`;
-  const mktSection = (title, arr, extra = "") => !(arr || []).length ? "" : `<section class="card">
+  const mktSection = (title, arr, extra = "", mode) => !(arr || []).length ? "" : `<section class="card">
     <div class="cp-mkt-head"><h2>${title}</h2>${badge}</div>
-    ${mktTable(arr)}${extra}</section>`;
+    ${mktTable(arr, mode)}${extra}</section>`;
 
   const fg = cp.fear_greed || {};
   const fgLine = fg.score != null
@@ -1059,7 +1072,7 @@ function renderCheckpoint(cp) {
     + (fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : "");
   h += mktSection("미국 지수", cp.us, usNote);
   h += mktSection("국내 지수·ETF", cp.kr, "");
-  h += mktSection("환율", cp.fx, `<div class="cp-mkt-note">원/엔은 100엔 기준</div>`);
+  h += mktSection("환율", cp.fx, `<div class="cp-mkt-note">원/엔은 100엔 기준 · 등락은 실제 원(₩) 변동</div>`, "won");
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
     <div style="font-size:13.5px">🗓️ ${esc(cp.macro_dday)}</div></section>`;
 
