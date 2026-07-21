@@ -189,6 +189,7 @@ def main():
     for h in financial.get("holdings", []):
         owner_sum[h["owner"]] = owner_sum.get(h["owner"], 0) + h["value_krw"]
     other_fin = sheets_yearly.fetch_other_assets(now.date())  # 회사주식·외화 (★연도별자산 올해 열)
+    residence = sheets_yearly.fetch_residence_deposits(now.date())  # 거주 전세보증금(파크하비오 등)
 
     for m in pf.get("manual_assets") or []:
         name, cat, owner = m["name"], m.get("category", "기타"), m.get("owner", "")
@@ -201,6 +202,9 @@ def main():
             if other_fin <= 0:
                 continue
             name, value, note = "회사주식·외화", other_fin, "★연도별자산 기준"
+        elif cat == "전세보증금" and residence:
+            # 거주 전세보증금은 시트에서 읽어 아래에서 추가 — yaml 값은 중복이므로 생략(시트 실패 시만 사용)
+            continue
         assets.append({
             "name": name, "ticker": "", "owner": owner,
             "category": cat, "quantity": 1,
