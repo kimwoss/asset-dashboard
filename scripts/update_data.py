@@ -268,7 +268,11 @@ def main():
     checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
 
     # 월간 생활비 (시각화 탭 '상세항목별 지출 금액'). 실패 시 {} → 탭만 생략.
-    spending = sheets_spending.fetch_spending(now.date())
+    spending = sheets_spending.fetch_spending(now.date()) or {}
+    # 은퇴 이후 생활비 계획 (참조.연간 생활비 탭). 같은 탭에 붙여 대시보드가 함께 렌더.
+    retire_exp = sheets_spending.fetch_retirement_expense(now.date())
+    if retire_exp:
+        spending["retire"] = retire_exp
 
     # 살고싶은 도시 (🌍이주 대시보드) — Numbeo 기반 도시별 생활비. 실패 시 {} → 탭만 생략.
     cities = sheets_cities.fetch_cities(now.date())

@@ -106,6 +106,75 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
         return {}
 
 
+# ── 은퇴 이후 생활비 (참조.연간 생활비 탭) ──────────────────────────────────
+# 이 탭은 사용자가 수시로 값을 바꾸므로 행번호를 하드코딩하지 않고 B/C 라벨로 찾는다.
+RETIRE_TAB = "참조.연간 생활비"
+
+
+def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
+    """참조.연간 생활비 → 은퇴 후 월·연 생활비 계획. 실패 시 {} (섹션만 숨김).
+
+    구조(라벨 기준): B열=구분('월간'/'연간'/소계 라벨), C열=항목명, D열=금액.
+      월간 고정 항목(보험·생활비·국민연금·주거비 등) + 연간 비정기 항목(재산세·건보료 등)
+      소계: '월간 고정 생활비'(월 고정 합) · '평균 월간 생활비' · '연간 사용예산'
+    반환 {monthly_items, annual_items, monthly_fixed, avg_monthly, annual_budget, monthly_ex_tax, annual_ex_tax}.
+    """
+    today = today or date.today()
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            print("WARN: 시트 인증 없음 — 은퇴 생활비 생략")
+            return {}
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(RETIRE_TAB)
+        grid = ws.get("A1:M24", value_render_option="UNFORMATTED_VALUE")
+
+        monthly_items: List[Dict] = []
+        annual_items: List[Dict] = []
+        s: Dict[str, int] = {}
+        section = None
+        _SUMMARY_C = {"세금제외 연생활비": "annual_ex_tax", "세금제외 월생활비": "monthly_ex_tax"}
+        _SUMMARY_B = {"월간 고정 생활비": "monthly_fixed", "평균 월간 생활비": "avg_monthly",
+                      "연간 사용예산": "annual_budget"}
+        for row in grid:
+            b = str(row[1]).strip() if len(row) > 1 else ""
+            c = str(row[2]).strip() if len(row) > 2 else ""
+            d = row[3] if len(row) > 3 else None
+            dv = float(d) if isinstance(d, (int, float)) else None
+            if b == "월간":
+                section = "monthly"
+            elif b == "연간":
+                section = "annual"
+            if b in _SUMMARY_B and dv is not None:
+                s[_SUMMARY_B[b]] = round(dv)
+            if c in _SUMMARY_C and dv is not None:
+                s[_SUMMARY_C[c]] = round(dv)
+            # 항목 행: C=이름, D=값 (소계·요약 라벨은 제외)
+            if c and dv is not None and c not in _SUMMARY_C and b not in _SUMMARY_B:
+                if section == "monthly":
+                    monthly_items.append({"name": c, "amount": round(dv)})
+                elif section == "annual":
+                    annual_items.append({"name": c, "amount": round(dv)})
+
+        if not monthly_items and not annual_items:
+            print("WARN: 참조.연간 생활비 항목 없음 — 은퇴 생활비 생략")
+            return {}
+        # 소계가 시트에 없으면 항목에서 계산 (안전망)
+        s.setdefault("monthly_fixed", sum(i["amount"] for i in monthly_items))
+        annual_irregular = sum(i["amount"] for i in annual_items)
+        s.setdefault("annual_budget", s["monthly_fixed"] * 12 + annual_irregular)
+        s.setdefault("avg_monthly", round(s["annual_budget"] / 12))
+        out = {"monthly_items": monthly_items, "annual_items": annual_items,
+               "annual_irregular": annual_irregular, **s}
+        print(f"OK: 은퇴 생활비 — 월평균 {s['avg_monthly']/1e4:,.0f}만 · "
+              f"연 {s['annual_budget']/1e4:,.0f}만 (월고정 {s['monthly_fixed']/1e4:,.0f} + "
+              f"연비정기 {annual_irregular/1e4:,.0f})")
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 은퇴 생활비 읽기 실패 ({type(e).__name__}: {e})")
+        return {}
+
+
 if __name__ == "__main__":
     import sys
     sys.stdout.reconfigure(encoding="utf-8")
