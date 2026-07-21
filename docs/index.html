@@ -362,22 +362,6 @@
     #intro .cap, #intro .title, #intro .sub, #intro .cta { animation: introUp .4s ease both; }
   }
 
-  /* ── 은퇴 이후 생활비 (참조.연간 생활비 탭 연계) ── */
-  .plan-badge { font-size: var(--fs-xs); font-weight: 600; color: var(--accent); vertical-align: 2px;
-    background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: var(--r-pill); padding: 2px 9px; }
-  .sp-sec-label { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em; color: var(--ink-muted);
-    text-transform: uppercase; margin: 24px 2px 10px; }
-  #sp-actual > .sp-sec-label:first-child { margin-top: 6px; }
-  .re-grid { display: grid; grid-template-columns: minmax(240px,1fr) minmax(240px,1.1fr); gap: 12px; margin-top: 14px; }
-  @media (max-width: 640px) { .re-grid { grid-template-columns: 1fr; } }
-  .re-panel { background: var(--page); border: 1px solid var(--border); border-radius: var(--r); padding: 15px 16px; }
-  .re-h { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-bottom: 10px; }
-  .re-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
-  .re-tbl td { padding: 6px 2px; border-bottom: 1px solid var(--grid); }
-  .re-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-  .re-tbl tr:last-child td { border-bottom: none; }
-  .re-tbl tr.re-tot td { border-top: 2px solid var(--border); border-bottom: none; padding-top: 8px; color: var(--ink-1); }
-  .re-src { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 12px; }
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -518,32 +502,24 @@
 </div>
 
 <div id="tab-spending" style="display:none">
-  <section class="card" id="sp-retire" style="display:none">
-    <h2>은퇴 이후 생활비 <span class="plan-badge">계획</span></h2>
-    <div id="sp-retire-body"></div>
+  <div class="cards" id="sp-kpis"></div>
+
+  <section class="card">
+    <h2>월별 카테고리 소비</h2>
+    <div id="sp-bars"></div>
   </section>
 
-  <div id="sp-actual">
-    <div class="sp-sec-label">2026년 실제 지출</div>
-    <div class="cards" id="sp-kpis"></div>
+  <section class="card">
+    <h2>카테고리 비중</h2>
+    <div class="donut-row" id="sp-donuts"></div>
+    <div class="goal-sub" id="sp-donut-note" style="margin-top:10px"></div>
+  </section>
 
-    <section class="card">
-      <h2>월별 카테고리 소비</h2>
-      <div id="sp-bars"></div>
-    </section>
-
-    <section class="card">
-      <h2>카테고리 비중</h2>
-      <div class="donut-row" id="sp-donuts"></div>
-      <div class="goal-sub" id="sp-donut-note" style="margin-top:10px"></div>
-    </section>
-
-    <section class="card">
-      <h2>카테고리별 상세</h2>
-      <div style="overflow-x:auto"><table id="sp-table"></table></div>
-      <div class="goal-sub" id="sp-note" style="margin-top:10px"></div>
-    </section>
-  </div>
+  <section class="card">
+    <h2>카테고리별 상세</h2>
+    <div style="overflow-x:auto"><table id="sp-table"></table></div>
+    <div class="goal-sub" id="sp-note" style="margin-top:10px"></div>
+  </section>
 </div>
 
 <div id="tab-cities" style="display:none">
@@ -1472,58 +1448,9 @@ function stackedBars(container, months, series, totals) {
   container.appendChild(lg);
 }
 
-/* ---- 은퇴 이후 생활비 (참조.연간 생활비 탭 · 시트 수정 시 자동 반영) ---- */
-function renderRetireExpense(r) {
-  const sec = document.getElementById("sp-retire");
-  if (!r || !(r.avg_monthly || (r.monthly_items && r.monthly_items.length))) {
-    if (sec) sec.style.display = "none";
-    return;
-  }
-  sec.style.display = "";
-  const eokMan = v => {
-    const e = Math.floor(v / 1e8), m = Math.round((v - e * 1e8) / 1e4);
-    return e ? `${e}억 ${m.toLocaleString("ko-KR")}만원` : `${m.toLocaleString("ko-KR")}만원`;
-  };
-  const irregMonthly = Math.round((r.annual_irregular || 0) / 12);
-
-  document.getElementById("sp-retire-body").innerHTML = `<div class="cards">
-    ${kpiCard("은퇴 후 월 생활비", fmtMan(r.avg_monthly),
-      `고정 ${manNum(r.monthly_fixed)}만 + 연 비정기 안분 ${manNum(irregMonthly)}만`, true)}
-    ${kpiCard("은퇴 후 연 생활비", eokMan(r.annual_budget), "월 생활비 × 12")}
-    ${kpiCard("월 고정 생활비", fmtMan(r.monthly_fixed), "매달 반드시 나가는 비용")}
-  </div>
-  <div class="re-grid">
-    <div class="re-panel"><div class="re-h">월 고정 생활비 구성</div><div id="re-donut"></div></div>
-    <div class="re-panel"><div class="re-h">연간 비정기 지출</div><div id="re-annual"></div></div>
-  </div>
-  <div class="re-src">출처: ⭐️분당부부_MASTER · <b>참조.연간 생활비</b> 탭 — 시트를 고치면 자동 반영됩니다.</div>`;
-
-  const mItems = [...(r.monthly_items || [])].filter(i => i.amount > 0).sort((a, b) => b.amount - a.amount);
-  if (mItems.length) {
-    const slices = mItems.map((it, i) => ({ label: it.name, value: it.amount, color: spColor(it.name, i) }));
-    donut(donutCell(document.getElementById("re-donut")), {
-      title: "", caption: "", slices, fmt: fmtMan, centerLabel: "월 고정",
-      center: r.monthly_fixed, legendValue: true, annotateTop: 3, annFmt: v => manNum(v) + "만",
-    });
-  }
-  const aItems = [...(r.annual_items || [])].filter(i => i.amount > 0).sort((a, b) => b.amount - a.amount);
-  document.getElementById("re-annual").innerHTML =
-    `<table class="re-tbl"><tbody>${aItems.map(it =>
-      `<tr><td>${esc(it.name)}</td><td class="num">${manNum(it.amount)}만원</td></tr>`).join("")}
-      <tr class="re-tot"><td><b>연 합계</b></td><td class="num">${manNum(r.annual_irregular)}만원</td></tr>
-    </tbody></table>`;
-}
-
 function renderSpending(sp) {
   const tabBtn = document.querySelector('.tab[data-tab="spending"]');
-  const has2026 = !!(sp && sp.categories && sp.categories.length);
-  const hasRetire = !!(sp && sp.retire);
-  if (!has2026 && !hasRetire) { if (tabBtn) tabBtn.style.display = "none"; return; }
-  if (tabBtn) tabBtn.style.display = "";
-
-  renderRetireExpense(sp && sp.retire);                                  // 은퇴 이후 생활비 (계획)
-  document.getElementById("sp-actual").style.display = has2026 ? "" : "none";
-  if (!has2026) return;                                                  // 2026 실측이 없으면 계획만 보여줌
+  if (!sp || !sp.categories || !sp.categories.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
 
   const months = sp.months.map(k => ({ key: k, label: `${+k.slice(5)}월` }));
   const n = months.length;
@@ -1560,8 +1487,25 @@ function renderSpending(sp) {
   donutOf(months[n - 1].label, "진행 중", c => c.values[n - 1] || 0);
   donutOf("월평균", `${months[0].label}~${months[cn - 1].label} 마감 ${cn}개월`,
           c => c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn);
-  document.getElementById("sp-donut-note").textContent =
-    "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
+
+  // 은퇴시 생활비 — 참조.연간 생활비 탭 기준(수시 변동 자동 반영). 월평균 옆에 나란히 비교.
+  //   중앙=평균 월 생활비, 슬라이스=월 고정 항목 + 연 비정기를 월로 안분한 한 조각.
+  const re = sp.retire;
+  if (re && re.avg_monthly) {
+    const irregM = Math.round((re.annual_irregular || 0) / 12);
+    const rslices = [
+      ...(re.monthly_items || []).map((it, i) => ({ label: it.name, value: it.amount, color: spColor(it.name, i) })),
+      ...(irregM > 0 ? [{ label: "연 비정기(월 안분)", value: irregM, color: "var(--ink-muted)" }] : []),
+    ].filter(s => s.value > 0).sort((a, b) => b.value - a.value);
+    donut(donutCell(row), {
+      title: "은퇴시 생활비", caption: "계획 · 참조.연간 생활비", slices: rslices, fmt: fmtMan,
+      centerLabel: "월 평균", center: re.avg_monthly, legendValue: true,
+      annotateTop: 3, annFmt: v => manNum(v) + "만",
+    });
+  }
+  document.getElementById("sp-donut-note").textContent = re && re.avg_monthly
+    ? "월평균은 마감된 달만 반영 · 은퇴시 생활비는 참조.연간 생활비 시트 기준(수시 변동 자동 반영)."
+    : "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
 
   // 표 — 카테고리 × 월 (연 누적 큰 순)
   const rank = [...sp.categories].sort((a, b) =>
@@ -1891,9 +1835,12 @@ function applyLive(snap, live) {
 
   // 구글시트에서 끌어오는 블록을 30분 최신본으로 교체 — 사용자가 시트를 고치면 최대 30분 내,
   // '업데이트하기'로는 즉시 반영된다 (서버 live 잡이 시트를 읽어 발행). 없으면 일별 스냅샷 유지.
+  // 은퇴 생활비(spending.retire)는 일별 잡만 싣는다 — live.spending로 덮이면 사라지므로 보존한다.
+  const baseRetire = snap.spending && snap.spending.retire;
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
                    "spending", "cities", "simulation", "review"])
     if (live[k]) snap[k] = live[k];
+  if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
   if (!live.financial && live.accounts && snap.financial && snap.financial.holdings) {

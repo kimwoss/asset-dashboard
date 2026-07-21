@@ -170,7 +170,10 @@ def main():
     monthly       = _safe(sheets_monthly.fetch_monthly, "월별 흐름", now.date())
     asset_history = _safe(sheets_yearly.fetch_asset_history, "자산 이력", now.date())
     liabilities   = _safe(sheets_yearly.fetch_liabilities, "부채", now.date())
-    spending      = _safe(sheets_spending.fetch_spending, "월간 생활비", now.date())
+    spending      = _safe(sheets_spending.fetch_spending, "월간 생활비", now.date()) or {}
+    retire_exp    = _safe(sheets_spending.fetch_retirement_expense, "은퇴 생활비", now.date())
+    if retire_exp:
+        spending["retire"] = retire_exp   # 은퇴 생활비도 30분마다 최신 반영
     cities        = _safe(sheets_cities.fetch_cities, "살고싶은 도시", now.date())
     simulation    = _safe(sheets_sim.fetch_simulation, "은퇴 지도")
     review        = _safe(sheets_review.fetch_review, "연간 리뷰")
