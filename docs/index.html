@@ -105,6 +105,16 @@
   .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
   .delta-none { color: var(--ink-muted); }
   #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
+  /* 은퇴 목표 vs 현재 월평균 비교 */
+  .cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; font-size: var(--fs-body); }
+  .cmp-head b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cmp-row { display: grid; grid-template-columns: 74px 1fr 60px; gap: 10px; align-items: center; padding: 6px 0; }
+  .cmp-name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmp-track { display: flex; flex-direction: column; gap: 3px; }
+  .cmp-line { display: flex; align-items: center; gap: 6px; height: 15px; }
+  .cmp-fill { height: 100%; border-radius: 3px; min-width: 2px; transition: width .5s ease; }
+  .cmp-v { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+  .cmp-diff { font-size: var(--fs-sm); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
   #detail .sum-row td { background: var(--page); border-top: 1.5px solid var(--baseline);
                         padding-top: 11px; padding-bottom: 11px; }
   #detail .sum-row td:first-child { font-size: var(--fs-body); }
@@ -515,6 +525,13 @@
     <h2>카테고리 비중</h2>
     <div class="donut-row" id="sp-donuts"></div>
     <div class="goal-sub" id="sp-donut-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>은퇴 목표 vs 현재 월평균</h2>
+    <div class="cmp-head" id="sp-retire-head"></div>
+    <div id="sp-retire"></div>
+    <div class="goal-sub" id="sp-retire-note" style="margin-top:10px"></div>
   </section>
 
   <section class="card">
@@ -1386,8 +1403,16 @@ const SP_COLORS = {
   "생활": "#3182F6", "외식": "#FF6B6B", "교통": "#12B886", "쇼핑": "#F76707",
   "여행": "#7048E8", "미용": "#E64980", "세금": "#868E96", "주거": "#0CA678",
   "경조": "#FAB005", "가족": "#4C6EF5", "모임": "#15AABF", "기타": "#ADB5BD",
+  "자기계발": "#20C997", "건강": "#FA5252", "기부": "#BE4BDB",
 };
 const spColor = (name, i) => SP_COLORS[name] || `hsl(${(i * 47) % 360} 62% 55%)`;
+
+/* 은퇴 목표 생활비 (월, 오늘 가치·고정) — 사용자 확정값. 월평균 카테고리와 맞춰 비교한다. */
+const RETIRE_BUDGET = {
+  "생활": 900000, "외식": 800000, "교통": 500000, "주거": 300000, "쇼핑": 300000,
+  "미용": 400000, "여행": 400000, "가족": 533333, "자기계발": 200000,
+  "건강": 200000, "기부": 50000,
+};
 // 만원 반올림 — Math.round(-2230/1e4)는 -0이라 그대로 찍으면 "-0"이 된다
 const manNum = v => { const r = Math.round(v / 1e4); return (r === 0 ? 0 : r).toLocaleString(); };
 
@@ -1508,6 +1533,38 @@ function renderSpending(sp) {
   document.getElementById("sp-donut-note").textContent = re && re.avg_monthly
     ? "월평균은 마감된 달만 반영 · 은퇴시 생활비는 참조.연간 생활비 시트 기준(수시 변동 자동 반영)."
     : "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
+
+  // 은퇴 목표 vs 현재 월평균 — 카테고리별 나란히 비교 (은퇴 예산은 고정값 RETIRE_BUDGET)
+  const avgMap = {};
+  for (const c of sp.categories) avgMap[c.name] = c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn;
+  const catIdx = name => sp.categories.findIndex(c => c.name === name);
+  const cmp = [...new Set([...Object.keys(RETIRE_BUDGET), ...sp.categories.map(c => c.name)])]
+    .map(name => ({ name, avg: Math.round(avgMap[name] || 0), ret: RETIRE_BUDGET[name] || 0 }))
+    .filter(x => x.avg > 0 || x.ret > 0)
+    .sort((a, b) => Math.max(b.avg, b.ret) - Math.max(a.avg, a.ret));
+  const cmpMax = Math.max(...cmp.map(x => Math.max(x.avg, x.ret)), 1) * 1.02;
+  const totAvg = cmp.reduce((s, x) => s + x.avg, 0), totRet = cmp.reduce((s, x) => s + x.ret, 0);
+  const bar = (v, col, solid) => `<div class="cmp-line">
+    <div class="cmp-fill" style="width:${v / cmpMax * 100}%;background:${col};opacity:${solid ? 1 : .38}"></div>
+    <span class="cmp-v">${v ? manNum(v) + "만" : "–"}</span></div>`;
+  document.getElementById("sp-retire").innerHTML = cmp.map(x => {
+    const col = spColor(x.name, catIdx(x.name));
+    const dm = Math.round((x.ret - x.avg) / 1e4);  // 만원 단위 차이 (미미하면 0 = 무변동)
+    const dcls = dm > 0 ? "delta-down" : dm < 0 ? "delta-up" : "delta-none";
+    return `<div class="cmp-row">
+      <div class="cmp-name"><span class="chip" style="background:${col}"></span>${esc(x.name)}</div>
+      <div class="cmp-track">${bar(x.avg, col, false)}${bar(x.ret, col, true)}</div>
+      <div class="cmp-diff ${dcls}">${dm ? (dm > 0 ? "+" : "−") + Math.abs(dm) + "만" : "="}</div>
+    </div>`;
+  }).join("");
+  const dTot = totRet - totAvg;
+  document.getElementById("sp-retire-head").innerHTML =
+    `<span>현재 월평균 <b>${fmtMan(totAvg)}</b></span><span style="color:var(--ink-muted)">→</span>`
+    + `<span>은퇴 목표 <b>${fmtMan(totRet)}</b></span>`
+    + `<span class="${dTot > 0 ? "delta-down" : "delta-up"}"><b>${dTot > 0 ? "+" : "−"}${fmtMan(Math.abs(dTot))}/월</b></span>`;
+  document.getElementById("sp-retire-note").innerHTML =
+    "위 막대(연함)=현재 월평균 · 아래 막대(진함)=은퇴 목표. 은퇴가 더 많으면 빨강·적으면 초록. "
+    + "은퇴 목표는 오늘 가치 고정값이며 물가 반영 전입니다.";
 
   // 표 — 카테고리 × 월 (연 누적 큰 순)
   const rank = [...sp.categories].sort((a, b) =>
