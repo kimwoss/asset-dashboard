@@ -106,6 +106,35 @@ def prev_month_baseline(today, hist_path):
             "net_krw": round(s["net"])}
 
 
+def prev_day_baseline(today, hist_path):
+    """전일(오늘 이전 가장 최근 기록일) 기준 {key, gross_krw, debt_krw, net_krw}. 없으면 {}.
+
+    history.csv의 asset/liability 행(일별 실측)만 센다. 일별 기록을 2026-07-15에 시작했으므로
+    그 이후로 하루라도 지나면 채워진다. 오늘 자 행을 다시 쓰기 전에 호출해야 한다.
+    """
+    today_str = today.strftime("%Y-%m-%d")
+    if not hist_path.exists():
+        return {}
+    by_date = {}
+    with open(hist_path, encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            d = r.get("date", "")
+            if not d or d >= today_str or r.get("kind") not in ("asset", "liability"):
+                continue
+            acc = by_date.setdefault(d, {"gross": 0.0, "debt": 0.0})
+            v = float(r.get("value_krw") or 0)
+            if r["kind"] == "asset":
+                acc["gross"] += v
+            else:
+                acc["debt"] += -v  # 부채는 음수로 저장돼 있다
+    if not by_date:
+        return {}
+    key = max(by_date)
+    last = by_date[key]
+    return {"key": key, "gross_krw": round(last["gross"]), "debt_krw": round(last["debt"]),
+            "net_krw": round(last["gross"] - last["debt"])}
+
+
 def main():
     pf = load_portfolio()
     now = datetime.now(KST)
@@ -281,11 +310,20 @@ def main():
     simulation = sheets_sim.fetch_simulation()
     review = sheets_review.fetch_review()
 
-    # 전월 말 기준값 — KPI 3종의 '전월 대비'. history.csv를 다시 쓰기 전에 읽어야 한다.
+    # 전일·전월·전년 기준값 — KPI 3종(순자산·총자산·부채)의 대비 표기용.
+    # history.csv를 다시 쓰기 전에 읽어야 한다. 전년은 ★연도별자산 작년 열(asset_history.totals.y1).
     prev_month = prev_month_baseline(now.date(), DATA_DIR / "history.csv")
+    prev_day = prev_day_baseline(now.date(), DATA_DIR / "history.csv")
+    _t = (asset_history or {}).get("totals") or {}
+    prev_year = {}
+    if (_t.get("net") or {}).get("y1"):
+        prev_year = {"key": (asset_history or {}).get("prev_year") or str(now.year - 1),
+                     "gross_krw": _t["gross"]["y1"], "debt_krw": _t["debt"]["y1"], "net_krw": _t["net"]["y1"]}
     if prev_month:
         print(f"OK: 전월({prev_month['key']}) 기준 순자산 {prev_month['net_krw']/1e8:.2f}억 "
-              f"· 출처 {'우리 실측' if prev_month['source'] == 'measured' else '시트 소계'}")
+              f"· 출처 {'우리 실측' if prev_month['source'] == 'measured' else '시트 소계'}"
+              + (f" · 전일 {prev_day['key']}" if prev_day else "")
+              + (f" · 전년 {prev_year['key']} {prev_year['net_krw']/1e8:.2f}억" if prev_year else ""))
 
     snapshot = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
@@ -306,7 +344,9 @@ def main():
         "cities": cities,
         "simulation": simulation,
         "review": review,
+        "prev_day": prev_day,
         "prev_month": prev_month,
+        "prev_year": prev_year,
     }
     with open(DATA_DIR / "latest.json", "w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=1)
