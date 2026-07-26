@@ -164,6 +164,12 @@
   .mkt-px { color: var(--ink-1); font-weight: 600; }
   .mkt-asof { font-size: var(--fs-xs); color: var(--ink-muted); font-weight: 400; margin-left: 6px; }
   table.mkt td:first-child { font-weight: 600; }
+  /* 통합 시세표 — 그룹 소제목 행 (미국 지수 / 국내 지수·ETF / 환율) */
+  table.mkt-unified { table-layout: auto; }
+  .mkt-grp td { text-align: left; padding: 10px 10px 5px; font-size: var(--fs-xs); font-weight: 700;
+    letter-spacing: .04em; color: var(--ink-muted); background: var(--grid);
+    border-bottom: 1px solid var(--baseline); }
+  .mkt-grp + tr td { border-top: none; }
 
   #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
              background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
@@ -311,6 +317,8 @@
   .fortune-name { font-size: var(--fs-4); font-weight: 700; }
   .fortune-stars { font-size: var(--fs-body); color: var(--c-kr); letter-spacing: 1px; }
   .fortune-body { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.7; white-space: pre-line; }
+  .fortune-money { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.6; margin-top: 7px;
+    padding: 7px 11px; background: var(--page); border-radius: var(--r-sm); }
 
   /* 오류 · 게이트 */
   #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
@@ -419,16 +427,16 @@
 <div id="toast"></div>
 
 <nav class="tabs" id="tabs" style="display:none">
-  <button class="tab on" data-tab="overview">자산 현황</button>
-  <button class="tab" data-tab="financial">금융자산</button>
+  <button class="tab on" data-tab="checkpoint">오늘의 체크포인트</button>
+  <button class="tab" data-tab="overview">자산 현황</button>
+  <button class="tab" data-tab="financial">금융 자산</button>
+  <button class="tab" data-tab="review">연간 리뷰</button>
+  <button class="tab" data-tab="flow">데이터 흐름</button>
   <button class="tab" data-tab="spending">월간 생활비</button>
   <button class="tab" data-tab="cities">살고싶은 도시</button>
-  <button class="tab" data-tab="review">연간 리뷰</button>
-  <button class="tab" data-tab="checkpoint">오늘의 체크포인트</button>
-  <button class="tab" data-tab="flow">데이터 흐름</button>
 </nav>
 
-<div id="tab-overview">
+<div id="tab-overview" style="display:none">
   <div class="cards" id="kpis"></div>
   <div class="goal-sub" id="kpi-note" style="margin:-4px 0 14px"></div>
 
@@ -581,7 +589,7 @@
   </section>
 </div>
 
-<div id="tab-checkpoint" style="display:none">
+<div id="tab-checkpoint">
   <div id="cp-body"></div>
 </div>
 
@@ -1114,22 +1122,20 @@ function renderCheckpoint(cp) {
   // 증권사 시세 화면식 표 — 1일/1주/1개월/1년. 스냅샷 폴백은 1일만 있어 나머지는 '—'.
   // mode "won": 등락을 % 대신 실제 원(₩) 변동으로 표기 (환율 전용).
   const HZ = [["d1", "1일"], ["w1", "1주"], ["m1", "1개월"], ["y1", "1년"]];
-  const mktTable = (arr, mode) => {
-    if (!(arr || []).length) return "";
-    const cell = (i, k) => {
-      const p = i[k] !== undefined ? i[k] : (k === "d1" ? i.change_pct : null);
-      if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
-      const body = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
-      return `<td class="${cls(p)}"><b>${body}</b></td>`;
-    };
-    return `<div style="overflow-x:auto"><table class="mkt">
-      <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
-      <tbody>${arr.map(i => `<tr>
-        <td>${esc(i.name)}${i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}</td>
-        <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
-        ${HZ.map(([k]) => cell(i, k)).join("")}
-      </tr>`).join("")}</tbody></table></div>`;
+  // 시세 3종(미국·국내·환율)을 한 표로 합치기 위한 행 빌더 — 종목명 폭이 달라도
+  // 하나의 <table>이라 현재가·등락 열이 자동 정렬된다. 환율만 mode="won"(원 변동).
+  const mktCell = (i, k, mode) => {
+    const p = i[k] !== undefined ? i[k] : (k === "d1" ? i.change_pct : null);
+    if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
+    const v = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
+    return `<td class="${cls(p)}"><b>${v}</b></td>`;
   };
+  const mktRow = (i, mode) => `<tr>
+    <td>${esc(i.name)}${i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}</td>
+    <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
+    ${HZ.map(([k]) => mktCell(i, k, mode)).join("")}
+  </tr>`;
+  const mktGroupHead = t => `<tr class="mkt-grp"><td colspan="${2 + HZ.length}">${esc(t)}</td></tr>`;
 
   let h = "";
   if (cp.stale) h += `<div class="cp-stale">⚠️ ${cp.age_days}일 전(${esc(cp.date_label)}) 리포트입니다 — 최신 발송이 밀렸을 수 있어요.</div>`;
@@ -1156,19 +1162,32 @@ function renderCheckpoint(cp) {
   const badge = cp.live_at
     ? `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`
     : `<span class="live-badge off">오늘 아침 스냅샷${cp.generated_at ? ` · ${esc((cp.generated_at).slice(11,16))}` : ""}</span>`;
-  const mktSection = (title, arr, extra = "", mode) => !(arr || []).length ? "" : `<section class="card">
-    <div class="cp-mkt-head"><h2>${title}</h2>${badge}</div>
-    ${mktTable(arr, mode)}${extra}</section>`;
-
   const fg = cp.fear_greed || {};
   const fgLine = fg.score != null
     ? `공포탐욕 <b>${fg.score}</b> (${esc(fg.label || "")})${fg.vix ? ` · VIX ${fg.vix.toFixed(1)}` : ""}` : "";
   const usAsof = (cp.us || []).map(i => i.asof).filter(Boolean).sort().pop();
-  const usNote = (usAsof ? `<div class="cp-mkt-note">${esc(usAsof.slice(5))} 종가 기준</div>` : "")
-    + (fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : "");
-  h += mktSection("미국 지수", cp.us, usNote);
-  h += mktSection("국내 지수·ETF", cp.kr, "");
-  h += mktSection("환율", cp.fx, `<div class="cp-mkt-note">원/엔은 100엔 기준 · 등락은 실제 원(₩) 변동</div>`, "won");
+
+  // 미국·국내·환율을 한 표로 통합 — 그룹 소제목 행으로 구분, 환율만 원(₩) 변동 모드.
+  // 공포탐욕지수는 요청대로 표 아래 별도 문구로 그대로 남긴다.
+  const mktGroups = [
+    ["미국 지수", cp.us, undefined],
+    ["국내 지수·ETF", cp.kr, undefined],
+    ["환율", cp.fx, "won"],
+  ].filter(g => (g[1] || []).length);
+  if (mktGroups.length) {
+    const rows = mktGroups.map(([t, arr, mode]) =>
+      mktGroupHead(t) + arr.map(i => mktRow(i, mode)).join("")).join("");
+    const hasFx = mktGroups.some(g => g[2] === "won");
+    h += `<section class="card">
+      <div class="cp-mkt-head"><h2>시세</h2>${badge}</div>
+      <div style="overflow-x:auto"><table class="mkt mkt-unified">
+        <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      ${usAsof ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
+      ${hasFx ? `<div class="cp-mkt-note">원/엔은 100엔 기준 · 등락은 실제 원(₩) 변동</div>` : ""}
+      ${fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : ""}
+    </section>`;
+  }
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
     <div style="font-size:13.5px">🗓️ ${esc(cp.macro_dday)}</div></section>`;
 
@@ -1189,10 +1208,11 @@ function renderCheckpoint(cp) {
       <div class="fortune-head"><span class="fortune-name">${emoji} ${name}</span>
         <span class="fortune-stars">${esc(p.stars || "")}</span></div>
       <div class="fortune-body">${esc(p.body)}</div>
+      ${p.money ? `<div class="fortune-money">💰 ${esc(p.money)}</div>` : ""}
       ${(p.lucky_hour || p.lucky_number) ? `<div class="luck">🍀 ${[p.lucky_hour, p.lucky_color, p.lucky_number ? "숫자 " + p.lucky_number : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
     </div>`;
     h += `<section class="card"><h2>오늘의 운세</h2>
-      <div class="cp-sub" style="margin-top:0">📅 ${esc(f.ganzi)} ${esc(f.zodiac)}의 날${f.interaction ? " · " + esc(f.interaction) : ""}</div>
+      <div class="cp-sub" style="margin-top:0">📅 ${esc(f.ganzi)} ${esc(f.zodiac)}의 날${f.lunar ? " · " + esc(f.lunar) : ""}${f.interaction ? " · " + esc(f.interaction) : ""}</div>
       ${f.intro ? `<div class="cp-quote">${esc(f.intro)}</div>` : ""}
       ${person("🐰", "우현", f.woohyun)}${person("🐷", "규리", f.kyuri)}
       ${f.couple ? `<div class="cp-sub" style="margin-top:12px">💑 ${esc(f.couple)}</div>` : ""}
