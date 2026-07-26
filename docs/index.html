@@ -1609,7 +1609,7 @@ function renderSpending(sp) {
 
   const exNames = (sp.excluded || []).map(c => c.name).join("·");
   document.getElementById("sp-note").innerHTML =
-    `투자·대출·보험은 생활비에서 제외` + (exNames ? ` · ${exNames}는 내부 배분이라 합계에서 뺌 (표 하단 참고)` : "");
+    "고정비·변동비 전부 집계" + (exNames ? ` · ${exNames}은 부채 상환이라 생활비에서 제외 (표 하단 참고)` : "");
 }
 
 /* ---- 살고싶은 도시 (🌍이주 대시보드 · Numbeo 기반) ---- */
