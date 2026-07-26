@@ -284,8 +284,16 @@
   .rv-month .rv-mtxt { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.65; white-space: pre-line; }
 
   /* 오늘의 체크포인트 */
-  .cp-hero { font-size: 15px; line-height: 1.65; color: var(--ink-1); font-weight: 500; }
+  /* 인사말은 한 문장이 길다 — 자간·행간을 넉넉히 주고 폭을 제한해 눈이 줄을 잃지 않게 한다 */
+  .cp-hero { font-size: 16.5px; line-height: 1.75; color: var(--ink-1); font-weight: 500;
+             letter-spacing: -.01em; max-width: 62ch; margin-bottom: 14px; word-break: keep-all; }
   .cp-sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 8px; white-space: pre-line; line-height: 1.6; }
+  /* 날씨 — 오늘 기온·미세먼지는 한 줄로 크게, 시간대별은 칩으로 흩어 스캔되게 */
+  .cp-wx { margin-top: 2px; }
+  .cp-wx-main { font-size: var(--fs-4); font-weight: 600; color: var(--ink-1); letter-spacing: -.01em; }
+  .cp-wx-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .wx-chip { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-pill);
+             padding: 3px 11px; font-size: var(--fs-sm); color: var(--ink-2); white-space: nowrap; }
   .cp-quote { background: var(--page); border-left: 3px solid var(--accent); padding: 10px 14px;
               font-size: var(--fs-body); color: var(--ink-1); line-height: 1.6; margin-top: 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
   .cp-stale { background: color-mix(in srgb, var(--neg) 10%, transparent); color: var(--neg);
@@ -1017,6 +1025,25 @@ function renderMonthly(mon) {
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+/* 오늘의 운세 카드 — 브리핑 바로 뒤에 놓으려고 따로 뺐다 (없으면 빈 문자열). */
+function fortuneHtml(f) {
+  if (!f) return "";
+  const person = (emoji, name, p) => !p || !p.body ? "" : `<div class="fortune-person">
+    <div class="fortune-head"><span class="fortune-name">${emoji} ${name}</span>
+      <span class="fortune-stars">${esc(p.stars || "")}</span></div>
+    <div class="fortune-body">${esc(p.body)}</div>
+    ${p.money ? `<div class="fortune-money">💰 ${esc(p.money)}</div>` : ""}
+    ${(p.lucky_hour || p.lucky_number) ? `<div class="luck">🍀 ${[p.lucky_hour, p.lucky_color, p.lucky_number ? "숫자 " + p.lucky_number : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
+  </div>`;
+  return `<section class="card"><h2>오늘의 운세</h2>
+    <div class="cp-sub" style="margin-top:0">📅 ${esc(f.ganzi)} ${esc(f.zodiac)}의 날${f.lunar ? " · " + esc(f.lunar) : ""}${f.interaction ? " · " + esc(f.interaction) : ""}</div>
+    ${f.intro ? `<div class="cp-quote">${esc(f.intro)}</div>` : ""}
+    ${person("🐰", "우현", f.woohyun)}${person("🐷", "규리", f.kyuri)}
+    ${f.couple ? `<div class="cp-sub" style="margin-top:12px">💑 ${esc(f.couple)}</div>` : ""}
+    ${f.blessing ? `<div class="cp-sub">🙏 ${esc(f.blessing)}</div>` : ""}
+  </section>`;
+}
+
 function renderCheckpoint(cp) {
   const body = document.getElementById("cp-body");
   if (!cp || !cp.date_label) {
@@ -1068,14 +1095,26 @@ function renderCheckpoint(cp) {
     ? `<div class="cp-mkt-note">인사말·운세는 ${esc(cp.date_label)} 생성분 · 매일 오전 6시대 갱신 (아래 시세·뉴스는 실시간)</div>`
     : "";
 
-  // 인사 + 날씨
+  // 인사 + 날씨 — 날씨는 한 덩어리 텍스트로 오지만 그대로 흘리면 읽히지 않는다.
+  //   1줄차(오늘 기온·미세먼지)는 크게, 2줄차(시간대별)는 '·' 기준으로 잘라 칩으로 흩는다.
+  const wx = String(cp.weather || "").split("\n").map(s => s.trim()).filter(Boolean);
+  const wxHtml = wx.length ? `<div class="cp-wx">
+      <div class="cp-wx-main">${esc(wx[0])}</div>
+      ${wx.slice(1).map(line => `<div class="cp-wx-chips">${
+        line.split("·").map(p => p.trim()).filter(Boolean)
+            .map(p => `<span class="wx-chip">${esc(p)}</span>`).join("")
+      }</div>`).join("")}
+    </div>` : "";
   h += `<section class="card">
     <h2>${esc(cp.date_label)} 브리핑</h2>
     ${cp.greeting ? `<div class="cp-hero">${esc(cp.greeting)}</div>` : ""}
-    ${cp.weather ? `<div class="cp-sub">${esc(cp.weather)}</div>` : ""}
+    ${wxHtml}
     ${cp.summary ? `<div class="cp-quote">📌 ${esc(cp.summary)}</div>` : ""}
     ${briefNote}
   </section>`;
+
+  // 운세 — 시세보다 먼저. '오늘 하루가 어떤 날인가'를 먼저 읽고 숫자로 넘어가는 흐름.
+  h += fortuneHtml(cp.fortune);
 
   // 지수 · 환율 — 제목은 고정("미국 지수" 등)으로, 실시간 여부는 기준시각 배지로 알린다.
   // cp.live_at 은 30분 시세 잡(live.enc)이 붙었을 때만 채워진다. 없으면 07:00 스냅샷.
@@ -1120,25 +1159,6 @@ function renderCheckpoint(cp) {
       ${n.insight ? `<div class="news-insight">→ ${esc(n.insight)}</div>` : ""}
     </div>`).join("")}
     ${cp.news_live ? `<div class="cp-mkt-note">관심 주제 최신순 · 30분마다 갱신</div>` : ""}</section>`;
-
-  // 운세
-  const f = cp.fortune;
-  if (f) {
-    const person = (emoji, name, p) => !p || !p.body ? "" : `<div class="fortune-person">
-      <div class="fortune-head"><span class="fortune-name">${emoji} ${name}</span>
-        <span class="fortune-stars">${esc(p.stars || "")}</span></div>
-      <div class="fortune-body">${esc(p.body)}</div>
-      ${p.money ? `<div class="fortune-money">💰 ${esc(p.money)}</div>` : ""}
-      ${(p.lucky_hour || p.lucky_number) ? `<div class="luck">🍀 ${[p.lucky_hour, p.lucky_color, p.lucky_number ? "숫자 " + p.lucky_number : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
-    </div>`;
-    h += `<section class="card"><h2>오늘의 운세</h2>
-      <div class="cp-sub" style="margin-top:0">📅 ${esc(f.ganzi)} ${esc(f.zodiac)}의 날${f.lunar ? " · " + esc(f.lunar) : ""}${f.interaction ? " · " + esc(f.interaction) : ""}</div>
-      ${f.intro ? `<div class="cp-quote">${esc(f.intro)}</div>` : ""}
-      ${person("🐰", "우현", f.woohyun)}${person("🐷", "규리", f.kyuri)}
-      ${f.couple ? `<div class="cp-sub" style="margin-top:12px">💑 ${esc(f.couple)}</div>` : ""}
-      ${f.blessing ? `<div class="cp-sub">🙏 ${esc(f.blessing)}</div>` : ""}
-    </section>`;
-  }
 
   if ((cp.data_warnings || []).length)
     h += `<div class="goal-sub">⚠️ 데이터 점검: ${esc(cp.data_warnings.join(" · "))}</div>`;
