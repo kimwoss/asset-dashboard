@@ -299,6 +299,42 @@
   .cp-stale { background: color-mix(in srgb, var(--neg) 10%, transparent); color: var(--neg);
               border-radius: var(--r-sm); padding: 10px 14px; font-size: var(--fs-body); margin-bottom: 12px; }
 
+  /* 현금 흐름 계획 */
+  .cf-pipe { display: grid; grid-template-columns: 200px 1fr 132px; gap: 12px; align-items: center; padding: 9px 0; }
+  .cf-pipe-name { font-size: var(--fs-body); font-weight: 600; }
+  .cf-pipe-name small { display: block; font-weight: 400; font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 2px; white-space: normal; }
+  .cf-pipe-track { height: 20px; background: var(--grid); border-radius: 4px; position: relative; overflow: hidden; }
+  .cf-pipe-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+  .cf-pipe-v { text-align: right; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+  .cf-pipe-v b { font-weight: 700; }
+  .cf-tag { display: inline-block; font-size: var(--fs-xs); font-weight: 600; border-radius: 4px;
+            padding: 1px 7px; background: color-mix(in srgb, var(--pos) 15%, transparent); color: var(--pos); }
+  /* 신호등 */
+  .cf-signal-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .cf-signal { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 16px; background: var(--page); }
+  .cf-signal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .cf-signal-who { font-size: var(--fs-4); font-weight: 700; }
+  .cf-signal-pct { font-size: var(--fs-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cf-signal-track { height: 10px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; margin-top: 10px; }
+  .cf-signal-fill { height: 100%; border-radius: var(--r-pill); transition: width .6s ease; }
+  .cf-signal-lb { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .cf-lv-ok  { color: var(--pos); } .cf-bg-ok  { background: var(--pos); }
+  .cf-lv-warn{ color: #F59F00; }    .cf-bg-warn{ background: #F59F00; }
+  .cf-lv-bad { color: var(--neg); } .cf-bg-bad { background: var(--neg); }
+  /* 실행 캘린더 */
+  .cf-task { display: grid; grid-template-columns: 26px 104px 1fr; gap: 12px; align-items: start;
+             padding: 13px 0; border-bottom: 1px solid var(--grid); }
+  .cf-task:last-child { border-bottom: none; }
+  .cf-task.next { background: color-mix(in srgb, var(--accent) 6%, transparent);
+                  border-radius: var(--r-sm); padding-left: 10px; padding-right: 10px; margin: 0 -10px; }
+  .cf-chk { width: 19px; height: 19px; margin-top: 1px; cursor: pointer; accent-color: var(--accent); }
+  .cf-when { font-size: var(--fs-sm); font-weight: 700; color: var(--accent); padding-top: 1px; }
+  .cf-task.done .cf-title, .cf-task.done .cf-todo { opacity: .45; text-decoration: line-through; }
+  .cf-title { font-size: var(--fs-body); font-weight: 600; }
+  .cf-todo { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 4px; line-height: 1.6; }
+  .cf-next-badge { display: inline-block; font-size: var(--fs-xs); font-weight: 700; color: var(--accent);
+                   border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; }
+
   /* 뉴스 */
   .news-item { padding: 12px 0; border-bottom: 1px solid var(--grid); }
   .news-item:last-child { border-bottom: none; padding-bottom: 0; }
@@ -434,6 +470,7 @@
   <button class="tab" data-tab="overview">자산 현황</button>
   <button class="tab" data-tab="financial">투자 포트폴리오</button>
   <button class="tab" data-tab="spending">월간 생활비</button>
+  <button class="tab" data-tab="cashflow">현금 흐름 계획</button>
   <button class="tab" data-tab="review">연간 리뷰</button>
   <button class="tab" data-tab="cities">후보 도시</button>
 </nav>
@@ -560,6 +597,38 @@
     <h2>카테고리별 상세</h2>
     <div style="overflow-x:auto"><table id="sp-table"></table></div>
     <div class="goal-sub" id="sp-note" style="margin-top:10px"></div>
+  </section>
+</div>
+
+<div id="tab-cashflow" style="display:none">
+  <div class="cards" id="cf-kpis"></div>
+
+  <section class="card">
+    <h2>파이프라인 — 세금·건보료 없이 만드는 현금</h2>
+    <div id="cf-pipes"></div>
+    <div class="goal-sub" id="cf-pipes-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>건강보험료 방어 신호등</h2>
+    <div class="cf-signal-row" id="cf-signals"></div>
+    <div class="goal-sub" id="cf-signal-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>실행 캘린더 — 언제, 누구 계좌에서, 무엇을</h2>
+    <div id="cf-cal"></div>
+    <div class="goal-sub" id="cf-cal-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>계좌·종목 현황</h2>
+    <div class="seg" id="cf-acct-seg">
+      <button class="seg-btn on" data-acct="taxable">일반 계좌 (매도·증여용)</button>
+      <button class="seg-btn" data-acct="shelter">예비 자금 (절세 계좌)</button>
+    </div>
+    <div id="cf-acct"></div>
+    <div class="goal-sub" id="cf-acct-note" style="margin-top:12px"></div>
   </section>
 </div>
 
@@ -1711,6 +1780,215 @@ function renderSpending(sp, liabs) {
     "고정비·변동비 전부 집계" + (exNames ? ` · ${exNames}은 부채 상환이라 생활비에서 제외 (표 하단 참고)` : "");
 }
 
+/* ---- 현금 흐름 계획 (은퇴 후 연 1억을 세금·건보료 없이) ------------------------
+   설계 전제는 전부 '사용자가 세운 계획'이다 — 세법 해석을 이 화면이 보증하지 않는다.
+   대시보드가 하는 일은 (1) 네 갈래 파이프라인의 계획 대비 진행을 보여주고,
+   (2) 실제 데이터로 셀 수 있는 건보료 한도를 감시하고, (3) 언제 무엇을 할지 알려주는 것.
+
+   실측 가능한 건 배당뿐이다. 임대·매도·증여는 미래 행동이라 계획값으로만 둔다.
+   핵심: 금융소득 한도는 '과세계좌' 배당만 센다. ISA·연금저축·IRP·퇴직연금은 과세이연이라
+   금융소득종합과세 대상이 아니므로, 전체 배당(부부 1,241만)을 그대로 세면 과대계상된다.
+   계좌별 tax_rate(0이면 절세계좌)로 데이터에서 직접 갈라낸다. */
+const CF_TARGET_YEAR = 2029;
+const CF_TARGET = 100000000;      // 부부 합산 연 1억
+const CF_DIV_CAP = 9900000;       // 1인 금융소득 통제선 (사용자 설정 990만)
+
+const CF_PIPES = [
+  { key: "rent",  label: "부동산 임대소득",        plan: 21600000, tag: "비과세",
+    desc: "월 180만 × 12 · 1세대 1주택 비과세 요건 활용" },
+  { key: "basic", label: "해외주식 기본공제 매도",  plan: 30000000, tag: "비과세",
+    desc: "1인 양도차익 250만 한도 · 수익률 20% 가정 시 매도대금" },
+  { key: "gift",  label: "부부 릴레이 증여 후 매도", plan: 28600000, tag: "이월과세 방어",
+    desc: "배우자공제 6억/10년 · 증여 후 1년 보유하고 매도" },
+  { key: "div",   label: "주식 배당금",            plan: 19800000, tag: "건보료 면제",
+    desc: "1인 990만 이하로 통제 · 과세계좌 기준" },
+];
+
+/* 연중 실행 캘린더. month=0 이면 매월 반복. */
+const CF_TASKS = [
+  { id: "rent",  pipe: "rent",  month: 0,  day: 25, when: "매월 25일",
+    title: "부동산 월세 입금 확인 (180만원)", todo: "파이어 생활비 통장으로 이체" },
+  { id: "divq",  pipe: "div",   quarters: [3, 6, 9, 12], day: 28, when: "분기말",
+    title: "미국 직상장 ETF(SCHD·VOO·QQQ) 배당 입금 확인",
+    todo: "우현·규리 계좌별 수령액 기록 → 990만 한도 게이지 갱신" },
+  { id: "gsell", pipe: "gift",  month: 11, day: 15, when: "11월 15일",
+    title: "증여받은 주식 매도 실행 (2,860만원)",
+    todo: "작년 11월 증여분이 1년 보유를 채웠는지 확인(이월과세 회피) 후 매도·현금화" },
+  { id: "bsell", pipe: "basic", month: 12, day: 10, when: "12월 10일",
+    title: "해외주식 기본공제 맞춤 매도 (3,000만원)",
+    todo: "수익 종목을 역산해 부부 합산 매도 · 양도차익 500만(1인 250만) 이내 확인 후 CMA 이체" },
+  { id: "gift",  pipe: "gift",  month: 12, day: 28, when: "12월 28일",
+    title: "내년 인출용 부부간 주식 증여 (2,860만원)",
+    todo: "수익률 상위 종목을 배우자 계좌로 대체출고 · 홈택스 증여세 0원 신고" },
+];
+
+const cfKey = y => `cf_done_${y}`;
+function cfDone(y) { try { return new Set(JSON.parse(localStorage.getItem(cfKey(y)) || "[]")); } catch { return new Set(); } }
+function cfToggle(y, id, on) {
+  const s = cfDone(y);
+  on ? s.add(id) : s.delete(id);
+  try { localStorage.setItem(cfKey(y), JSON.stringify([...s])); } catch {}
+}
+
+/* 과세계좌(tax_rate>0) 배당만 사람별로 합산 — 건보료 한도의 실측 분모. */
+function cfDividends(fin) {
+  const out = { 우현: 0, 규리: 0 }, shelter = { 우현: 0, 규리: 0 };
+  for (const h of ((fin && fin.holdings) || [])) {
+    const o = h.owner;
+    if (!(o in out)) continue;
+    (h.tax_rate > 0 ? out : shelter)[o] += h.div_krw || 0;
+  }
+  return { taxable: out, shelter };
+}
+
+function renderCashflow(fin) {
+  const tabBtn = document.querySelector('.tab[data-tab="cashflow"]');
+  if (!fin || !(fin.holdings || []).length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (tabBtn) tabBtn.style.display = "";
+
+  const now = new Date(Date.now() + 9 * 3600e3);          // KST
+  const year = now.getUTCFullYear(), mon = now.getUTCMonth() + 1, day = now.getUTCDate();
+  const { taxable, shelter } = cfDividends(fin);
+  const divActual = taxable.우현 + taxable.규리;
+
+  // ── Section 1: 요약 KPI ────────────────────────────────────────────────
+  const planned = CF_PIPES.reduce((s, p) => s + p.plan, 0);
+  const yearsLeft = CF_TARGET_YEAR - year;
+  document.getElementById("cf-kpis").innerHTML =
+    kpiCard(`${CF_TARGET_YEAR}년 목표 현금흐름`, fmtMan(CF_TARGET),
+            `설계 합계 ${fmtMan(planned)} · 달성 설계 ${(planned / CF_TARGET * 100).toFixed(0)}%`, true) +
+    kpiCard("올해 실측 배당 (과세계좌)", fmtMan(divActual),
+            `한도 ${fmtMan(CF_DIV_CAP * 2)} 대비 ${(divActual / (CF_DIV_CAP * 2) * 100).toFixed(0)}% · 우현 ${manNum(taxable.우현)}만 / 규리 ${manNum(taxable.규리)}만`) +
+    kpiCard("실행까지", yearsLeft > 0 ? `${yearsLeft}년` : "실행 단계",
+            yearsLeft > 0 ? `${CF_TARGET_YEAR}년부터 인출 시작` : `${CF_TARGET_YEAR}년 계획 가동 중`);
+
+  // ── Section 1-b: 파이프라인 ───────────────────────────────────────────
+  //   실측이 있는 항목(배당)은 진하게 채우고, 미래 행동(임대·매도·증여)은 계획값만 흐리게.
+  const maxPlan = Math.max(...CF_PIPES.map(p => p.plan));
+  const COL = { rent: "var(--c-re)", basic: "var(--c-us)", gift: "var(--c-vi)", div: "var(--c-kr)" };
+  document.getElementById("cf-pipes").innerHTML = CF_PIPES.map(p => {
+    const actual = p.key === "div" ? divActual : null;
+    const w = (actual != null ? actual : p.plan) / maxPlan * 100;
+    const pct = actual != null ? actual / p.plan * 100 : null;
+    return `<div class="cf-pipe">
+      <div class="cf-pipe-name">${esc(p.label)} <span class="cf-tag">${esc(p.tag)}</span>
+        <small>${esc(p.desc)}</small></div>
+      <div class="cf-pipe-track">
+        <div class="cf-pipe-fill" style="width:${w}%;background:${COL[p.key]};opacity:${actual != null ? 1 : .42}"></div>
+      </div>
+      <div class="cf-pipe-v">${actual != null
+        ? `<b>${fmtMan(actual)}</b><br><span style="color:var(--ink-muted)">계획 ${fmtMan(p.plan)} · ${pct.toFixed(0)}%</span>`
+        : `<b>${fmtMan(p.plan)}</b><br><span style="color:var(--ink-muted)">계획</span>`}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("cf-pipes-note").innerHTML =
+    "진한 막대 = 실제 데이터로 확인된 금액 · 흐린 막대 = 아직 실행 전인 계획값. "
+    + "임대·매도·증여는 미래 행동이라 계획값으로만 둡니다.<br>"
+    + "⚠️ 비과세 요건·공제 한도는 <b>우현님이 세운 계획 전제</b>이며 이 화면이 세법 해석을 보증하지 않습니다. 실제 신고 전 세무 전문가 확인을 권합니다.";
+
+  // ── Section 2: 건보료 방어 신호등 ─────────────────────────────────────
+  const lv = pct => pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok";
+  const lvTxt = { ok: "여유", warn: "주의", bad: "한도 임박" };
+  document.getElementById("cf-signals").innerHTML = ["우현", "규리"].map(who => {
+    const v = taxable[who], pct = v / CF_DIV_CAP * 100, k = lv(pct);
+    return `<div class="cf-signal">
+      <div class="cf-signal-head">
+        <span class="cf-signal-who">${who} 배당</span>
+        <span class="cf-signal-pct cf-lv-${k}">${pct.toFixed(0)}%</span>
+      </div>
+      <div class="cf-signal-track"><div class="cf-signal-fill cf-bg-${k}" style="width:${Math.min(100, pct)}%"></div></div>
+      <div class="cf-signal-lb">${fmtWon(v)} / ${fmtWon(CF_DIV_CAP)}
+        · <b class="cf-lv-${k}">${lvTxt[k]}</b>
+        · 남은 여력 ${fmtMan(Math.max(0, CF_DIV_CAP - v))}</div>
+      <div class="cf-signal-lb">절세계좌 배당 ${fmtMan(shelter[who])}은 과세이연이라 한도에서 제외</div>
+    </div>`;
+  }).join("");
+  document.getElementById("cf-signal-note").innerHTML =
+    `분모는 <b>과세계좌(CMA) 배당</b>만 셉니다 — ISA·연금저축·IRP·퇴직연금은 과세이연이라 금융소득종합과세 대상이 아닙니다. `
+    + `전체 배당(부부 ${fmtMan(divActual + shelter.우현 + shelter.규리)})을 그대로 세면 한도를 과대계상하게 됩니다. `
+    + `70% 주의 · 90% 한도 임박으로 표시합니다.`;
+
+  // ── Section 3: 실행 캘린더 ────────────────────────────────────────────
+  const done = cfDone(year);
+  const nextOf = t => {                     // 오늘 기준 며칠 뒤인지 (가까운 것 강조용)
+    if (t.month === 0) {                    // 매월 반복 — 이번 달이 지났으면 다음 달 같은 날
+      if (day <= t.day) return t.day - day;
+      const eom = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+      return (eom - day) + t.day;
+    }
+    let best = 9999;
+    for (const m of (t.quarters || [t.month])) {
+      const d = Math.round((Date.UTC(year, m - 1, t.day) - Date.UTC(year, mon - 1, day)) / 864e5);
+      if (d >= 0) best = Math.min(best, d);
+    }
+    return best;
+  };
+  const withD = CF_TASKS.map(t => ({ t, d: nextOf(t) }));
+  const soonest = Math.min(...withD.map(x => x.d));
+  const taskId = t => t.month === 0 ? `${t.id}-${year}-${String(mon).padStart(2, "0")}`
+    : t.quarters ? `${t.id}-${year}-Q${Math.ceil(mon / 3)}` : `${t.id}-${year}`;
+  document.getElementById("cf-cal").innerHTML = withD.map(({ t, d }) => {
+    const id = taskId(t), isDone = done.has(id);
+    return `<div class="cf-task${d === soonest ? " next" : ""}${isDone ? " done" : ""}" data-id="${esc(id)}">
+      <input type="checkbox" class="cf-chk" ${isDone ? "checked" : ""} aria-label="완료">
+      <div class="cf-when">${esc(t.when)}${d === soonest ? `<span class="cf-next-badge">다음</span>` : ""}</div>
+      <div>
+        <div class="cf-title">${esc(t.title)}</div>
+        <div class="cf-todo">${esc(t.todo)}</div>
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("cf-cal").onchange = ev => {
+    const box = ev.target.closest(".cf-chk"); if (!box) return;
+    const row = box.closest(".cf-task");
+    cfToggle(year, row.dataset.id, box.checked);
+    row.classList.toggle("done", box.checked);
+  };
+  document.getElementById("cf-cal-note").textContent =
+    `체크는 이 브라우저에만 저장됩니다(${year}년 기준) · 매월·분기 항목은 달이 바뀌면 새로 체크할 수 있습니다.`;
+
+  // ── Section 4: 계좌·종목 현황 ─────────────────────────────────────────
+  const seg = document.getElementById("cf-acct-seg");
+  const drawAcct = mode => {
+    const rows = (fin.holdings || []).filter(h =>
+      (mode === "taxable" ? h.tax_rate > 0 : h.tax_rate === 0) && h.value_krw > 0);
+    const byAcct = {};
+    for (const h of rows) {
+      const k = `${h.owner} · ${h.account}`;
+      (byAcct[k] = byAcct[k] || []).push(h);
+    }
+    const total = rows.reduce((s, h) => s + h.value_krw, 0);
+    // 절세계좌 중 '연저펀(비과세)' = 세액공제 미적용 원금 → 비과세로 뺄 수 있는 예비 재원
+    const freeCash = rows.filter(h => /비과세/.test(h.account)).reduce((s, h) => s + h.value_krw, 0);
+    const body = Object.entries(byAcct).sort((a, b) =>
+      b[1].reduce((s, h) => s + h.value_krw, 0) - a[1].reduce((s, h) => s + h.value_krw, 0))
+      .map(([k, hs]) => {
+        const sub = hs.sort((a, b) => b.value_krw - a.value_krw).map(h => `<tr>
+          <td style="padding-left:22px;color:var(--ink-2)">${esc(h.name || h.ticker)}</td>
+          <td>${fmtMan(h.value_krw)}</td>
+          <td>${h.div_krw ? fmtMan(h.div_krw) : "—"}</td></tr>`).join("");
+        const at = hs.reduce((s, h) => s + h.value_krw, 0), ad = hs.reduce((s, h) => s + (h.div_krw || 0), 0);
+        return `<tr><td class="name">${esc(k)}</td><td><b>${fmtMan(at)}</b></td><td><b>${ad ? fmtMan(ad) : "—"}</b></td></tr>${sub}`;
+      }).join("");
+    document.getElementById("cf-acct").innerHTML = `<div style="overflow-x:auto"><table>
+      <thead><tr><th>계좌 · 종목</th><th>평가액</th><th>올해 배당</th></tr></thead>
+      <tbody>${body}<tr class="sum-row"><td class="name"><b>합계</b></td><td><b>${fmtMan(total)}</b></td><td></td></tr></tbody>
+    </table></div>`;
+    document.getElementById("cf-acct-note").innerHTML = mode === "taxable"
+      ? `여기가 <b>매도·증여의 무대</b>입니다 — 기본공제 매도(3,000만)와 부부 증여(2,860만)는 이 계좌에서 실행합니다. `
+        + `배당도 이 계좌 몫만 건보료 한도에 들어갑니다.`
+      : `목표 1억에 미달할 때 꺼내 쓸 <b>예비 자금</b>입니다. 과세이연 중이라 배당이 한도에 잡히지 않습니다.`
+        + (freeCash ? `<br>이 중 <b>세액공제 미적용 원금(비과세 인출 가능) ${fmtMan(freeCash)}</b>은 세금 없이 뺄 수 있는 몫입니다.` : "")
+        + `<br>연금 계좌를 55세 전에 헐면 기타소득세가 붙을 수 있으니 인출 순서를 먼저 확인하세요.`;
+  };
+  drawAcct("taxable");
+  seg.onclick = ev => {
+    const b = ev.target.closest(".seg-btn"); if (!b) return;
+    for (const x of seg.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);
+    drawAcct(b.dataset.acct);
+  };
+}
+
 /* ---- 살고싶은 도시 (🌍이주 대시보드 · Numbeo 기반) ---- */
 const ctShort = n => String(n || "").split(",")[0].trim();          // "New York, NY, US" → "New York"
 const ctCountry = n => { const p = String(n || "").split(","); return p.slice(1).join(",").trim(); };
@@ -1953,7 +2231,7 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["checkpoint", "overview", "financial", "spending", "review", "cities"])
+    for (const id of ["checkpoint", "overview", "financial", "spending", "cashflow", "review", "cities"])
       document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
   });
 }
@@ -2252,6 +2530,7 @@ async function render() {
   renderFinancial(snap.financial);
   renderMonthly(snap.monthly);
   renderSpending(snap.spending, snap.liabilities);
+  renderCashflow(snap.financial);
   renderCities(snap.cities, net);
   renderSim(snap.simulation);
   renderReview(snap.review);
