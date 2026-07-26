@@ -1793,26 +1793,32 @@ const CF_TARGET_YEAR = 2029;
 const CF_TARGET = 100000000;      // 부부 합산 연 1억
 const CF_DIV_CAP = 9900000;       // 1인 금융소득 통제선 (사용자 설정 990만)
 
-/* 해외주식 기본공제 매도 — 매도'대금'은 상수가 아니라 수익률에서 역산되는 값이다.
-   평가액 X를 팔면 차익은 X·(1 − 1/(1+r)). 이게 공제한도와 같아지는 X를 구하면
-     X = 차익 ÷ (1 − 1/(1+r))
-   수익률이 낮을수록 같은 차익을 realize하려면 더 많이 팔아야 한다(원금이 더 빨리 준다).
-     r=20% → 500만 ÷ 0.1667 = 3,000만 · r=10% → 500만 ÷ 0.0909 = 5,500만
-   보수적으로 10%로 잡는다 (사용자 결정 2026-07-26). */
+/* 해외주식 기본공제 매도 — 매도'대금'은 상수가 아니라 역산값이다.
+   평가액 X를 팔면 차익은 X·(1 − 1/(1+r)) 이고, 거꾸로 X = 차익 ÷ (1 − 1/(1+r)).
+   수익률을 보수적으로 10%로 잡는다 (사용자 결정 2026-07-26).
+
+   기준은 '공제 한도'가 아니라 '목표 1억'이다 (사용자 결정) — 목표에서 나머지 3갈래를
+   빼고 남는 몫만 판다. 한도를 꽉 채우려면 5,500만까지 팔 수 있지만, 필요 없는 만큼
+   더 파는 건 원금을 앞당겨 허무는 일이라 한도를 남기는 쪽이 낫다. */
 const CF_GAIN_CAP_EACH = 2500000;                    // 1인 양도차익 기본공제
 const CF_GAIN_CAP = CF_GAIN_CAP_EACH * 2;            // 부부 합산 500만
 const CF_ASSUMED_RETURN = 0.10;                      // 보수적 수익률 가정
 const cfSaleFor = (gain, r) => Math.round(gain / (1 - 1 / (1 + r)));
-const CF_BASIC_SALE = cfSaleFor(CF_GAIN_CAP, CF_ASSUMED_RETURN);
+const cfGainOf = (sale, r) => Math.round(sale * (1 - 1 / (1 + r)));
+
+const CF_RENT = 21600000, CF_GIFT = 28600000, CF_DIV = 19800000;
+const CF_BASIC_SALE = CF_TARGET - (CF_RENT + CF_GIFT + CF_DIV);      // 목표에서 역산 = 3,000만
+const CF_BASIC_GAIN = cfGainOf(CF_BASIC_SALE, CF_ASSUMED_RETURN);    // 실현 차익 ≈ 273만
+const CF_MAX_SALE = cfSaleFor(CF_GAIN_CAP, CF_ASSUMED_RETURN);       // 한도를 다 쓸 때 = 5,500만
 
 const CF_PIPES = [
-  { key: "rent",  label: "부동산 임대소득",        plan: 21600000, tag: "비과세",
+  { key: "rent",  label: "부동산 임대소득",        plan: CF_RENT, tag: "비과세",
     desc: "월 180만 × 12 · 1세대 1주택 비과세 요건 활용" },
   { key: "basic", label: "해외주식 기본공제 매도",  plan: CF_BASIC_SALE, tag: "비과세",
-    desc: `1인 양도차익 ${CF_GAIN_CAP_EACH / 1e4}만 한도 · 수익률 ${CF_ASSUMED_RETURN * 100}% 가정 시 필요한 매도대금` },
-  { key: "gift",  label: "부부 릴레이 증여 후 매도", plan: 28600000, tag: "이월과세 방어",
+    desc: `목표 1억에서 나머지 3갈래를 뺀 몫 · 수익률 ${CF_ASSUMED_RETURN * 100}% 가정 시 차익 ${Math.round(CF_BASIC_GAIN / 1e4)}만 (공제 한도의 ${(CF_BASIC_GAIN / CF_GAIN_CAP * 100).toFixed(0)}%)` },
+  { key: "gift",  label: "부부 릴레이 증여 후 매도", plan: CF_GIFT, tag: "이월과세 방어",
     desc: "배우자공제 6억/10년 · 증여 후 1년 보유하고 매도" },
-  { key: "div",   label: "주식 배당금",            plan: 19800000, tag: "건보료 면제",
+  { key: "div",   label: "주식 배당금",            plan: CF_DIV, tag: "건보료 면제",
     desc: "1인 990만 이하로 통제 · 과세계좌 기준" },
 ];
 
@@ -1828,8 +1834,9 @@ const CF_TASKS = [
     todo: "작년 11월 증여분이 1년 보유를 채웠는지 확인(이월과세 회피) 후 매도·현금화" },
   { id: "bsell", pipe: "basic", month: 12, day: 10, when: "12월 10일",
     title: `해외주식 기본공제 맞춤 매도 (${Math.round(CF_BASIC_SALE / 1e4).toLocaleString()}만원)`,
-    todo: `수익 종목을 역산해 부부 합산 매도 · 양도차익 ${CF_GAIN_CAP / 1e4}만(1인 ${CF_GAIN_CAP_EACH / 1e4}만) 이내 확인 후 CMA 이체`
-        + ` · 매도액은 수익률 ${CF_ASSUMED_RETURN * 100}% 가정치이니 실제 평가손익으로 다시 역산할 것` },
+    todo: `부부 합산 ${Math.round(CF_BASIC_SALE / 1e4).toLocaleString()}만원어치 매도 후 CMA 이체 — 목표 1억을 채우는 몫입니다.`
+        + ` 매도 전 실제 평가손익으로 차익을 다시 계산해 1인 ${CF_GAIN_CAP_EACH / 1e4}만(합산 ${CF_GAIN_CAP / 1e4}만) 이내인지 확인할 것`
+        + ` · 수익률 ${CF_ASSUMED_RETURN * 100}% 가정 시 차익 ${Math.round(CF_BASIC_GAIN / 1e4)}만으로 한도에 여유가 있습니다` },
   { id: "gift",  pipe: "gift",  month: 12, day: 28, when: "12월 28일",
     title: "내년 인출용 부부간 주식 증여 (2,860만원)",
     todo: "수익률 상위 종목을 배우자 계좌로 대체출고 · 홈택스 증여세 0원 신고" },
@@ -1866,9 +1873,6 @@ function renderCashflow(fin) {
 
   // ── Section 1: 요약 KPI ────────────────────────────────────────────────
   const planned = CF_PIPES.reduce((s, p) => s + p.plan, 0);
-  const others = planned - CF_BASIC_SALE;                 // 기본공제 매도를 뺀 나머지 3갈래
-  const needSale = Math.max(0, CF_TARGET - others);       // 목표 1억을 딱 맞추는 데 필요한 매도액
-  const usedGain = needSale * (1 - 1 / (1 + CF_ASSUMED_RETURN));
   const yearsLeft = CF_TARGET_YEAR - year;
   document.getElementById("cf-kpis").innerHTML =
     kpiCard(`${CF_TARGET_YEAR}년 목표 현금흐름`, fmtMan(CF_TARGET),
@@ -1900,14 +1904,12 @@ function renderCashflow(fin) {
   document.getElementById("cf-pipes-note").innerHTML =
     "진한 막대 = 실제 데이터로 확인된 금액 · 흐린 막대 = 아직 실행 전인 계획값. "
     + "임대·매도·증여는 미래 행동이라 계획값으로만 둡니다.<br>"
-    + `📐 <b>기본공제 매도 ${fmtMan(CF_BASIC_SALE)}</b>은 상수가 아니라 역산값입니다 — `
-    + `수익률 ${CF_ASSUMED_RETURN * 100}% 가정에서 차익 ${fmtMan(CF_GAIN_CAP)}(1인 ${CF_GAIN_CAP_EACH / 1e4}만)을 채우려면 그만큼 팔아야 합니다. `
-    + `수익률이 낮을수록 <b>같은 차익에 더 많은 원금을 헐게</b> 됩니다 (20% 가정이면 ${fmtMan(cfSaleFor(CF_GAIN_CAP, 0.20))}).<br>`
-    + (planned > CF_TARGET
-        ? `그래서 설계 합계가 목표를 ${fmtMan(planned - CF_TARGET)} 넘습니다. 딱 1억만 쓴다면 나머지 3갈래(${fmtMan(others)}) 외에 `
-          + `<b>${fmtMan(needSale)}만 매도</b>하면 되고, 그때 실현 차익은 ${fmtMan(usedGain)}으로 공제 한도의 `
-          + `${(usedGain / CF_GAIN_CAP * 100).toFixed(0)}%만 씁니다 — 한도를 남기는 만큼 원금을 아끼는 셈입니다.<br>`
-        : "")
+    + `📐 <b>기본공제 매도 ${fmtMan(CF_BASIC_SALE)}</b>은 목표 1억에서 나머지 3갈래(${fmtMan(CF_RENT + CF_GIFT + CF_DIV)})를 뺀 몫입니다. `
+    + `수익률 ${CF_ASSUMED_RETURN * 100}% 가정이면 실현 차익은 <b>${fmtMan(CF_BASIC_GAIN)}</b>으로 공제 한도 ${fmtMan(CF_GAIN_CAP)}의 `
+    + `${(CF_BASIC_GAIN / CF_GAIN_CAP * 100).toFixed(0)}%만 씁니다.<br>`
+    + `한도를 꽉 채우려면 ${fmtMan(CF_MAX_SALE)}까지 팔 수 있지만 그러면 목표를 ${fmtMan(CF_MAX_SALE - CF_BASIC_SALE)} 넘깁니다 — `
+    + `필요 없는 만큼 더 파는 건 원금을 앞당겨 허무는 일이라, <b>한도 여유 ${fmtMan(CF_GAIN_CAP - CF_BASIC_GAIN)}은 남겨 두는 쪽</b>을 택했습니다. `
+    + `수익률이 예상보다 높게 나오면 같은 3,000만 매도로도 차익이 커지니, 그때 한도 여유가 완충이 됩니다.<br>`
     + "⚠️ 비과세 요건·공제 한도는 <b>우현님이 세운 계획 전제</b>이며 이 화면이 세법 해석을 보증하지 않습니다. 실제 신고 전 세무 전문가 확인을 권합니다.";
 
   // ── Section 2: 건보료 방어 신호등 ─────────────────────────────────────
