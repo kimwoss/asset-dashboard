@@ -115,10 +115,22 @@
   .kpi-deltas .kd i { color: var(--ink-muted); font-style: normal; margin-right: 2px; }
   .kpi-deltas .kd b { font-weight: 600; font-variant-numeric: tabular-nums; }
   #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
-  /* 은퇴 목표 vs 현재 월평균 비교 */
+  /* 지금 vs 은퇴 비교 (표준 카테고리) */
   .cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; font-size: var(--fs-body); }
   .cmp-head b { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .cmp-row { display: grid; grid-template-columns: 74px 1fr 60px; gap: 10px; align-items: center; padding: 6px 0; }
+  .kind-dot { font-size: 9px; margin-left: 4px; vertical-align: 1px; cursor: help; }
+  /* 브릿지(폭포) — 지금 월평균에서 은퇴 월평균까지 요인별 누적 */
+  .brg-row { display: grid; grid-template-columns: 116px 1fr 74px; gap: 10px; align-items: center; padding: 5px 0; }
+  .brg-name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brg-track { position: relative; height: 19px; background: var(--grid); border-radius: 4px; }
+  .brg-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; min-width: 2px; transition: width .5s ease, left .5s ease; }
+  .brg-up { background: var(--neg); }
+  .brg-down { background: var(--pos); }
+  .brg-base { background: var(--accent); opacity: .55; }
+  .brg-end { opacity: 1; }
+  .brg-v { font-size: var(--fs-sm); text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .brg-strong { font-weight: 700; color: var(--ink-1); }
+  .cmp-row { display: grid; grid-template-columns: 92px 1fr 60px; gap: 10px; align-items: center; padding: 6px 0; }
   .cmp-name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cmp-track { display: flex; flex-direction: column; gap: 3px; }
   .cmp-line { display: flex; align-items: center; gap: 6px; height: 15px; }
@@ -523,8 +535,14 @@
     <div class="goal-sub" id="sp-donut-note" style="margin-top:10px"></div>
   </section>
 
-  <section class="card">
-    <h2>은퇴 목표 vs 현재 월평균</h2>
+  <section class="card" id="sp-bridge-card">
+    <h2>은퇴까지의 거리 — 왜 늘어나나</h2>
+    <div id="sp-bridge"></div>
+    <div class="goal-sub" id="sp-bridge-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card" id="sp-retire-card">
+    <h2>같은 잣대로 본 비교 — 지금 vs 은퇴</h2>
     <div class="cmp-head" id="sp-retire-head"></div>
     <div id="sp-retire"></div>
     <div class="goal-sub" id="sp-retire-note" style="margin-top:10px"></div>
@@ -1339,16 +1357,125 @@ const SP_COLORS = {
   "여행": "#7048E8", "미용": "#E64980", "세금": "#868E96", "주거": "#0CA678",
   "경조": "#FAB005", "가족": "#4C6EF5", "모임": "#15AABF", "기타": "#ADB5BD",
   "자기계발": "#20C997", "건강": "#FA5252", "기부": "#BE4BDB",
+  "용돈": "#FD7E14", "보험": "#5C7CFA", "구독": "#22B8CF",
+  // 표준 카테고리 — 원본 카테고리와 같은 색을 물려 도넛↔비교표가 눈으로 이어지게
+  "식비": "#3182F6", "여행·여가": "#7048E8", "건강·의료": "#FA5252",
+  "가족·경조": "#4C6EF5", "연금·세금": "#868E96",
 };
 const spColor = (name, i) => SP_COLORS[name] || `hsl(${(i * 47) % 360} 62% 55%)`;
 
-/* 은퇴 목표 생활비 (월, 오늘 가치) — 폴백값. 우선은 참조.연간 생활비 시트의
-   '카테고리예산' 섹션(sp.retire.category_budget)을 쓰고, 시트에 없으면 이 값으로 떨어진다. */
-const RETIRE_BUDGET = {
-  "생활": 900000, "외식": 800000, "교통": 500000, "주거": 300000, "쇼핑": 300000,
-  "미용": 400000, "여행": 400000, "가족": 533333, "자기계발": 200000,
-  "건강": 200000, "기부": 50000,
+/* ── 지금(가계부) vs 은퇴(계획)을 같은 잣대로 놓기 위한 표준 카테고리 ──────────
+   두 데이터는 분류 체계가 아니라 '포함 범위'가 다르다. 그래서 이름만 맞추면 안 되고,
+   차이의 성격(생활 방식이냐 / 구조 전환이냐 / 제도 전환이냐)까지 갈라 보여줘야
+   "은퇴하면 정말 2배 써야 하나?"에 정직하게 답할 수 있다.
+   cur=시각화 탭 카테고리, ret=참조.연간 생활비 항목(월·연·생활비세부 모두). */
+const KIND_META = {
+  생활: { icon: "🟢", label: "생활 방식 차이", desc: "지금도 쓰고 은퇴 후에도 쓰는 돈 — 순수 비교 대상" },
+  구조: { icon: "🟡", label: "구조 전환", desc: "전세 거주(관리비만) → 월세 환산 가정. 살림 씀씀이가 아니라 모델 가정" },
+  제도: { icon: "🔵", label: "제도 전환", desc: "급여 원천공제 → 지역가입. 지금도 내고 있지만 가계부엔 안 잡히는 돈" },
+  의료: { icon: "🔵", label: "미기록 지출", desc: "연 단위 검진 등 — 지금은 가계부에 잡히지 않는 항목" },
 };
+const STD_CATS = [
+  { key: "식비",      kind: "생활", cur: ["생활"],           ret: ["식비"] },
+  { key: "외식",      kind: "생활", cur: ["외식"],           ret: ["외식"] },
+  { key: "주거",      kind: "구조", cur: ["주거"],           ret: ["주거비", "주거"] },
+  { key: "교통",      kind: "생활", cur: ["교통"],           ret: ["교통"] },
+  { key: "여행·여가", kind: "생활", cur: ["여행", "모임"],    ret: ["여행"] },
+  { key: "쇼핑",      kind: "생활", cur: ["쇼핑"],           ret: ["쇼핑"] },
+  { key: "미용",      kind: "생활", cur: ["미용"],           ret: ["미용"] },
+  { key: "건강·의료", kind: "의료", cur: ["건강"],           ret: ["건강", "건강검진비", "부모님 건강검진비"] },
+  { key: "자기계발",  kind: "생활", cur: ["자기계발"],       ret: ["자기계발"] },
+  { key: "가족·경조", kind: "생활", cur: ["가족", "경조"],    ret: ["경조", "가족 (할머니)", "가족 (부모님)"] },
+  { key: "용돈",      kind: "생활", cur: ["용돈"],           ret: ["개인용돈"] },
+  { key: "보험",      kind: "생활", cur: ["보험"],           ret: ["국내보험(종합/실손)", "해외여행자보험"] },
+  { key: "연금·세금", kind: "제도", cur: ["세금"],           ret: ["국민연금", "건강보험료", "재산세"] },
+  { key: "기타",      kind: "생활", cur: ["구독", "기타"],    ret: ["예비비"] },
+];
+
+/* 양쪽을 표준 카테고리로 접는다. 어느 쪽도 금액을 버리지 않는다 —
+   매핑에 없는 항목은 '기타'로 떨어뜨리고 이름을 unmapped로 넘겨 화면에 경고한다.
+   (시트를 또 재정리해도 합계가 틀어지지 않고, 무엇이 빠졌는지 즉시 보인다) */
+function buildStdCompare(sp, re, cn) {
+  if (!re || !re.avg_monthly) return null;
+  const curOf = {}, retOf = {}, unmapped = [];
+  for (const c of STD_CATS) { curOf[c.key] = 0; retOf[c.key] = 0; }
+  const find = (name, side) => (STD_CATS.find(c => c[side].includes(name)) || {}).key;
+
+  // 현재 — 마감 월 평균
+  for (const c of sp.categories) {
+    const v = c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn;
+    if (v <= 0) continue;
+    const k = find(c.name, "cur");
+    if (k) curOf[k] += v; else { curOf["기타"] += v; unmapped.push("가계부:" + c.name); }
+  }
+  // 은퇴 — 월 항목(단, '생활비' 덩어리는 세부로 대체) + 생활비 세부 + 연 항목/12
+  const living = re.living_detail || [];
+  const lumpName = re.living_label || "생활비";
+  const add = (name, amt) => {
+    if (!(amt > 0)) return;
+    const k = find(name, "ret");
+    if (k) retOf[k] += amt; else { retOf["기타"] += amt; unmapped.push("은퇴:" + name); }
+  };
+  let lump = 0;
+  for (const it of (re.monthly_items || [])) {
+    if (it.name === lumpName && living.length) { lump = it.amount; continue; }
+    add(it.name, it.amount);
+  }
+  for (const it of living) add(it.name, it.amount);
+  // 시트의 '생활비' 합계와 세부 합계가 어긋나면(반올림·수기 입력) 차액을 기타로 흡수해 총액 보존
+  const gap = lump - living.reduce((s, x) => s + x.amount, 0);
+  if (Math.abs(gap) > 0) retOf["기타"] += gap;
+  for (const it of (re.annual_items || [])) add(it.name, it.amount / 12);
+
+  const rows = STD_CATS
+    .map(c => ({ name: c.key, kind: c.kind, avg: Math.round(curOf[c.key]), ret: Math.round(retOf[c.key]) }))
+    .filter(x => x.avg > 0 || x.ret > 0)
+    .sort((a, b) => (b.ret - b.avg) - (a.ret - a.avg));   // 격차 큰 순 — 왜 늘어나는지가 먼저 보이게
+  const byKind = {};
+  for (const x of rows) byKind[x.kind] = (byKind[x.kind] || 0) + (x.ret - x.avg);
+  return {
+    rows, byKind, unmapped,
+    totAvg: rows.reduce((s, x) => s + x.avg, 0),
+    totRet: rows.reduce((s, x) => s + x.ret, 0),
+  };
+}
+
+/* 브릿지(폭포) — 현재 월평균에서 은퇴 월평균까지 무엇이 얼마나 보태는지.
+   "2배 써야 한다"가 아니라 "구조·제도가 대부분이고 씀씀이 상향은 이만큼"을 읽게 한다. */
+function renderBridge(from, to, byKind) {
+  const steps = Object.keys(KIND_META)
+    .filter(k => Math.round((byKind[k] || 0) / 1e4) !== 0)
+    .map(k => ({ kind: k, v: byKind[k] }));
+  const hi = Math.max(from, to) * 1.06;
+  const pctW = v => Math.max(0.6, Math.abs(v) / hi * 100);
+  let acc = from;
+  const rowOf = (label, icon, val, base, cls, strong) => {
+    const left = Math.min(base, base + val) / hi * 100;
+    return `<div class="brg-row">
+      <div class="brg-name">${icon ? `<span class="kind-dot">${icon}</span>` : ""}${esc(label)}</div>
+      <div class="brg-track">
+        <div class="brg-fill ${cls}" style="left:${left}%;width:${pctW(val)}%"></div>
+      </div>
+      <div class="brg-v ${strong ? "brg-strong" : ""}">${strong ? fmtMan(val) : (val > 0 ? "+" : "−") + manNum(Math.abs(val)) + "만"}</div>
+    </div>`;
+  };
+  let h = rowOf("지금 월평균", "", from, 0, "brg-base", true);
+  for (const s of steps) {
+    h += rowOf(KIND_META[s.kind].label, KIND_META[s.kind].icon, s.v, acc, s.v > 0 ? "brg-up" : "brg-down", false);
+    acc += s.v;
+  }
+  h += rowOf("은퇴 월평균", "", to, 0, "brg-base brg-end", true);
+  document.getElementById("sp-bridge").innerHTML = h;
+
+  const big = steps.slice().sort((a, b) => b.v - a.v)[0];
+  const lifePct = to > from ? Math.round((byKind["생활"] || 0) / (to - from) * 100) : 0;
+  document.getElementById("sp-bridge-note").innerHTML = big
+    ? `가장 큰 요인은 <b>${KIND_META[big.kind].label}</b> (+${manNum(big.v)}만/월). `
+      + `늘어나는 ${fmtMan(to - from)} 중 순수한 생활 수준 상향은 <b>${lifePct}%</b>뿐이고, 나머지는 구조·제도 전환입니다.<br>`
+      + `🟡 주거는 <b>전세 5억을 월세로 환산한 가정</b>입니다 — 전세보증금은 FIRE 자산에도 잡혀 있으니 이중계산 여부를 함께 보세요. `
+      + `🔵 건강보험·국민연금은 지금도 급여에서 빠져나가지만 가계부엔 기록되지 않습니다.`
+    : "";
+}
 // 만원 반올림 — Math.round(-2230/1e4)는 -0이라 그대로 찍으면 "-0"이 된다
 const manNum = v => { const r = Math.round(v / 1e4); return (r === 0 ? 0 : r).toLocaleString(); };
 
@@ -1451,46 +1578,35 @@ function renderSpending(sp) {
   donutOf("월평균", `${months[0].label}~${months[cn - 1].label} 마감 ${cn}개월`,
           c => c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn);
 
-  // 은퇴시 생활비 — 참조.연간 생활비 탭 기준(수시 변동 자동 반영). 월평균 옆에 나란히 비교.
-  //   중앙=평균 월 생활비, 슬라이스=월 고정 항목 + 연 비정기를 월로 안분한 한 조각.
   const re = sp.retire;
-  if (re && re.avg_monthly) {
-    const irregM = Math.round((re.annual_irregular || 0) / 12);
-    const rslices = [
-      ...(re.monthly_items || []).map((it, i) => ({ label: it.name, value: it.amount, color: spColor(it.name, i) })),
-      ...(irregM > 0 ? [{ label: "연 비정기(월 안분)", value: irregM, color: "var(--ink-muted)" }] : []),
-    ].filter(s => s.value > 0).sort((a, b) => b.value - a.value);
-    donut(donutCell(row), {
-      title: "은퇴시 생활비", caption: "계획 · 참조.연간 생활비", slices: rslices, fmt: fmtMan,
-      centerLabel: "월 평균", center: re.avg_monthly, legendValue: true,
-      annotateTop: 3, annFmt: v => manNum(v) + "만",
-    });
-  }
-  document.getElementById("sp-donut-note").textContent = re && re.avg_monthly
-    ? "월평균은 마감된 달만 반영 · 은퇴시 생활비는 참조.연간 생활비 시트 기준(수시 변동 자동 반영)."
-    : "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
+  document.getElementById("sp-donut-note").textContent =
+    "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
 
-  // 은퇴 목표 vs 현재 월평균 — 카테고리별 나란히 비교.
-  //   은퇴 예산은 참조.연간 생활비 시트의 '카테고리예산' 섹션 우선, 없으면 하드코딩 폴백.
-  const RB = (re && re.category_budget && Object.keys(re.category_budget).length) ? re.category_budget : RETIRE_BUDGET;
-  const avgMap = {};
-  for (const c of sp.categories) avgMap[c.name] = c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn;
-  const catIdx = name => sp.categories.findIndex(c => c.name === name);
-  const cmp = [...new Set([...Object.keys(RB), ...sp.categories.map(c => c.name)])]
-    .map(name => ({ name, avg: Math.round(avgMap[name] || 0), ret: RB[name] || 0 }))
-    .filter(x => x.avg > 0 || x.ret > 0)
-    .sort((a, b) => Math.max(b.avg, b.ret) - Math.max(a.avg, a.ret));
+  // ── 지금 vs 은퇴: 표준 카테고리로 정규화해 비교 ────────────────────────────
+  // 두 데이터는 분류가 아니라 '포함 범위'가 다르다. 가계부는 통장에서 나간 돈만 적히니
+  // 급여에서 원천공제되는 건보·국민연금이 안 보이고, 전세라 월세도 0이다. 반면 은퇴 계획은
+  // 살아가는 데 드는 모든 돈을 담는다. 그래서 이름만 맞추면 안 되고 성격까지 갈라줘야 한다.
+  const norm = buildStdCompare(sp, re, cn);
+  document.getElementById("sp-retire-card").style.display = norm ? "" : "none";
+  document.getElementById("sp-bridge-card").style.display = norm ? "" : "none";
+  if (norm) {
+  const { rows: cmp, totAvg, totRet, byKind, unmapped } = norm;
+
+  // 브릿지(폭포) — 현재 월평균에서 은퇴 월평균까지, 늘어나는 이유를 성격별로 쌓는다.
+  renderBridge(totAvg, totRet, byKind);
+
   const cmpMax = Math.max(...cmp.map(x => Math.max(x.avg, x.ret)), 1) * 1.02;
-  const totAvg = cmp.reduce((s, x) => s + x.avg, 0), totRet = cmp.reduce((s, x) => s + x.ret, 0);
   const bar = (v, col, solid) => `<div class="cmp-line">
     <div class="cmp-fill" style="width:${v / cmpMax * 100}%;background:${col};opacity:${solid ? 1 : .38}"></div>
     <span class="cmp-v">${v ? manNum(v) + "만" : "–"}</span></div>`;
-  document.getElementById("sp-retire").innerHTML = cmp.map(x => {
-    const col = spColor(x.name, catIdx(x.name));
+  document.getElementById("sp-retire").innerHTML = cmp.map((x, i) => {
+    const col = spColor(x.name, i);
     const dm = Math.round((x.ret - x.avg) / 1e4);  // 만원 단위 차이 (미미하면 0 = 무변동)
     const dcls = dm > 0 ? "delta-down" : dm < 0 ? "delta-up" : "delta-none";
+    const k = KIND_META[x.kind];
     return `<div class="cmp-row">
-      <div class="cmp-name"><span class="chip" style="background:${col}"></span>${esc(x.name)}</div>
+      <div class="cmp-name"><span class="chip" style="background:${col}"></span>${esc(x.name)}
+        <span class="kind-dot" title="${esc(k.desc)}">${k.icon}</span></div>
       <div class="cmp-track">${bar(x.avg, col, false)}${bar(x.ret, col, true)}</div>
       <div class="cmp-diff ${dcls}">${dm ? (dm > 0 ? "+" : "−") + Math.abs(dm) + "만" : "="}</div>
     </div>`;
@@ -1498,12 +1614,14 @@ function renderSpending(sp) {
   const dTot = totRet - totAvg;
   document.getElementById("sp-retire-head").innerHTML =
     `<span>현재 월평균 <b>${fmtMan(totAvg)}</b></span><span style="color:var(--ink-muted)">→</span>`
-    + `<span>은퇴 목표 <b>${fmtMan(totRet)}</b></span>`
+    + `<span>은퇴 계획 <b>${fmtMan(totRet)}</b></span>`
     + `<span class="${dTot > 0 ? "delta-down" : "delta-up"}"><b>${dTot > 0 ? "+" : "−"}${fmtMan(Math.abs(dTot))}/월</b></span>`;
   document.getElementById("sp-retire-note").innerHTML =
-    "위 막대(연함)=현재 월평균 · 아래 막대(진함)=은퇴 목표. 은퇴가 더 많으면 빨강·적으면 초록. "
-    + "은퇴 목표는 오늘 가치이며 물가 반영 전 — "
-    + (RB === RETIRE_BUDGET ? "내장 기본값입니다." : "참조.연간 생활비 시트의 '카테고리예산' 기준입니다.");
+    "위 막대(연함)=현재 월평균 · 아래 막대(진함)=은퇴 계획. 은퇴가 더 많으면 빨강·적으면 초록.<br>"
+    + Object.entries(KIND_META).map(([, m]) => `${m.icon} ${m.label}`).join(" · ")
+    + "<br>양쪽 모두 합계는 전체 금액 그대로입니다(누락 없음). 은퇴 계획은 오늘 가치이며 물가 반영 전 · 참조.연간 생활비 시트 기준."
+    + (unmapped.length ? `<br><b class="delta-down">⚠️ 표준 분류에 없는 항목 ${unmapped.length}건은 '기타'로 넣었습니다 — ${esc(unmapped.join(", "))}</b>` : "");
+  }
 
   // 표 — 카테고리 × 월 (연 누적 큰 순)
   const rank = [...sp.categories].sort((a, b) =>

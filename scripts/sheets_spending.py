@@ -118,6 +118,10 @@ RETIRE_TAB = "참조.연간 생활비"
 # 기존 월간/연간(도넛) 항목과 완전히 분리 — 이 라벨 아래 행만 category_budget으로 모은다.
 CATEGORY_MARKER = "카테고리예산"
 
+# '생활비' 한 줄에 뭉쳐 있는 금액의 세부 내역 위치 (같은 행 F~N=이름, 아랫행 F~N=금액)
+LIVING_LABEL = "생활비"
+LIVING_COL_FIRST, LIVING_COL_LAST = 5, 13   # F~N (0-indexed)
+
 
 def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
     """참조.연간 생활비 → 은퇴 후 월·연 생활비 계획. 실패 시 {} (섹션만 숨김).
@@ -137,8 +141,9 @@ def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
             print("WARN: 시트 인증 없음 — 은퇴 생활비 생략")
             return {}
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(RETIRE_TAB)
-        # 카테고리예산 섹션을 표 아래에 덧붙일 여유를 두고 넉넉히 읽는다 (기존 A1:M24 → A1:M60).
-        grid = ws.get("A1:M60", value_render_option="UNFORMATTED_VALUE")
+        # 카테고리예산 섹션을 표 아래에 덧붙일 여유를 두고 넉넉히 읽는다 (기존 A1:M24 → A1:N60).
+        # N열까지 읽어야 '생활비' 세부의 마지막 항목(주거)이 잘리지 않는다.
+        grid = ws.get("A1:N60", value_render_option="UNFORMATTED_VALUE")
 
         monthly_items: List[Dict] = []
         annual_items: List[Dict] = []
@@ -172,6 +177,20 @@ def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
                 elif section == "category":
                     category_budget[c] = round(dv)
 
+        # '생활비' 한 덩어리(≈395만)의 세부 내역 — 같은 행 F:N에 이름, 바로 아랫행 F:N에 금액.
+        # 이걸 펼쳐야 현재 가계부 카테고리(외식·교통·쇼핑…)와 같은 해상도로 비교할 수 있다.
+        living_detail: List[Dict] = []
+        for i, row in enumerate(grid):
+            if (str(row[2]).strip() if len(row) > 2 else "") != LIVING_LABEL:
+                continue
+            vals = grid[i + 1] if i + 1 < len(grid) else []
+            for c0 in range(LIVING_COL_FIRST, LIVING_COL_LAST + 1):
+                nm = str(row[c0]).strip() if len(row) > c0 else ""
+                v = vals[c0] if len(vals) > c0 else None
+                if nm and isinstance(v, (int, float)) and v:
+                    living_detail.append({"name": nm, "amount": round(float(v))})
+            break
+
         if not monthly_items and not annual_items and not category_budget:
             print("WARN: 참조.연간 생활비 항목 없음 — 은퇴 생활비 생략")
             return {}
@@ -184,6 +203,9 @@ def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
                "annual_irregular": annual_irregular, **s}
         if category_budget:
             out["category_budget"] = category_budget   # 시트에 섹션 없으면 프론트가 하드코딩 폴백
+        if living_detail:
+            out["living_detail"] = living_detail       # '생활비' 덩어리를 펼친 세부 (비교용)
+            out["living_label"] = LIVING_LABEL
         print(f"OK: 은퇴 생활비 — 월평균 {s['avg_monthly']/1e4:,.0f}만 · "
               f"연 {s['annual_budget']/1e4:,.0f}만 (월고정 {s['monthly_fixed']/1e4:,.0f} + "
               f"연비정기 {annual_irregular/1e4:,.0f})"
