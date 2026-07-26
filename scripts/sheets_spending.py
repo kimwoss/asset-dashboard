@@ -120,7 +120,7 @@ CATEGORY_MARKER = "카테고리예산"
 
 # '생활비' 한 줄에 뭉쳐 있는 금액의 세부 내역 위치 (같은 행 F~N=이름, 아랫행 F~N=금액)
 LIVING_LABEL = "생활비"
-LIVING_COL_FIRST, LIVING_COL_LAST = 5, 13   # F~N (0-indexed)
+LIVING_COL_FIRST, LIVING_COL_LAST = 5, 14   # F~O (0-indexed) — O열 '기부'까지 넣어야 합이 맞는다
 
 
 def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
@@ -141,9 +141,9 @@ def fetch_retirement_expense(today: Optional[date] = None) -> Dict[str, Any]:
             print("WARN: 시트 인증 없음 — 은퇴 생활비 생략")
             return {}
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(RETIRE_TAB)
-        # 카테고리예산 섹션을 표 아래에 덧붙일 여유를 두고 넉넉히 읽는다 (기존 A1:M24 → A1:N60).
-        # N열까지 읽어야 '생활비' 세부의 마지막 항목(주거)이 잘리지 않는다.
-        grid = ws.get("A1:N60", value_render_option="UNFORMATTED_VALUE")
+        # 카테고리예산 섹션을 표 아래에 덧붙일 여유를 두고 넉넉히 읽는다 (기존 A1:M24 → A1:O60).
+        # O열까지 읽어야 '생활비' 세부(외식~기부)가 잘리지 않고 덩어리 합계와 정확히 맞는다.
+        grid = ws.get("A1:O60", value_render_option="UNFORMATTED_VALUE")
 
         monthly_items: List[Dict] = []
         annual_items: List[Dict] = []
