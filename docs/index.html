@@ -123,9 +123,10 @@
   .hi-panel { background: var(--page); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 15px; }
   .hi-h { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-bottom: 9px; }
   .hi-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
-  .hi-tbl td { padding: 6px 4px; border-bottom: 1px solid var(--grid); vertical-align: top; }
-  .hi-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .hi-tbl td.hi-why { color: var(--ink-muted); font-size: var(--fs-xs); line-height: 1.45; }
+  .hi-tbl td { padding: 7px 4px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  .hi-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 1%; padding-left: 12px; }
+  .hi-name { word-break: keep-all; }
+  .hi-why { color: var(--ink-muted); font-size: var(--fs-xs); line-height: 1.45; margin-top: 3px; word-break: keep-all; }
   .hi-tbl tr.hi-tot td { border-top: 2px solid var(--border); border-bottom: none; color: var(--ink-1); }
   .hi-tbl tr:last-child td { border-bottom: none; }
   #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
@@ -2024,8 +2025,10 @@ function renderCashflow(fin, assets) {
 
   // ── Section 1-c: 예상 건강보험료 ──────────────────────────────────────
   //   계획 4갈래가 각각 건보료 부과 대상인지 판정하고, 재산분은 시행령 등급표로 실제 계산한다.
-  const hiRow = (a, b, c, cls = "") => `<tr class="${cls}"><td>${a}</td><td class="num">${b}</td>
-    <td class="hi-why">${c || ""}</td></tr>`;
+  // 항목명과 설명을 한 셀에 쌓는다 — 3열로 두면 좁은 패널에서 이름 열이 눌려 세로로 쪼개진다.
+  const hiRow = (a, b, c, cls = "") => `<tr class="${cls}">
+    <td><div class="hi-name">${a}</div>${c ? `<div class="hi-why">${c}</div>` : ""}</td>
+    <td class="num">${b}</td></tr>`;
   const eok = v => (v / 1e8).toFixed(2) + "억";
   document.getElementById("cf-hi").innerHTML = `
     <div class="hi-head">
