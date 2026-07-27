@@ -2331,10 +2331,13 @@ function applyLive(snap, live) {
     }
   }
 
-  // 자산 현황의 주식계좌를 금융자산 탭(★주식계좌)과 같은 값으로 재연계 — 두 탭 액수 일치 유지.
-  if (live.financial && live.financial.holdings && Array.isArray(snap.assets)) {
+  // 자산 현황의 '주식'을 투자 포트폴리오(★주식계좌)와 같은 값으로 재연계 — 두 탭 액수 일치를
+  // 구조적으로 보장한다. live.financial이 왔든, 못 와서 위에서 accounts로 스케일만 했든,
+  // 아무것도 못 받아 스냅샷 그대로든 — 최종 snap.financial.holdings 하나만 보고 맞춘다.
+  // (예전엔 live.financial이 있을 때만 맞춰서, 스케일 폴백 경로에서 두 탭이 어긋났다.)
+  if (snap.financial && snap.financial.holdings && Array.isArray(snap.assets)) {
     const own = {};
-    for (const h of live.financial.holdings) own[h.owner] = (own[h.owner] || 0) + h.value_krw;
+    for (const h of snap.financial.holdings) own[h.owner] = (own[h.owner] || 0) + h.value_krw;
     for (const a of snap.assets)
       if (a.category === "주식" && own[a.owner] != null) a.value_krw = own[a.owner];
   }
