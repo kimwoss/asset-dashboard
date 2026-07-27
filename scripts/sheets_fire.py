@@ -26,6 +26,11 @@ ROOT = Path(__file__).resolve().parent.parent
 # 대시보드에 두 사람 나이를 병기하려면 이 차이가 필요하다.
 SPOUSE_AGE_GAP = 8
 
+# 은퇴 목표 '월'. ★종합은 연도(현재 연도+적립 기간)까지만 주고 월 칸이 없어, 예전엔 D-day를
+# 목표연도 12월 31일로 잡아 실제 목표(2028년 4월)보다 8개월 늦게 셌다 (2026-07-27 사용자 지적).
+# 목표 시점이 바뀌면 이 값만 고치면 된다.
+RETIRE_TARGET_MONTH = 4
+
 # 레이블 → (결과키, 열 인덱스). 값은 레이블 오른쪽 n번째 비어있지 않은 셀.
 _LABEL_MAP: Dict[str, List[Union[str, Tuple[str, int]]]] = {
     "net_worth":        ["현재 순자산"],
@@ -135,6 +140,7 @@ def _derive(d: Dict[str, Any]) -> Dict[str, Any]:
     year, accum = d.get("current_year") or 0, d.get("accum_years")
     if 2000 <= year <= 2100 and accum is not None and 0 <= accum <= 60:
         d["target_year"] = year + accum
+        d["target_month"] = RETIRE_TARGET_MONTH
     m = re.search(r"\d+", d.get("depletion_raw", ""))
     if m:
         d["depletion_age"] = int(m.group())
