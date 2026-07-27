@@ -128,8 +128,17 @@ def main():
     us, kr = _rows(_US, q, latest(_US)), _rows(_KR, q, latest(_KR))
     fx = [{**r, "rate": r["price"]} for r in _rows(_FX, q, latest(_FX))]  # 환율은 rate 키로도
 
-    # 2) 계좌 평가액 (시트 GOOGLEFINANCE — 배당은 스킵)
-    fin = sheets_holdings.fetch_holdings(with_dividends=False)
+    # 2) 금융자산 상세 (★주식계좌) — 계좌 평가액·투자 포트폴리오·자산현황 '주식'이
+    #    모두 이 '한 번의 읽기'에서 나온다.
+    #    예전엔 여기서 배당 제외로 한 번, 아래 5)에서 배당 포함으로 또 한 번 읽었다.
+    #    GOOGLEFINANCE는 읽을 때마다 값이 미세하게 달라지고, 둘 중 하나만 실패하면
+    #    자산현황(스냅샷 유지)과 투자 포트폴리오(스케일 폴백)의 금액이 어긋났다.
+    try:
+        financial = sheets_holdings.fetch_holdings()          # 배당 포함
+    except Exception as e:  # noqa: BLE001 — 시세·나머지 블록은 계속 나가야 한다
+        print(f"WARN: 금융자산 상세 조회 실패 ({type(e).__name__}: {e})")
+        financial = None
+    fin = financial or {}
     accounts, total = {}, 0
     for h in fin.get("holdings", []):
         key = f"{h['owner']}|{h['account']}"
@@ -165,7 +174,7 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"WARN: {label} 조회 실패 ({type(e).__name__}: {e})")
             return None
-    financial     = _safe(sheets_holdings.fetch_holdings, "금융자산 상세")          # 배당 포함
+    # financial(금융자산 상세)은 위 2)에서 이미 한 번만 읽었다 — 여기서 다시 읽지 않는다.
     fire          = _safe(sheets_fire.fetch_fire_summary, "FIRE")
     monthly       = _safe(sheets_monthly.fetch_monthly, "월별 흐름", now.date())
     asset_history = _safe(sheets_yearly.fetch_asset_history, "자산 이력", now.date())
