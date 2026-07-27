@@ -631,25 +631,15 @@
   </section>
 
   <section class="card">
-    <h2>건강보험료 방어 신호등</h2>
-    <div class="cf-signal-row" id="cf-signals"></div>
-    <div class="goal-sub" id="cf-signal-note" style="margin-top:12px"></div>
+    <h2>지향하는 자산 구성 — 은퇴 시점</h2>
+    <div class="donut-row" id="cf-target"></div>
+    <div class="goal-sub" id="cf-target-note" style="margin-top:12px"></div>
   </section>
 
   <section class="card">
     <h2>실행 캘린더 — 언제, 누구 계좌에서, 무엇을</h2>
     <div id="cf-cal"></div>
     <div class="goal-sub" id="cf-cal-note" style="margin-top:12px"></div>
-  </section>
-
-  <section class="card">
-    <h2>계좌·종목 현황</h2>
-    <div class="seg" id="cf-acct-seg">
-      <button class="seg-btn on" data-acct="taxable">일반 계좌 (매도·증여용)</button>
-      <button class="seg-btn" data-acct="shelter">예비 자금 (절세 계좌)</button>
-    </div>
-    <div id="cf-acct"></div>
-    <div class="goal-sub" id="cf-acct-note" style="margin-top:12px"></div>
   </section>
 </div>
 
@@ -1988,7 +1978,7 @@ function cfHealthInsurance(taxableDiv) {
            yearly: monthly * 12, divEach, rentRisk, divOver, genRisk, genGrade: gGen };
 }
 
-function renderCashflow(fin) {
+function renderCashflow(fin, fire) {
   const tabBtn = document.querySelector('.tab[data-tab="cashflow"]');
   if (!fin || !(fin.holdings || []).length) { if (tabBtn) tabBtn.style.display = "none"; return; }
   if (tabBtn) tabBtn.style.display = "";
@@ -2097,27 +2087,38 @@ function renderCashflow(fin) {
     + `공시가격은 시세의 ${(HI.PUBLIC*100).toFixed(0)}%(공동주택 현실화율), 재산세 공정시장가액비율은 1세대 1주택 특례 ${(hi.fair*100).toFixed(0)}%로 가정했습니다 — `
     + `실제 공시가격이 나오면 값이 달라집니다. 참고용이며 확정 고지액이 아닙니다.`;
 
-  // ── Section 2: 건보료 방어 신호등 ─────────────────────────────────────
-  const lv = pct => pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok";
-  const lvTxt = { ok: "여유", warn: "주의", bad: "한도 임박" };
-  document.getElementById("cf-signals").innerHTML = ["우현", "규리"].map(who => {
-    const v = taxable[who], pct = v / CF_DIV_CAP * 100, k = lv(pct);
-    return `<div class="cf-signal">
-      <div class="cf-signal-head">
-        <span class="cf-signal-who">${who} 배당</span>
-        <span class="cf-signal-pct cf-lv-${k}">${pct.toFixed(0)}%</span>
-      </div>
-      <div class="cf-signal-track"><div class="cf-signal-fill cf-bg-${k}" style="width:${Math.min(100, pct)}%"></div></div>
-      <div class="cf-signal-lb">${fmtWon(v)} / ${fmtWon(CF_DIV_CAP)}
-        · <b class="cf-lv-${k}">${lvTxt[k]}</b>
-        · 남은 여력 ${fmtMan(Math.max(0, CF_DIV_CAP - v))}</div>
-      <div class="cf-signal-lb">절세계좌 배당 ${fmtMan(shelter[who])}은 과세이연이라 한도에서 제외</div>
-    </div>`;
-  }).join("");
-  document.getElementById("cf-signal-note").innerHTML =
-    `분모는 <b>과세계좌(CMA) 배당</b>만 셉니다 — ISA·연금저축·IRP·퇴직연금은 과세이연이라 금융소득종합과세 대상이 아닙니다. `
-    + `전체 배당(부부 ${fmtMan(divActual + shelter.우현 + shelter.규리)})을 그대로 세면 한도를 과대계상하게 됩니다. `
-    + `70% 주의 · 90% 한도 임박으로 표시합니다.`;
+  // ── Section 2: 지향하는 자산 구성 (은퇴 시점) ─────────────────────────
+  //   계획대로 정리했을 때 순자산이 어떤 모양이어야 하는지 — 부동산 15억 1채를 고정으로 두면
+  //   나머지가 곧 금융자산이다. 지금 금융자산에서 얼마를 더 쌓아야 하는지가 바로 읽힌다.
+  const nowFin = (fin.holdings || []).reduce((s, h) => s + h.value_krw, 0);
+  const tRow = document.getElementById("cf-target");
+  tRow.innerHTML = "";
+  const reNet = CF_OWN_VALUE - CF_OWN_DEPOSIT;         // 부동산 순지분 (보증금은 돌려줄 돈)
+  const targetDonut = (title, caption, net) => {
+    const finAsset = Math.max(0, net - reNet - CF_LIVE_DEPOSIT);
+    donut(donutCell(tRow), {
+      title, caption, center: net, centerLabel: "순자산", fmt: fmtEok, legendValue: true,
+      annotateTop: 3, annFmt: v => (v / 1e8).toFixed(1) + "억",
+      slices: [
+        { label: "부동산 순지분", value: reNet, color: "var(--c-re)" },
+        { label: "금융자산", value: finAsset, color: "var(--c-us)" },
+        { label: "거주 보증금", value: CF_LIVE_DEPOSIT, color: "var(--c-kr)" },
+      ].filter(s => s.value > 0),
+    });
+    return finAsset;
+  };
+  const projected = (fire && fire.retire_asset) || 0;
+  const goal = (fire && fire.target_basic) || 0;
+  const needProj = projected ? targetDonut("예상대로 갔을 때", `${(fire.target_year)||""}년 예상 순자산`, projected) : 0;
+  const needGoal = goal ? targetDonut("FIRE 기본 목표를 채우면", "기대수명까지 소진 기준", goal) : 0;
+  document.getElementById("cf-target-note").innerHTML =
+    `<b>읽는 법</b> — 은퇴 시점 부동산을 <b>시세 ${eok(CF_OWN_VALUE)} 한 채</b>로 고정하면, 순자산에서 `
+    + `부동산 순지분(${eok(reNet)} = ${eok(CF_OWN_VALUE)} − 임대보증금 ${eok(CF_OWN_DEPOSIT)})과 거주 보증금 ${eok(CF_LIVE_DEPOSIT)}을 뺀 나머지가 `
+    + `곧 <b>금융자산</b>입니다. 이 금융자산이 파이프라인 네 갈래(배당·매도·증여)를 돌리는 원천입니다.<br>`
+    + (projected ? `📌 예상대로면 금융자산 <b>${eok(needProj)}</b> — 지금 ${eok(nowFin)}에서 <b>${eok(Math.max(0, needProj - nowFin))}</b>을 더 쌓아야 합니다. ` : "")
+    + (goal ? `FIRE 기본 목표(${eok(goal)})를 채우면 금융자산은 <b>${eok(needGoal)}</b>이 됩니다.` : "")
+    + `<br>부동산 비중이 커 보이는 건 <b>집이 현금을 만들지 못하기 때문</b>입니다 — 목표 현금흐름 1억 중 임대는 ${fmtMan(CF_RENT)}뿐이고, `
+    + `나머지 ${fmtMan(CF_TARGET - CF_RENT)}은 금융자산에서 나옵니다. 그래서 은퇴가 가까울수록 금융자산 쪽을 키우는 게 계획의 핵심입니다.`;
 
   // ── Section 3: 실행 캘린더 ────────────────────────────────────────────
   const done = cfDone(year);
@@ -2158,46 +2159,6 @@ function renderCashflow(fin) {
   document.getElementById("cf-cal-note").textContent =
     `체크는 이 브라우저에만 저장됩니다(${year}년 기준) · 매월·분기 항목은 달이 바뀌면 새로 체크할 수 있습니다.`;
 
-  // ── Section 4: 계좌·종목 현황 ─────────────────────────────────────────
-  const seg = document.getElementById("cf-acct-seg");
-  const drawAcct = mode => {
-    const rows = (fin.holdings || []).filter(h =>
-      (mode === "taxable" ? h.tax_rate > 0 : h.tax_rate === 0) && h.value_krw > 0);
-    const byAcct = {};
-    for (const h of rows) {
-      const k = `${h.owner} · ${h.account}`;
-      (byAcct[k] = byAcct[k] || []).push(h);
-    }
-    const total = rows.reduce((s, h) => s + h.value_krw, 0);
-    // 절세계좌 중 '연저펀(비과세)' = 세액공제 미적용 원금 → 비과세로 뺄 수 있는 예비 재원
-    const freeCash = rows.filter(h => /비과세/.test(h.account)).reduce((s, h) => s + h.value_krw, 0);
-    const body = Object.entries(byAcct).sort((a, b) =>
-      b[1].reduce((s, h) => s + h.value_krw, 0) - a[1].reduce((s, h) => s + h.value_krw, 0))
-      .map(([k, hs]) => {
-        const sub = hs.sort((a, b) => b.value_krw - a.value_krw).map(h => `<tr>
-          <td style="padding-left:22px;color:var(--ink-2)">${esc(h.name || h.ticker)}</td>
-          <td>${fmtMan(h.value_krw)}</td>
-          <td>${h.div_krw ? fmtMan(h.div_krw) : "—"}</td></tr>`).join("");
-        const at = hs.reduce((s, h) => s + h.value_krw, 0), ad = hs.reduce((s, h) => s + (h.div_krw || 0), 0);
-        return `<tr><td class="name">${esc(k)}</td><td><b>${fmtMan(at)}</b></td><td><b>${ad ? fmtMan(ad) : "—"}</b></td></tr>${sub}`;
-      }).join("");
-    document.getElementById("cf-acct").innerHTML = `<div style="overflow-x:auto"><table>
-      <thead><tr><th>계좌 · 종목</th><th>평가액</th><th>올해 배당</th></tr></thead>
-      <tbody>${body}<tr class="sum-row"><td class="name"><b>합계</b></td><td><b>${fmtMan(total)}</b></td><td></td></tr></tbody>
-    </table></div>`;
-    document.getElementById("cf-acct-note").innerHTML = mode === "taxable"
-      ? `여기가 <b>매도·증여의 무대</b>입니다 — 기본공제 매도(3,000만)와 부부 증여(2,860만)는 이 계좌에서 실행합니다. `
-        + `배당도 이 계좌 몫만 건보료 한도에 들어갑니다.`
-      : `목표 1억에 미달할 때 꺼내 쓸 <b>예비 자금</b>입니다. 과세이연 중이라 배당이 한도에 잡히지 않습니다.`
-        + (freeCash ? `<br>이 중 <b>세액공제 미적용 원금(비과세 인출 가능) ${fmtMan(freeCash)}</b>은 세금 없이 뺄 수 있는 몫입니다.` : "")
-        + `<br>연금 계좌를 55세 전에 헐면 기타소득세가 붙을 수 있으니 인출 순서를 먼저 확인하세요.`;
-  };
-  drawAcct("taxable");
-  seg.onclick = ev => {
-    const b = ev.target.closest(".seg-btn"); if (!b) return;
-    for (const x of seg.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);
-    drawAcct(b.dataset.acct);
-  };
 }
 
 /* ---- 살고싶은 도시 (🌍이주 대시보드 · Numbeo 기반) ---- */
@@ -2744,7 +2705,7 @@ async function render() {
   renderFinancial(snap.financial);
   renderMonthly(snap.monthly);
   renderSpending(snap.spending, snap.liabilities);
-  renderCashflow(snap.financial);   // 건보료 재산분은 은퇴 시점 부동산 세팅(CF_OWN_*)으로 계산
+  renderCashflow(snap.financial, snap.fire);   // 건보료·목표구성은 은퇴 시점 세팅(CF_OWN_*)+FIRE 목표 기준
   renderCities(snap.cities, net);
   renderSim(snap.simulation);
   renderReview(snap.review);
