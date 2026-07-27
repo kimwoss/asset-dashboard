@@ -1829,7 +1829,15 @@ const CF_ASSUMED_RETURN = 0.10;                      // 보수적 수익률 가�
 const cfSaleFor = (gain, r) => Math.round(gain / (1 - 1 / (1 + r)));
 const cfGainOf = (sale, r) => Math.round(sale * (1 - 1 / (1 + r)));
 
-const CF_RENT = 21600000, CF_GIFT = 28600000, CF_DIV = 19800000;
+/* 은퇴 시점의 부동산 세팅 (파이프라인 가정과 같은 전제) — 건보료 재산분의 기준이기도 하다.
+   지금 보유한 두 채가 아니라 '계획대로 정리한 뒤'의 모습으로 계산해야 소득분과 기준이 맞는다. */
+const CF_OWN_VALUE    = 1500000000;  // 보유 아파트 1채 시세 15억 (임대를 놓는 집)
+const CF_OWN_DEPOSIT  = 300000000;   // 세입자에게 받는 보증금 3억 (내 빚이지 재산이 아니다)
+const CF_OWN_RENT_M   = 1800000;     // 받는 월세 180만
+const CF_LIVE_DEPOSIT = 100000000;   // 우리가 사는 오피스텔 보증금 1억
+const CF_LIVE_RENT_M  = 1600000;     // 우리가 내는 월세 160만
+
+const CF_RENT = CF_OWN_RENT_M * 12, CF_GIFT = 28600000, CF_DIV = 19800000;
 const CF_BASIC_SALE = CF_TARGET - (CF_RENT + CF_GIFT + CF_DIV);      // 목표에서 역산 = 3,000만
 const CF_BASIC_GAIN = cfGainOf(CF_BASIC_SALE, CF_ASSUMED_RETURN);    // 실현 차익 ≈ 273만
 const CF_MAX_SALE = cfSaleFor(CF_GAIN_CAP, CF_ASSUMED_RETURN);       // 한도를 다 쓸 때 = 5,500만
@@ -1899,11 +1907,13 @@ const HI = {
   DEDUCT: 100000000,             // 재산 기본공제 1억원 (2024.2~)
   MIN: 20160, MAX: 4591740,      // 월 건강보험료 하한·상한 (2026)
   PUBLIC: 0.69,                  // 공시가격 ÷ 시세 (공동주택 현실화율 ≈69%) — 가정
-  FAIR: 0.60,                    // 재산세 공정시장가액비율 (1세대 2주택이라 1주택 특례 미적용)
-  JEONSE: 0.30,                  // 임차 보증금의 재산 반영률 (시행규칙)
+  FAIR: 0.60,                    // 재산세 공정시장가액비율 (일반)
+  JEONSE: 0.30,                  // 임차 보증금·월세(×40)의 재산 반영률
   FIN_EXEMPT: 10000000,          // 1인 금융소득 연 1,000만원 이하는 건보료 소득에서 제외
 };
 HI.LTC_MULT = HI.LTC_OF_INCOME / HI.RATE;   // 건강보험료 대비 장기요양 비율 (2026 ≈13.1%)
+// 1세대 1주택 재산세 공정시장가액비율 특례 — 공시 3억 이하 43% / 6억 이하 44% / 초과 45%
+HI.fairRate = o => o <= 3e8 ? 0.43 : o <= 6e8 ? 0.44 : 0.45;
 
 /* 재산등급별 점수 — [등급 상한(만원), 점수]. 시행령 별표4 전 60등급. */
 const HI_TABLE = [
@@ -1927,17 +1937,21 @@ function hiGrade(won) {
   return { grade: 60, points: 2341, from: 778124e4, to: Infinity };
 }
 
-/* 계획대로 세팅됐을 때의 지역가입자 보험료. assets에서 재산을, 계획값에서 소득을 센다. */
-function cfHealthInsurance(assets, taxableDiv) {
-  const A = assets || [];
-  const props = A.filter(a => a.category === "부동산").map(a => ({
-    name: a.name, market: a.value_krw,
-    official: a.value_krw * HI.PUBLIC,                 // 공시가격 추정
-    base: a.value_krw * HI.PUBLIC * HI.FAIR,           // 재산세 과세표준
-  }));
-  const leases = A.filter(a => a.category === "전세보증금").map(a => ({
-    name: a.name, deposit: a.value_krw, base: a.value_krw * HI.JEONSE,
-  }));
+/* 계획대로 세팅됐을 때의 지역가입자 보험료.
+   ⚠️ 재산도 '지금 가진 두 채'가 아니라 은퇴 시점 세팅(15억 1채 보유·임대, 오피스텔 임차)으로 센다 —
+      소득분만 은퇴 기준이고 재산분은 현재 자산이면 두 기준이 어긋난다 (2026-07-27 사용자 지적). */
+function cfHealthInsurance(taxableDiv) {
+  // 보유 주택 — 재산세 과세표준(공시가격 × 공정시장가액비율)이 그대로 건보료 재산이 된다.
+  const official = CF_OWN_VALUE * HI.PUBLIC;
+  const fair = HI.fairRate(official);                  // 1세대 1주택 특례 (43~45%)
+  const props = [{ name: "보유 아파트 (임대)", market: CF_OWN_VALUE, official, base: official * fair, fair }];
+  // 임차 오피스텔 — '주택을 소유하지 않은 세대'만 보증금·월세가 재산에 잡힌다(시행령 제42조제1항제2호).
+  // 우리는 집을 한 채 갖고 있으므로 이 보증금·월세는 재산에서 빠진다.
+  const leases = [{
+    name: "거주 오피스텔 (임차)", deposit: CF_LIVE_DEPOSIT, monthly: CF_LIVE_RENT_M,
+    would: (CF_LIVE_DEPOSIT + CF_LIVE_RENT_M * 40) * HI.JEONSE,   // 무주택이었다면 잡혔을 금액
+    base: 0, why: "주택 보유 세대라 임차 보증금·월세는 재산에서 제외",
+  }];
   const propBase = props.reduce((s, p) => s + p.base, 0) + leases.reduce((s, l) => s + l.base, 0);
   const afterDeduct = Math.max(0, propBase - HI.DEDUCT);
   const g = hiGrade(afterDeduct);
@@ -1962,17 +1976,19 @@ function cfHealthInsurance(assets, taxableDiv) {
   const ltc = Math.round(health * HI.LTC_MULT);
   const monthly = health + ltc;
 
-  // 민감도 — 전제가 깨질 때 얼마나 늘어나는지 (임대 과세 / 배당 한도 초과)
+  // 민감도 — 전제가 깨질 때 얼마나 늘어나는지 (임대 과세 / 배당 한도 초과 / 1주택 특례 종료)
   const withRent = Math.round(CF_RENT / 12 * HI.RATE);
   const rentRisk = Math.round(withRent * (1 + HI.LTC_MULT));
   const divOver = Math.round((CF_DIV_CAP * 2) / 12 * HI.RATE * (1 + HI.LTC_MULT));
+  const gGen = hiGrade(Math.max(0, official * HI.FAIR - HI.DEDUCT));   // 특례 없이 60% 적용 시
+  const genRisk = Math.round(gGen.points * HI.POINT * (1 + HI.LTC_MULT)) - monthly;
 
-  return { props, leases, propBase, afterDeduct, grade: g, propPremium,
-           incomeItems, incomeYear, incPremium, health, ltc, monthly,
-           yearly: monthly * 12, divEach, rentRisk, divOver };
+  return { props, leases, propBase, afterDeduct, grade: g, propPremium, fair,
+           deposit: CF_OWN_DEPOSIT, incomeItems, incomeYear, incPremium, health, ltc, monthly,
+           yearly: monthly * 12, divEach, rentRisk, divOver, genRisk, genGrade: gGen };
 }
 
-function renderCashflow(fin, assets) {
+function renderCashflow(fin) {
   const tabBtn = document.querySelector('.tab[data-tab="cashflow"]');
   if (!fin || !(fin.holdings || []).length) { if (tabBtn) tabBtn.style.display = "none"; return; }
   if (tabBtn) tabBtn.style.display = "";
@@ -1984,7 +2000,7 @@ function renderCashflow(fin, assets) {
 
   // ── Section 1: 요약 KPI ────────────────────────────────────────────────
   const planned = CF_PIPES.reduce((s, p) => s + p.plan, 0);
-  const hi = cfHealthInsurance(assets, taxable);
+  const hi = cfHealthInsurance(taxable);
   document.getElementById("cf-kpis").innerHTML =
     kpiCard(`${CF_TARGET_YEAR}년 목표 현금흐름`, fmtMan(CF_TARGET),
             `설계 합계 ${fmtMan(planned)} · 목표 대비 ${(planned / CF_TARGET * 100).toFixed(0)}%`, true) +
@@ -2049,9 +2065,14 @@ function renderCashflow(fin, assets) {
         <div class="hi-h">② 재산분 — <b>${fmtWon(hi.propPremium)}</b></div>
         <table class="hi-tbl"><tbody>
           ${hi.props.map(p => hiRow(esc(p.name),
-              eok(p.base), `KB ${eok(p.market)} × 공시 ${(HI.PUBLIC*100).toFixed(0)}% × 과표 ${(HI.FAIR*100).toFixed(0)}%`)).join("")}
+              eok(p.base), `시세 ${eok(p.market)} × 공시 ${(HI.PUBLIC*100).toFixed(0)}% = ${eok(p.official)}`
+                         + ` × 과표 ${(p.fair*100).toFixed(0)}% (1세대 1주택 특례)`)).join("")}
           ${hi.leases.map(l => hiRow(esc(l.name),
-              eok(l.base), `보증금 ${eok(l.deposit)} × ${(HI.JEONSE*100).toFixed(0)}% (임차 보증금 반영률)`)).join("")}
+              `<span style="color:var(--ink-muted)">0</span>`,
+              `보증금 ${eok(l.deposit)} · 월세 ${manNum(l.monthly)}만 — ${esc(l.why)}`
+              + `<br>무주택이었다면 ${eok(l.would)}이 잡혔을 자리입니다`)).join("")}
+          ${hiRow("받는 임대보증금", `<span style="color:var(--ink-muted)">0</span>`,
+                  `${eok(hi.deposit)}은 세입자에게 돌려줄 빚이라 재산이 아닙니다 (부채도 차감되지 않음)`)}
           ${hiRow("기본공제", `−${eok(HI.DEDUCT)}`, "세대당 1억원 (2024.2~)")}
           ${hiRow("<b>재산금액</b>", `<b>${eok(hi.afterDeduct)}</b>`,
                   `${hi.grade.grade}등급 · ${hi.grade.points.toLocaleString()}점 × ${HI.POINT}원`, "hi-tot")}
@@ -2059,16 +2080,21 @@ function renderCashflow(fin, assets) {
       </div>
     </div>`;
   document.getElementById("cf-hi-note").innerHTML =
-    `<b>왜 이렇게 낮은가</b> — 목표 현금흐름 1억은 대부분 <b>건보료 부과 대상이 아닌 돈</b>입니다. `
+    `<b>기준</b> — 지금 가진 두 채가 아니라 <b>계획대로 정리한 뒤</b>의 모습(시세 ${eok(CF_OWN_VALUE)} 아파트 1채 보유·임대, `
+    + `보증금 ${eok(CF_OWN_DEPOSIT)}/월세 ${manNum(CF_OWN_RENT_M)}만, 우리는 보증금 ${eok(CF_LIVE_DEPOSIT)}/월세 ${manNum(CF_LIVE_RENT_M)}만 오피스텔 거주)으로 계산했습니다. `
+    + `소득분만 은퇴 기준이고 재산분은 현재 자산이면 두 기준이 어긋나기 때문입니다.<br>`
+    + `<b>왜 이렇게 낮은가</b> — 목표 현금흐름 1억은 대부분 <b>건보료 부과 대상이 아닌 돈</b>입니다. `
     + `양도소득(매도·증여 후 매도)은 지역가입자 소득에 아예 포함되지 않고, 배당은 1인 ${fmtMan(HI.FIN_EXEMPT)} 이하로 `
-    + `묶어 두면 제외됩니다. 그래서 사실상 <b>재산분만</b> 남습니다 — 금융자산(예금·주식)은 재산에 넣지 않으므로, `
-    + `건보료를 좌우하는 건 <b>집 두 채와 거주 전세보증금</b>입니다.<br>`
+    + `묶어 두면 제외됩니다. 그래서 사실상 <b>재산분만</b> 남고, 금융자산(예금·주식)은 재산에 넣지 않으므로 `
+    + `건보료를 좌우하는 건 <b>보유한 집 한 채</b>뿐입니다. 우리가 사는 오피스텔 보증금·월세는 `
+    + `<b>주택을 소유한 세대라 재산에서 빠집니다</b>(무주택 세대만 임차 보증금이 재산에 잡힙니다).<br>`
     + `⚠️ <b>전제가 깨지면</b> — 임대소득이 과세로 잡히면 <b>+${fmtWon(hi.rentRisk)}/월</b>, `
-    + `배당이 1인 ${fmtMan(HI.FIN_EXEMPT)}을 넘기면 그 사람 배당 전액이 소득에 산입돼 최대 <b>+${fmtWon(hi.divOver)}/월</b>까지 늘 수 있습니다.<br>`
+    + `배당이 1인 ${fmtMan(HI.FIN_EXEMPT)}을 넘기면 그 사람 배당 전액이 소득에 산입돼 최대 <b>+${fmtWon(hi.divOver)}/월</b>, `
+    + `1세대 1주택 공정시장가액비율 특례가 사라져 ${(HI.FAIR*100).toFixed(0)}%로 돌아가면 <b>+${fmtWon(hi.genRisk)}/월</b>(${hi.genGrade.grade}등급)까지 늘 수 있습니다.<br>`
     + `📐 <b>계산 근거</b> — 국민건강보험법 시행령 별표4(재산보험료부과점수, 60등급) · 2026년 보험료율 ${(HI.RATE*100).toFixed(2)}% · `
     + `점수당 ${HI.POINT}원 · 장기요양 ${(HI.LTC_OF_INCOME*100).toFixed(4)}%(건보료의 ${(HI.LTC_MULT*100).toFixed(1)}%) · `
-    + `최저 ${fmtWon(HI.MIN)}·최고 ${fmtWon(HI.MAX)}. 재산은 세대 합산이며 부채는 차감되지 않습니다.<br>`
-    + `공시가격은 시세의 ${(HI.PUBLIC*100).toFixed(0)}%(공동주택 현실화율), 재산세 공정시장가액비율은 ${(HI.FAIR*100).toFixed(0)}%(1세대 2주택이라 1주택 특례 미적용)로 가정했습니다 — `
+    + `재산 기본공제 1억원 · 최저 ${fmtWon(HI.MIN)}·최고 ${fmtWon(HI.MAX)}. 재산은 세대 합산이며 부채는 차감되지 않습니다.<br>`
+    + `공시가격은 시세의 ${(HI.PUBLIC*100).toFixed(0)}%(공동주택 현실화율), 재산세 공정시장가액비율은 1세대 1주택 특례 ${(hi.fair*100).toFixed(0)}%로 가정했습니다 — `
     + `실제 공시가격이 나오면 값이 달라집니다. 참고용이며 확정 고지액이 아닙니다.`;
 
   // ── Section 2: 건보료 방어 신호등 ─────────────────────────────────────
@@ -2718,7 +2744,7 @@ async function render() {
   renderFinancial(snap.financial);
   renderMonthly(snap.monthly);
   renderSpending(snap.spending, snap.liabilities);
-  renderCashflow(snap.financial, snap.assets);   // 건보료 재산분은 부동산·보증금에서 센다
+  renderCashflow(snap.financial);   // 건보료 재산분은 은퇴 시점 부동산 세팅(CF_OWN_*)으로 계산
   renderCities(snap.cities, net);
   renderSim(snap.simulation);
   renderReview(snap.review);
