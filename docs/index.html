@@ -114,6 +114,20 @@
   .kpi-deltas .kd { white-space: nowrap; }
   .kpi-deltas .kd i { color: var(--ink-muted); font-style: normal; margin-right: 2px; }
   .kpi-deltas .kd b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* 예상 건강보험료 상세 */
+  .hi-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; }
+  .hi-big { font-size: var(--fs-1); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.015em; }
+  .hi-big small { font-size: var(--fs-4); font-weight: 600; color: var(--ink-muted); margin-left: 2px; }
+  .hi-sub { font-size: var(--fs-sm); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .hi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .hi-panel { background: var(--page); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 15px; }
+  .hi-h { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-bottom: 9px; }
+  .hi-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+  .hi-tbl td { padding: 6px 4px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  .hi-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .hi-tbl td.hi-why { color: var(--ink-muted); font-size: var(--fs-xs); line-height: 1.45; }
+  .hi-tbl tr.hi-tot td { border-top: 2px solid var(--border); border-bottom: none; color: var(--ink-1); }
+  .hi-tbl tr:last-child td { border-bottom: none; }
   #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
   /* 지금 vs 은퇴 비교 (표준 카테고리) */
   .cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; font-size: var(--fs-body); }
@@ -610,6 +624,12 @@
   </section>
 
   <section class="card">
+    <h2>계획대로 세팅했을 때 예상 건강보험료 <span class="cf-tag">2026년 기준</span></h2>
+    <div id="cf-hi"></div>
+    <div class="goal-sub" id="cf-hi-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
     <h2>건강보험료 방어 신호등</h2>
     <div class="cf-signal-row" id="cf-signals"></div>
     <div class="goal-sub" id="cf-signal-note" style="margin-top:12px"></div>
@@ -894,10 +914,12 @@ function renderFire(f, net) {
 
   const facts = [];
   if (f.target_year) {
-    const dday = Math.round((new Date(f.target_year, 11, 31) - new Date()) / 864e5);
+    // 목표 시점은 '연도+월'(예: 2028년 4월)의 1일. 예전엔 12월 31일로 잡아 8개월 늦게 셌다.
+    const tm = f.target_month || 12;
+    const dday = Math.round((new Date(f.target_year, tm - 1, 1) - new Date()) / 864e5);
     const when = dday > 0 ? `D-${dday} · ${Math.floor(dday / 365)}년 ${Math.floor(dday % 365 / 30)}개월` : "목표 시점 도래";
-    facts.push(["은퇴 목표", f.retire_age ? dual(f.retire_age) : `${f.target_year}년`,
-                `${f.target_year}년 · ${when}`, !!f.retire_age]);
+    facts.push(["은퇴 목표", f.retire_age ? dual(f.retire_age) : `${f.target_year}년 ${tm}월`,
+                `${f.target_year}년 ${tm}월 · ${when}`, !!f.retire_age]);
   }
   if (f.monthly_expense) facts.push(["은퇴 후 월생활비", fmtWon(f.monthly_expense), "물가 반영"]);
   if (f.depletion_age) facts.push(["자산 소진 예상", dual(f.depletion_age),
@@ -1861,7 +1883,95 @@ function cfDividends(fin) {
   return { taxable: out, shelter };
 }
 
-function renderCashflow(fin) {
+/* ---- 은퇴 후 지역가입자 건강보험료 (2026년 기준) ----------------------------
+   은퇴하면 직장가입자 자격을 잃고 지역가입자가 된다. 지역가입자 보험료는
+     건강보험료 = 소득보험료(소득월액 × 7.19%) + 재산보험료(재산점수 × 211.5원)
+     장기요양보험료 = 건강보험료 × (0.9448% ÷ 7.19%)
+   근거: 국민건강보험법 시행령 별표4 '재산보험료부과점수의 산정방법'(개정 2024.5.7),
+         2026년 보험료율 1만분의 719 · 점수당 211.5원 · 최저 20,160원 · 최고 4,591,740원,
+         2026년 장기요양보험료율 0.9448%(소득 대비, 보건복지부).
+   재산은 '세대' 단위로 합산하고 1억원을 기본공제한다. 금융자산(예금·주식)은 재산에 넣지 않는다. */
+const HI = {
+  RATE: 0.0719,                  // 지역가입자 소득보험료율 (2026)
+  POINT: 211.5,                  // 재산 점수당 금액(원, 2026)
+  LTC_OF_INCOME: 0.009448,       // 장기요양보험료율(소득 대비, 2026)
+  DEDUCT: 100000000,             // 재산 기본공제 1억원 (2024.2~)
+  MIN: 20160, MAX: 4591740,      // 월 건강보험료 하한·상한 (2026)
+  PUBLIC: 0.69,                  // 공시가격 ÷ 시세 (공동주택 현실화율 ≈69%) — 가정
+  FAIR: 0.60,                    // 재산세 공정시장가액비율 (1세대 2주택이라 1주택 특례 미적용)
+  JEONSE: 0.30,                  // 임차 보증금의 재산 반영률 (시행규칙)
+  FIN_EXEMPT: 10000000,          // 1인 금융소득 연 1,000만원 이하는 건보료 소득에서 제외
+};
+HI.LTC_MULT = HI.LTC_OF_INCOME / HI.RATE;   // 건강보험료 대비 장기요양 비율 (2026 ≈13.1%)
+
+/* 재산등급별 점수 — [등급 상한(만원), 점수]. 시행령 별표4 전 60등급. */
+const HI_TABLE = [
+  [450,22],[900,44],[1350,66],[1800,97],[2250,122],[2700,146],[3150,171],[3600,195],
+  [4050,219],[4500,244],[5020,268],[5590,294],[6220,320],[6930,344],[7710,365],[8590,386],
+  [9570,412],[10700,439],[11900,465],[13300,490],[14800,516],[16400,535],[18300,559],[20400,586],
+  [22700,611],[25300,637],[28100,659],[31300,681],[34900,706],[38800,731],[43200,757],[48100,785],
+  [53600,812],[59700,841],[66500,881],[74000,921],[82400,961],[91800,1001],[103000,1041],
+  [114000,1091],[127000,1141],[142000,1191],[158000,1241],[176000,1291],[196000,1341],
+  [218000,1391],[242000,1451],[270000,1511],[300000,1571],[330000,1641],[363000,1711],
+  [399300,1781],[439230,1851],[483153,1921],[531468,1991],[584615,2061],[643077,2131],
+  [707385,2201],[778124,2271],[Infinity,2341],
+];
+function hiGrade(won) {
+  const man = won / 1e4;
+  if (man <= 0) return { grade: 0, points: 0, from: 0, to: 0 };
+  for (let i = 0; i < HI_TABLE.length; i++)
+    if (man <= HI_TABLE[i][0])
+      return { grade: i + 1, points: HI_TABLE[i][1],
+               from: i ? HI_TABLE[i - 1][0] * 1e4 : 0, to: HI_TABLE[i][0] * 1e4 };
+  return { grade: 60, points: 2341, from: 778124e4, to: Infinity };
+}
+
+/* 계획대로 세팅됐을 때의 지역가입자 보험료. assets에서 재산을, 계획값에서 소득을 센다. */
+function cfHealthInsurance(assets, taxableDiv) {
+  const A = assets || [];
+  const props = A.filter(a => a.category === "부동산").map(a => ({
+    name: a.name, market: a.value_krw,
+    official: a.value_krw * HI.PUBLIC,                 // 공시가격 추정
+    base: a.value_krw * HI.PUBLIC * HI.FAIR,           // 재산세 과세표준
+  }));
+  const leases = A.filter(a => a.category === "전세보증금").map(a => ({
+    name: a.name, deposit: a.value_krw, base: a.value_krw * HI.JEONSE,
+  }));
+  const propBase = props.reduce((s, p) => s + p.base, 0) + leases.reduce((s, l) => s + l.base, 0);
+  const afterDeduct = Math.max(0, propBase - HI.DEDUCT);
+  const g = hiGrade(afterDeduct);
+  const propPremium = Math.round(g.points * HI.POINT);
+
+  // 소득분 — 계획 4갈래를 건보료 부과 대상인지로 하나씩 판정한다.
+  const divEach = Math.max(taxableDiv.우현 || 0, taxableDiv.규리 || 0);
+  const incomeItems = [
+    { label: "부동산 임대소득", amount: CF_RENT, counted: 0,
+      why: "1세대 1주택 비과세 요건 활용 전제 — 비과세 소득은 건보료에도 잡히지 않습니다 (계획 전제)" },
+    { label: "해외주식 기본공제 매도", amount: CF_BASIC_SALE, counted: 0,
+      why: "양도소득은 지역가입자 소득(이자·배당·사업·근로·연금·기타)에 포함되지 않습니다" },
+    { label: "부부 릴레이 증여 후 매도", amount: CF_GIFT, counted: 0,
+      why: "증여는 소득이 아니고, 매도분은 양도소득이라 부과 대상이 아닙니다" },
+    { label: "주식 배당금", amount: CF_DIV, counted: 0,
+      why: `1인 금융소득이 연 ${fmtMan(HI.FIN_EXEMPT)} 이하면 제외 — 계획은 1인 ${fmtMan(CF_DIV_CAP)}로 통제` },
+  ];
+  const incomeYear = incomeItems.reduce((s, i) => s + i.counted, 0);
+  const incPremium = Math.round(incomeYear / 12 * HI.RATE);
+
+  const health = Math.min(HI.MAX, Math.max(HI.MIN, propPremium + incPremium));
+  const ltc = Math.round(health * HI.LTC_MULT);
+  const monthly = health + ltc;
+
+  // 민감도 — 전제가 깨질 때 얼마나 늘어나는지 (임대 과세 / 배당 한도 초과)
+  const withRent = Math.round(CF_RENT / 12 * HI.RATE);
+  const rentRisk = Math.round(withRent * (1 + HI.LTC_MULT));
+  const divOver = Math.round((CF_DIV_CAP * 2) / 12 * HI.RATE * (1 + HI.LTC_MULT));
+
+  return { props, leases, propBase, afterDeduct, grade: g, propPremium,
+           incomeItems, incomeYear, incPremium, health, ltc, monthly,
+           yearly: monthly * 12, divEach, rentRisk, divOver };
+}
+
+function renderCashflow(fin, assets) {
   const tabBtn = document.querySelector('.tab[data-tab="cashflow"]');
   if (!fin || !(fin.holdings || []).length) { if (tabBtn) tabBtn.style.display = "none"; return; }
   if (tabBtn) tabBtn.style.display = "";
@@ -1873,14 +1983,14 @@ function renderCashflow(fin) {
 
   // ── Section 1: 요약 KPI ────────────────────────────────────────────────
   const planned = CF_PIPES.reduce((s, p) => s + p.plan, 0);
-  const yearsLeft = CF_TARGET_YEAR - year;
+  const hi = cfHealthInsurance(assets, taxable);
   document.getElementById("cf-kpis").innerHTML =
     kpiCard(`${CF_TARGET_YEAR}년 목표 현금흐름`, fmtMan(CF_TARGET),
             `설계 합계 ${fmtMan(planned)} · 목표 대비 ${(planned / CF_TARGET * 100).toFixed(0)}%`, true) +
     kpiCard("올해 실측 배당 (과세계좌)", fmtMan(divActual),
             `한도 ${fmtMan(CF_DIV_CAP * 2)} 대비 ${(divActual / (CF_DIV_CAP * 2) * 100).toFixed(0)}% · 우현 ${manNum(taxable.우현)}만 / 규리 ${manNum(taxable.규리)}만`) +
-    kpiCard("실행까지", yearsLeft > 0 ? `${yearsLeft}년` : "실행 단계",
-            yearsLeft > 0 ? `${CF_TARGET_YEAR}년부터 인출 시작` : `${CF_TARGET_YEAR}년 계획 가동 중`);
+    kpiCard("계획대로일 때 예상 건보료", fmtWon(hi.monthly) + "/월",
+            `연 ${fmtMan(hi.yearly)} · 재산분 ${manNum(hi.propPremium)}만 + 소득분 ${manNum(hi.incPremium)}만 · 장기요양 포함`);
 
   // ── Section 1-b: 파이프라인 ───────────────────────────────────────────
   //   실측이 있는 항목(배당)은 진하게 채우고, 미래 행동(임대·매도·증여)은 계획값만 흐리게.
@@ -1911,6 +2021,52 @@ function renderCashflow(fin) {
     + `필요 없는 만큼 더 파는 건 원금을 앞당겨 허무는 일이라, <b>한도 여유 ${fmtMan(CF_GAIN_CAP - CF_BASIC_GAIN)}은 남겨 두는 쪽</b>을 택했습니다. `
     + `수익률이 예상보다 높게 나오면 같은 3,000만 매도로도 차익이 커지니, 그때 한도 여유가 완충이 됩니다.<br>`
     + "⚠️ 비과세 요건·공제 한도는 <b>우현님이 세운 계획 전제</b>이며 이 화면이 세법 해석을 보증하지 않습니다. 실제 신고 전 세무 전문가 확인을 권합니다.";
+
+  // ── Section 1-c: 예상 건강보험료 ──────────────────────────────────────
+  //   계획 4갈래가 각각 건보료 부과 대상인지 판정하고, 재산분은 시행령 등급표로 실제 계산한다.
+  const hiRow = (a, b, c, cls = "") => `<tr class="${cls}"><td>${a}</td><td class="num">${b}</td>
+    <td class="hi-why">${c || ""}</td></tr>`;
+  const eok = v => (v / 1e8).toFixed(2) + "억";
+  document.getElementById("cf-hi").innerHTML = `
+    <div class="hi-head">
+      <div class="hi-big">${fmtWon(hi.monthly)}<small>/월</small></div>
+      <div class="hi-sub">연 ${fmtMan(hi.yearly)} · 건강보험료 ${fmtWon(hi.health)} + 장기요양 ${fmtWon(hi.ltc)}</div>
+    </div>
+    <div class="hi-grid">
+      <div class="hi-panel">
+        <div class="hi-h">① 소득분 — <b>${fmtWon(hi.incPremium)}</b></div>
+        <table class="hi-tbl"><tbody>
+          ${hi.incomeItems.map(i => hiRow(esc(i.label),
+              `${fmtMan(i.amount)} → <b class="cf-lv-ok">0원</b>`, esc(i.why))).join("")}
+          ${hiRow("<b>건보료 부과 소득</b>", `<b>${fmtMan(hi.incomeYear)}</b>`,
+                  "목표 1억 중 부과 대상은 0원 — 양도·증여는 대상 밖, 배당은 1인 한도 이하", "hi-tot")}
+        </tbody></table>
+      </div>
+      <div class="hi-panel">
+        <div class="hi-h">② 재산분 — <b>${fmtWon(hi.propPremium)}</b></div>
+        <table class="hi-tbl"><tbody>
+          ${hi.props.map(p => hiRow(esc(p.name),
+              eok(p.base), `KB ${eok(p.market)} × 공시 ${(HI.PUBLIC*100).toFixed(0)}% × 과표 ${(HI.FAIR*100).toFixed(0)}%`)).join("")}
+          ${hi.leases.map(l => hiRow(esc(l.name),
+              eok(l.base), `보증금 ${eok(l.deposit)} × ${(HI.JEONSE*100).toFixed(0)}% (임차 보증금 반영률)`)).join("")}
+          ${hiRow("기본공제", `−${eok(HI.DEDUCT)}`, "세대당 1억원 (2024.2~)")}
+          ${hiRow("<b>재산금액</b>", `<b>${eok(hi.afterDeduct)}</b>`,
+                  `${hi.grade.grade}등급 · ${hi.grade.points.toLocaleString()}점 × ${HI.POINT}원`, "hi-tot")}
+        </tbody></table>
+      </div>
+    </div>`;
+  document.getElementById("cf-hi-note").innerHTML =
+    `<b>왜 이렇게 낮은가</b> — 목표 현금흐름 1억은 대부분 <b>건보료 부과 대상이 아닌 돈</b>입니다. `
+    + `양도소득(매도·증여 후 매도)은 지역가입자 소득에 아예 포함되지 않고, 배당은 1인 ${fmtMan(HI.FIN_EXEMPT)} 이하로 `
+    + `묶어 두면 제외됩니다. 그래서 사실상 <b>재산분만</b> 남습니다 — 금융자산(예금·주식)은 재산에 넣지 않으므로, `
+    + `건보료를 좌우하는 건 <b>집 두 채와 거주 전세보증금</b>입니다.<br>`
+    + `⚠️ <b>전제가 깨지면</b> — 임대소득이 과세로 잡히면 <b>+${fmtWon(hi.rentRisk)}/월</b>, `
+    + `배당이 1인 ${fmtMan(HI.FIN_EXEMPT)}을 넘기면 그 사람 배당 전액이 소득에 산입돼 최대 <b>+${fmtWon(hi.divOver)}/월</b>까지 늘 수 있습니다.<br>`
+    + `📐 <b>계산 근거</b> — 국민건강보험법 시행령 별표4(재산보험료부과점수, 60등급) · 2026년 보험료율 ${(HI.RATE*100).toFixed(2)}% · `
+    + `점수당 ${HI.POINT}원 · 장기요양 ${(HI.LTC_OF_INCOME*100).toFixed(4)}%(건보료의 ${(HI.LTC_MULT*100).toFixed(1)}%) · `
+    + `최저 ${fmtWon(HI.MIN)}·최고 ${fmtWon(HI.MAX)}. 재산은 세대 합산이며 부채는 차감되지 않습니다.<br>`
+    + `공시가격은 시세의 ${(HI.PUBLIC*100).toFixed(0)}%(공동주택 현실화율), 재산세 공정시장가액비율은 ${(HI.FAIR*100).toFixed(0)}%(1세대 2주택이라 1주택 특례 미적용)로 가정했습니다 — `
+    + `실제 공시가격이 나오면 값이 달라집니다. 참고용이며 확정 고지액이 아닙니다.`;
 
   // ── Section 2: 건보료 방어 신호등 ─────────────────────────────────────
   const lv = pct => pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok";
@@ -2559,7 +2715,7 @@ async function render() {
   renderFinancial(snap.financial);
   renderMonthly(snap.monthly);
   renderSpending(snap.spending, snap.liabilities);
-  renderCashflow(snap.financial);
+  renderCashflow(snap.financial, snap.assets);   // 건보료 재산분은 부동산·보증금에서 센다
   renderCities(snap.cities, net);
   renderSim(snap.simulation);
   renderReview(snap.review);
