@@ -248,7 +248,14 @@ def main():
 
     # 5) 시트 파생 블록 — 수명(TTL_MIN)이 만료된 것만 새로 읽는다.
     #    정적 사이트라 브라우저가 시트를 직접 못 읽으니 서버(이 잡)가 대신 읽어 발행한다.
-    financial     = _block("financial", sheets_holdings.fetch_holdings)              # 배당 포함
+    #    financial은 2)에서 이미 읽었다(TTL 0 = 매 실행이라 어차피 지금 읽을 차례다).
+    #    여기서 또 읽으면 GOOGLEFINANCE가 호출마다 값을 미세하게 달리 주기 때문에
+    #    accounts(2번 결과)와 financial(5번 결과)이 어긋난다 — 그 한 번을 그대로 쓴다.
+    if financial:
+        meta["financial"] = now.isoformat()
+        refetched.append("financial")
+    else:
+        financial = prev.get("financial")   # 읽기 실패 → 직전 발행본 유지
     fire          = _block("fire", sheets_fire.fetch_fire_summary)
     monthly       = _block("monthly", sheets_monthly.fetch_monthly, now.date())
     asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
