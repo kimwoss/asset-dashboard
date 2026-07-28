@@ -38,6 +38,67 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "docs" / "data"
 KST = timezone(timedelta(hours=9))
 
+# 직전 발행본 — 캐시 재사용의 원본. live-data 브랜치는 public이라 인증 없이 받는다.
+PREV_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/live.enc"
+
+# ── 블록별 수명(TTL) ───────────────────────────────────────────────────────────
+# 크론은 */30이지만 GitHub이 실제로 주는 주기는 중앙값 100분이다(실측 2026-07, 기대의 27%).
+# 그 100분마다 시트 블록 9개를 전부 다시 읽어봐야 대부분은 같은 값이다 — live/latest를
+# 12시간 차이로 비교했을 때 7개(asset_history·cities·liabilities·monthly·review·spending·
+# checkpoint)가 완전히 동일했다. 그래서 '얼마나 자주 실제로 바뀌는가'로 수명을 나눈다.
+#   0분  = 매 실행 (시세 연동이라 늘 바뀜)
+#   그 외 = 그 시간이 지나야 다시 읽는다. 그 전에는 직전 발행본 값을 그대로 싣는다.
+# 값이 아니라 '읽기'를 아끼는 것이므로 페이로드는 항상 완전하다.
+TTL_MIN = {
+    "financial":     0,     # ★주식계좌 GOOGLEFINANCE — 계좌 평가액, 매번
+    "checkpoint":    0,     # 셀 1개 읽기라 저렴 + 모닝 리포트를 늦지 않게 잡아야 함
+    "fire":          180,   # ★종합 목표치. 달성률은 프론트가 순자산으로 재계산한다
+    "simulation":    180,   # 은퇴 지도 — 순자산 연동이지만 하루 단위로 봐도 무방
+    "spending":      180,   # 가계부. 사용자가 시트를 고치면 3시간 내 반영
+    "asset_history": 180,
+    "liabilities":   180,
+    "monthly":       180,
+    "cities":        720,   # 🌍이주 대시보드 — 도시를 더할 때만 바뀐다
+    "review":        720,   # 연간 리뷰 — 거의 안 바뀐다
+}
+
+
+def _load_prev():
+    """직전 live.enc를 받아 (payload, meta) 로. 실패하면 ({}, {}) — 전체 갱신으로 떨어진다.
+
+    복호화 중간산물은 반드시 임시 디렉터리에 둔다. docs/data 안에 두면 일별 잡의
+    `git add docs/data`에 평문 금융데이터가 딸려 들어갈 수 있다.
+    """
+    import tempfile
+    import urllib.request
+    try:
+        raw = urllib.request.urlopen(PREV_URL + "?t=" + str(int(datetime.now().timestamp())),
+                                     timeout=30).read()
+        with tempfile.TemporaryDirectory() as td:
+            enc, out = Path(td) / "prev.enc", Path(td) / "prev.json"
+            enc.write_bytes(raw)
+            crypto_util.decrypt_file(enc, out, crypto_util.get_passphrase())
+            prev = json.loads(out.read_text(encoding="utf-8"))
+        return prev, (prev.get("_fetched") or {})
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 직전 live.enc 불러오기 실패 ({type(e).__name__}: {e}) — 전체 갱신")
+        return {}, {}
+
+
+def _fresh(key: str, meta: dict, now: datetime) -> bool:
+    """이 블록을 지금 다시 읽어야 하나? (수명 만료 또는 직전 값 없음)"""
+    ttl = TTL_MIN.get(key, 0)
+    if ttl <= 0:
+        return True
+    stamp = meta.get(key)
+    if not stamp:
+        return True
+    try:
+        age = (now - datetime.fromisoformat(stamp)).total_seconds() / 60
+    except ValueError:
+        return True
+    return age >= ttl
+
 # 체크포인트 탭 시세. (심볼, 표시명, 단위, 배수)
 #   배수: yfinance 원값 보정 — JPYKRW=X는 1엔당 원화(≈9.1)라 100엔 기준으로 환산
 _US = [
@@ -155,37 +216,52 @@ def main():
         print(f"WARN: 뉴스 조회 실패 ({type(e).__name__}: {e})")
         news = []
 
-    # 4) 오늘의 체크포인트(인사말·날씨·운세) — 30분마다 시트에서 다시 읽는다.
-    #    모닝 리포트가 이른 아침(≈06:00) 시트에 올리면, 무거운 일별 잡(07:30)을 기다리지 않고
-    #    이 30분 잡이 30분 내 웹에 반영한다. 시트 셀 1회 읽기라 AI·쿼터 비용 없음.
-    try:
-        checkpoint = sheets_checkpoint.fetch_checkpoint(now.date())
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: 체크포인트 조회 실패 ({type(e).__name__}: {e})")
-        checkpoint = {}
+    # 4) 직전 발행본 — 수명이 남은 블록은 여기서 그대로 가져다 쓴다.
+    prev, meta = _load_prev()
+    meta = dict(meta)
+    reused, refetched = [], []
 
-    # 5) 구글시트에서 끌어오는 나머지 블록도 30분마다 갱신 — 사용자가 시트를 고치고
-    #    '업데이트하기'를 누르면 최대 30분 내 반영된다. 정적 사이트라 브라우저가 시트를 직접
-    #    못 읽으니, 서버(이 잡)가 대신 읽어 live.enc로 발행하고 프론트가 덮어쓴다.
-    #    각 읽기는 독립적으로 감싼다 — 하나 실패해도 시세·나머지는 나간다.
-    def _safe(fn, label, *a):
+    def _block(key, fn, *a):
+        """수명이 남았으면 직전 값 재사용, 아니면 새로 읽는다. 읽기 실패 시에도 직전 값 유지.
+
+        종전에는 실패하면 None을 실어 보내 프론트가 아침 스냅샷(최대 12시간 전)으로
+        후퇴했다. 직전 성공값이 있는데 버릴 이유가 없다.
+        """
+        if not _fresh(key, meta, now):
+            reused.append(key)
+            return prev.get(key)
         try:
-            return fn(*a)
+            v = fn(*a)
         except Exception as e:  # noqa: BLE001
-            print(f"WARN: {label} 조회 실패 ({type(e).__name__}: {e})")
-            return None
-    # financial(금융자산 상세)은 위 2)에서 이미 한 번만 읽었다 — 여기서 다시 읽지 않는다.
-    fire          = _safe(sheets_fire.fetch_fire_summary, "FIRE")
-    monthly       = _safe(sheets_monthly.fetch_monthly, "월별 흐름", now.date())
-    asset_history = _safe(sheets_yearly.fetch_asset_history, "자산 이력", now.date())
-    liabilities   = _safe(sheets_yearly.fetch_liabilities, "부채", now.date())
-    spending      = _safe(sheets_spending.fetch_spending, "월간 생활비", now.date()) or {}
-    retire_exp    = _safe(sheets_spending.fetch_retirement_expense, "은퇴 생활비", now.date())
-    if retire_exp:
-        spending["retire"] = retire_exp   # 은퇴 생활비도 30분마다 최신 반영
-    cities        = _safe(sheets_cities.fetch_cities, "살고싶은 도시", now.date())
-    simulation    = _safe(sheets_sim.fetch_simulation, "은퇴 지도")
-    review        = _safe(sheets_review.fetch_review, "연간 리뷰")
+            print(f"WARN: {key} 조회 실패 ({type(e).__name__}: {e}) — 직전 값 유지")
+            return prev.get(key)
+        if not v:
+            return prev.get(key)
+        meta[key] = now.isoformat()
+        refetched.append(key)
+        return v
+
+    # 오늘의 체크포인트(인사말·날씨·운세) — 셀 1개 읽기라 매 실행 확인한다.
+    # 모닝 리포트가 이른 아침(≈06:00) 시트에 올리면 무거운 일별 잡(07:30)을 기다리지 않고
+    # 이 잡이 먼저 웹에 반영한다.
+    checkpoint = _block("checkpoint", sheets_checkpoint.fetch_checkpoint, now.date()) or {}
+
+    # 5) 시트 파생 블록 — 수명(TTL_MIN)이 만료된 것만 새로 읽는다.
+    #    정적 사이트라 브라우저가 시트를 직접 못 읽으니 서버(이 잡)가 대신 읽어 발행한다.
+    financial     = _block("financial", sheets_holdings.fetch_holdings)              # 배당 포함
+    fire          = _block("fire", sheets_fire.fetch_fire_summary)
+    monthly       = _block("monthly", sheets_monthly.fetch_monthly, now.date())
+    asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
+    liabilities   = _block("liabilities", sheets_yearly.fetch_liabilities, now.date())
+    cities        = _block("cities", sheets_cities.fetch_cities, now.date())
+    simulation    = _block("simulation", sheets_sim.fetch_simulation)
+    review        = _block("review", sheets_review.fetch_review)
+
+    # 생활비 = 가계부(시각화) + 은퇴 계획(참조.연간 생활비). 한 블록으로 묶어 수명을 함께 관리한다.
+    spending = _block("spending", lambda d: {
+        **(sheets_spending.fetch_spending(d) or {}),
+        **({"retire": r} if (r := sheets_spending.fetch_retirement_expense(d)) else {}),
+    }, now.date())
 
     live = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
@@ -198,7 +274,8 @@ def main():
         "financial_total": total,
         "news": news,
         "checkpoint": checkpoint or None,
-        # 시트 파생 블록 (30분 갱신). None이면 프론트가 일별 스냅샷을 유지한다.
+        # 시트 파생 블록. 새로 읽었거나(만료) 직전 발행본에서 물려받은 값. None이면 프론트가
+        # 일별 스냅샷을 쓴다 — 이제는 읽기에 실패해도 직전 값이 있으면 None으로 떨어지지 않는다.
         "financial": financial or None,
         "fire": fire or None,
         "monthly": monthly or None,
@@ -208,6 +285,8 @@ def main():
         "cities": cities or None,
         "simulation": simulation or None,
         "review": review or None,
+        # 블록별 마지막 '실제 조회' 시각 — 다음 실행이 수명을 재는 기준이자, 화면에 신선도를 밝히는 근거
+        "_fetched": meta,
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "live.json").write_text(
@@ -220,6 +299,7 @@ def main():
     print(f"OK: live.enc — 미국 {len(us)}건 · 국내 {len(kr)}건 · 환율 {len(fx)}건 · "
           f"계좌 {len(accounts)}개 {total/1e8:.2f}억 · 뉴스 {len(news)}건 · "
           f"체크포인트 {cp_label} · 시트블록 {sheet_ok}/9 ({now:%H:%M} KST)")
+    print(f"    조회 {len(refetched)}건 {refetched} · 재사용 {len(reused)}건 {reused}")
 
 
 if __name__ == "__main__":
