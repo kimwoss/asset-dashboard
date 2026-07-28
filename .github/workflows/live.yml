@@ -1,8 +1,15 @@
 name: update-live-quotes
 
-# 30분마다 시세만 갱신 — 07:00 스냅샷을 온종일 보는 문제 해결용.
+# 시세·시트 블록을 자주 갱신 — 07:00 스냅샷을 온종일 보는 문제 해결용.
 # 무거운 잡(update.yml: AI·KB시세·배당·이력)과 분리했다. 미국장이 밤이라 24시간 돌린다.
-# public 레포라 Actions 무료·무제한. 시트 API는 회당 2~3콜(48회/일 ≈ 150콜)로 한도 여유.
+# public 레포라 Actions 무료·무제한.
+#
+# 트리거가 둘인 이유 — GitHub의 schedule은 공개 레포에서 best-effort라 크론을 지키지 않는다.
+# 실측(2026-07-28) 48시간 26회 = 30분 크론 기대치 96회의 27%, 간격 중앙값 100분, 최대 251분.
+#   · schedule       : 폴백. GitHub이 주는 만큼(≈100분) 돈다.
+#   · workflow_dispatch: 주력. tools/trigger_live.gs(Apps Script)가 정확히 30분마다 깨운다.
+# 둘이 겹쳐도 아래 concurrency가 최신 것만 남기고, 실행당 시트 읽기는 TTL 캐시
+# (update_live.py TTL_MIN)가 눌러 준다 — 캐시 적중 시 9블록 중 2블록만 읽는다.
 on:
   schedule:
     - cron: "*/30 * * * *"
