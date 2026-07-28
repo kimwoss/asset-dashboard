@@ -1240,7 +1240,7 @@ function renderCheckpoint(cp) {
       <div class="news-meta">${n.tag ? `<span class="news-tag">${esc(n.tag)}</span>` : ""}${n.source ? esc(n.source) : ""}${n.published ? ` · ${esc(n.published)}` : ""}</div>
       ${n.insight ? `<div class="news-insight">→ ${esc(n.insight)}</div>` : ""}
     </div>`).join("")}
-    ${cp.news_live ? `<div class="cp-mkt-note">관심 주제 최신순 · 30분마다 갱신</div>` : ""}</section>`;
+    ${cp.news_live ? `<div class="cp-mkt-note">관심 주제 최신순 · 서버가 주기적으로 갱신 (기준시각은 위 배지 참고)</div>` : ""}</section>`;
 
   if ((cp.data_warnings || []).length)
     h += `<div class="goal-sub">⚠️ 데이터 점검: ${esc(cp.data_warnings.join(" · "))}</div>`;
@@ -2421,7 +2421,10 @@ async function decryptEnvelope(envText, passphrase) {
   return new TextDecoder().decode(pt);
 }
 
-/* ---- 실시간 시세 (live-data 브랜치, 30분 갱신) ----
+/* ---- 실시간 시세 (live-data 브랜치) ----
+   크론은 30분 간격으로 걸어두었지만 GitHub이 실제로 주는 주기는 중앙값 100분이다
+   (실측 2026-07: 48시간 26회 = 기대 96회의 27%, 최대 공백 251분).
+   그래서 '30분마다'라고 약속하지 않고, 화면에는 배지로 실제 기준시각을 밝힌다.
    raw.githubusercontent.com은 CORS 허용 + 5분 캐시. 실패해도 무시하고 스냅샷을 쓴다. */
 const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/live.enc";
 
