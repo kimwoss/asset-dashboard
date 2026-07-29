@@ -34,6 +34,11 @@ def main():
     if not (DATA / "history.csv").exists() and (DATA / "history.enc").exists():
         crypto_util.decrypt_file(DATA / "history.enc", DATA / "history.csv", pw)
         print("history.enc 복호화")
+    # 직전 스냅샷 — KB시세가 일시적으로 죽었을 때 그 값을 그대로 들고 가기 위한 폴백 원본이자,
+    # 총자산 급감 감지의 기준값. 없으면 폴백 없이 진행한다(최초 실행).
+    if not (DATA / "latest.json").exists() and (DATA / "latest.enc").exists():
+        crypto_util.decrypt_file(DATA / "latest.enc", DATA / "latest.json", pw)
+        print("latest.enc 복호화 (직전 스냅샷 폴백용)")
 
     update_data.main()
 

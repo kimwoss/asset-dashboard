@@ -7,6 +7,7 @@
 """
 import csv
 import json
+import os
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -141,6 +142,17 @@ def main():
     today = now.strftime("%Y-%m-%d")
     assets = []
 
+    # 직전 스냅샷 — 외부 API가 죽었을 때의 폴백 원본이자 급감 감지의 기준.
+    prev_snap = {}
+    _prev_path = DATA_DIR / "latest.json"
+    if _prev_path.exists():
+        try:
+            with open(_prev_path, encoding="utf-8") as f:
+                prev_snap = json.load(f)
+        except Exception as e:  # noqa: BLE001
+            print(f"WARN: 직전 스냅샷 읽기 실패 ({type(e).__name__}: {e}) — 폴백 없이 진행")
+    prev_assets = {a.get("name"): a for a in (prev_snap.get("assets") or []) if a.get("name")}
+
     # 1) 환율 + 증권
     sec = pf.get("securities") or []
     has_us = any(s.get("market", "US").upper() == "US" for s in sec)
@@ -181,6 +193,11 @@ def main():
         })
 
     # 2) 부동산 (KB시세, 만원 단위 → 원)
+    #    ⚠️ KB API가 일시적으로 죽어도 21억짜리 집을 자산에서 지워선 안 된다.
+    #    2026-07-28 실제 사고: urlopen timeout 두 건으로 아파트 2채(21.5억)가 조용히 빠져
+    #    순자산 −3.24억짜리 스냅샷이 'success'로 발행됐다. 그래서
+    #      ① 실패하면 직전 스냅샷의 마지막 시세를 그대로 들고 가고(기준일도 그때 값 유지)
+    #      ② 폴백조차 없으면 발행하지 않고 잡을 실패시킨다.
     for r in pf.get("real_estate") or []:
         field = r.get("price_field", "매매일반거래가")
         try:
@@ -189,8 +206,15 @@ def main():
             print(f"WARN: KB시세 조회 실패 ({r['name']}): {e}")
             price_man = None
         if price_man is None:
-            print(f"WARN: {r['name']} 시세 없음 — 건너뜀")
-            continue
+            old = prev_assets.get(r["name"])
+            if old and old.get("value_krw"):
+                assets.append({**old, "note": f"KB시세 조회 실패 — {old.get('asof', '직전')} 시세 유지"})
+                print(f"WARN: {r['name']} 시세 없음 — 직전 값 {old['value_krw']/1e8:.2f}억 유지 "
+                      f"(기준일 {old.get('asof', '?')})")
+                continue
+            raise SystemExit(
+                f"ERROR: {r['name']} 시세를 못 받았고 직전 값도 없습니다 — "
+                f"자산이 통째로 빠진 스냅샷을 발행하지 않도록 중단합니다.")
         assets.append({
             "name": r["name"],
             "ticker": "",
@@ -271,6 +295,16 @@ def main():
     gross = sum(a["value_krw"] for a in assets)
     debt = sum(l["amount_krw"] for l in liabilities)
     net = gross - debt
+
+    # 최종 안전장치 — 총자산이 직전 대비 급감하면 발행하지 않는다.
+    # 개별 폴백을 다 통과해도, 다른 소스(시트·계좌)가 통째로 비면 여기서 걸린다.
+    # 집을 실제로 팔아 정상적으로 줄어든 경우엔 ALLOW_BIG_DROP=1로 한 번 통과시킨다.
+    prev_gross = prev_snap.get("gross_krw") or 0
+    if prev_gross and gross < prev_gross * 0.8 and os.environ.get("ALLOW_BIG_DROP") != "1":
+        raise SystemExit(
+            f"ERROR: 총자산이 직전 {prev_gross/1e8:.2f}억 → {gross/1e8:.2f}억으로 "
+            f"{(1 - gross / prev_gross) * 100:.0f}% 급감했습니다 — 데이터 누락이 의심되어 발행을 중단합니다. "
+            f"실제 매각 등 정상적인 감소라면 ALLOW_BIG_DROP=1 로 재실행하세요.")
     # FIRE 목표 요약 (⭐️분당부부_MASTER ★종합 탭). 실패 시 {} — 섹션만 생략.
     # 달성률은 대시보드가 위 net(실시간)으로 재계산한다 → 시트는 목표·가정치만 제공.
     fire = sheets_fire.fetch_fire_summary()
