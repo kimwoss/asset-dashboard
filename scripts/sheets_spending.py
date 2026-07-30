@@ -92,6 +92,20 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
             return {}
 
         total = [sum(c["values"][i] for c in spend) for i in range(last_m)]
+
+        # 아직 손대지 않은 달은 빼고 보여준다 — 달이 바뀌는 날(예: 8월 1일) 사용자가 가계부를
+        # 쓰기 전이면 '8월 0원 · 월평균 대비 −100%'처럼 보여 오해를 준다. '2026년' 탭에 그 달
+        # 숫자를 넣는 순간 시각화 수식이 채워지고 다음 갱신에서 자동으로 등장한다.
+        trimmed = 0
+        while last_m > 1 and total[last_m - 1] == 0:
+            last_m -= 1
+            trimmed += 1
+        if trimmed:
+            months, total = months[:last_m], total[:last_m]
+            for c in spend + excluded:
+                c["values"] = c["values"][:last_m]
+            print(f"INFO: 아직 입력 전인 {trimmed}개월은 표시에서 제외 (마지막 표시 {months[-1]})")
+
         out = {
             "year": 2026,
             "months": months,
