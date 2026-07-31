@@ -462,9 +462,6 @@
   .fortune-name { font-size: var(--fs-4); font-weight: 700; }
   .fortune-stars { font-size: var(--fs-body); color: var(--c-kr); letter-spacing: 1px; }
   .fortune-body { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.7; white-space: pre-line; }
-  .fortune-money { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.6; margin-top: 7px;
-    padding: 7px 11px; background: var(--page); border-radius: var(--r-sm); }
-
   /* 오류 · 게이트 */
   #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
 
@@ -636,7 +633,6 @@
   <section class="card">
     <h2>계좌 성격 — 연금성 vs 유동성</h2>
     <div id="fin-groups"></div>
-    <div class="goal-sub">연금성 = 연저펀·IRP·퇴직연금 · 유동성 = ISA·CMA·청약·현금</div>
   </section>
 
   <section class="card">
@@ -663,7 +659,6 @@
       <button class="seg-btn" data-mode="group">연금성·유동성</button>
     </div>
     <div id="fin-trend"></div>
-    <div class="goal-sub">매월 ★주식계좌 실시간값이 자동 기록됩니다</div>
   </section>
 
   <section class="card">
@@ -981,7 +976,7 @@ function renderFire(f, net) {
         <span class="pct" style="color:${color}">${pct.toFixed(1)}%</span>
       </div>
       <div class="goal-track"><div class="goal-fill" style="width:${Math.min(100, pct).toFixed(1)}%;background:${color}"></div></div>
-      <div class="goal-sub">${remain > 0 ? "남은 목표 " + fmtEok(remain) : "목표 달성 🎉 (+" + fmtEok(-remain) + ")"}</div>
+      <div class="goal-sub">${remain > 0 ? "남은 목표 " + fmtEok(remain) : "목표 달성 (+" + fmtEok(-remain) + ")"}</div>
     </div>`;
   };
 
@@ -1012,7 +1007,6 @@ function renderFire(f, net) {
     html += `<div class="fire-facts">${facts.map(([l, v, s, isDual]) =>
       `<div class="fact"><div class="l">${l}</div><div class="v${isDual ? " dual" : ""}">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`).join("")}</div>`;
 
-  html += `<div class="goal-sub" style="margin-top:13px">출처: ⭐️분당부부_MASTER ★종합 · 목표·가정치는 시트값, 달성률은 현재 순자산으로 실시간 재계산</div>`;
   document.getElementById("fire-body").innerHTML = html;
 }
 
@@ -1260,13 +1254,21 @@ function finTodayHtml(fin, hist, ah) {
 }
 
 /* 오늘의 운세 카드 — 브리핑 바로 뒤에 놓으려고 따로 뺐다 (없으면 빈 문자열). */
+/* 옛 리포트에 남아 있는 '💡 오늘의 한 수:' 같은 딱지를 걷어내 말로 잇는다.
+   프롬프트를 고쳐 새 리포트부터는 안 나오지만, 이미 시트에 저장된 것들이 하루이틀 남는다. */
+const fortuneTalk = t => String(t || "")
+  .replace(/\s*[💡▶]\s*(오늘|이번\s*주)의?\s*한\s*수\s*[:：]\s*/g, " ")
+  .replace(/\s*💰\s*/g, " ")
+  .replace(/\n+/g, " ")
+  .replace(/\s{2,}/g, " ")
+  .trim();
+
 function fortuneHtml(f) {
   if (!f) return "";
   const person = (emoji, name, p) => !p || !p.body ? "" : `<div class="fortune-person">
     <div class="fortune-head"><span class="fortune-name">${emoji} ${name}</span>
       <span class="fortune-stars">${esc(p.stars || "")}</span></div>
-    <div class="fortune-body">${esc(p.body)}</div>
-    ${p.money ? `<div class="fortune-money">💰 ${esc(p.money)}</div>` : ""}
+    <div class="fortune-body">${esc(fortuneTalk([p.body, p.money].filter(Boolean).join(" ")))}</div>
     ${(p.lucky_hour || p.lucky_number) ? `<div class="luck">🍀 ${[p.lucky_hour, p.lucky_color, p.lucky_number ? "숫자 " + p.lucky_number : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
   </div>`;
   return `<section class="card"><h2>오늘의 운세</h2>
@@ -1343,7 +1345,7 @@ function renderCheckpoint(cp, finBlock) {
     <h2>${esc(cp.date_label)} 브리핑</h2>
     ${cp.greeting ? `<div class="cp-hero">${esc(cp.greeting)}</div>` : ""}
     ${wxHtml}
-    ${cp.summary ? `<div class="cp-quote">📌 ${esc(cp.summary)}</div>` : ""}
+    ${cp.summary ? `<div class="cp-quote">${esc(cp.summary)}</div>` : ""}
     ${briefNote}
   </section>`;
 
@@ -1380,7 +1382,6 @@ function renderCheckpoint(cp, finBlock) {
         <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
         <tbody>${rows}</tbody></table></div>
       ${usAsof ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
-      ${hasFx ? `<div class="cp-mkt-note">원/엔은 100엔 기준 · 등락은 실제 원(₩) 변동</div>` : ""}
       ${fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : ""}
     </section>`;
   }
@@ -1395,11 +1396,10 @@ function renderCheckpoint(cp, finBlock) {
       <div class="news-meta">${n.tag ? `<span class="news-tag">${esc(n.tag)}</span>` : ""}${n.source ? esc(n.source) : ""}${n.published ? ` · ${esc(n.published)}` : ""}</div>
       ${n.insight ? `<div class="news-insight">→ ${esc(n.insight)}</div>` : ""}
     </div>`).join("")}
-    ${cp.news_live ? `<div class="cp-mkt-note">관심 주제 최신순 · 서버가 주기적으로 갱신 (기준시각은 위 배지 참고)</div>` : ""}</section>`;
+    </section>`;
 
   if ((cp.data_warnings || []).length)
     h += `<div class="goal-sub">⚠️ 데이터 점검: ${esc(cp.data_warnings.join(" · "))}</div>`;
-  h += `<div class="goal-sub" style="margin-top:8px">출처: 분당부부 모닝 리포트 · ${esc(cp.date_label)} ${esc((cp.generated_at || "").slice(11, 16))} 생성</div>`;
   body.innerHTML = h;
 }
 
@@ -1564,7 +1564,7 @@ function renderFinancial(fin) {
   indexDonut(donutCell(ic), "우현", uh);
   indexDonut(donutCell(ic), "규리", gr);
   document.getElementById("fin-idx-note").textContent =
-    "SCHD·TIGER 미국배당다우존스는 같은 지수라 합산 · 채권혼합50은 나스닥100 절반만 반영";
+    "채권혼합50은 나스닥100 절반만 반영";
 
   // 연금성 vs 유동성
   const g = (hs, kind) => sum(hs.filter(h => h.group === kind));
@@ -2182,7 +2182,7 @@ function renderCashflow(fin, fire) {
   document.getElementById("cf-pipes-note").innerHTML =
     "진한 막대 = 실제 데이터로 확인된 금액 · 흐린 막대 = 아직 실행 전인 계획값. "
     + "임대·매도·증여는 미래 행동이라 계획값으로만 둡니다.<br>"
-    + `📐 <b>기본공제 매도 ${fmtMan(CF_BASIC_SALE)}</b>은 목표 1억에서 나머지 3갈래(${fmtMan(CF_RENT + CF_GIFT + CF_DIV)})를 뺀 몫입니다. `
+    + `<b>기본공제 매도 ${fmtMan(CF_BASIC_SALE)}</b>은 목표 1억에서 나머지 3갈래(${fmtMan(CF_RENT + CF_GIFT + CF_DIV)})를 뺀 몫입니다. `
     + `수익률 ${CF_ASSUMED_RETURN * 100}% 가정이면 실현 차익은 <b>${fmtMan(CF_BASIC_GAIN)}</b>으로 공제 한도 ${fmtMan(CF_GAIN_CAP)}의 `
     + `${(CF_BASIC_GAIN / CF_GAIN_CAP * 100).toFixed(0)}%만 씁니다.<br>`
     + `한도를 꽉 채우려면 ${fmtMan(CF_MAX_SALE)}까지 팔 수 있지만 그러면 목표를 ${fmtMan(CF_MAX_SALE - CF_BASIC_SALE)} 넘깁니다 — `
@@ -2276,7 +2276,7 @@ function renderCashflow(fin, fire) {
     `<b>읽는 법</b> — 은퇴 시점 부동산을 <b>시세 ${eok(CF_OWN_VALUE)} 한 채</b>로 고정하면, 순자산에서 `
     + `부동산 순지분(${eok(reNet)} = ${eok(CF_OWN_VALUE)} − 임대보증금 ${eok(CF_OWN_DEPOSIT)})과 거주 보증금 ${eok(CF_LIVE_DEPOSIT)}을 뺀 나머지가 `
     + `곧 <b>금융자산</b>입니다. 이 금융자산이 파이프라인 네 갈래(배당·매도·증여)를 돌리는 원천입니다.<br>`
-    + (projected ? `📌 예상대로면 금융자산 <b>${eok(needProj)}</b> — 지금 ${eok(nowFin)}에서 <b>${eok(Math.max(0, needProj - nowFin))}</b>을 더 쌓아야 합니다. ` : "")
+    + (projected ? `예상대로면 금융자산 <b>${eok(needProj)}</b> — 지금 ${eok(nowFin)}에서 <b>${eok(Math.max(0, needProj - nowFin))}</b>을 더 쌓아야 합니다. ` : "")
     + (goal ? `FIRE 기본 목표(${eok(goal)})를 채우면 금융자산은 <b>${eok(needGoal)}</b>이 됩니다.` : "")
     + `<br>부동산 비중이 커 보이는 건 <b>집이 현금을 만들지 못하기 때문</b>입니다 — 목표 현금흐름 1억 중 임대는 ${fmtMan(CF_RENT)}뿐이고, `
     + `나머지 ${fmtMan(CF_TARGET - CF_RENT)}은 금융자산에서 나옵니다. 그래서 은퇴가 가까울수록 금융자산 쪽을 키우는 게 계획의 핵심입니다.`;
@@ -2516,7 +2516,7 @@ function renderSim(sim) {
     mode = b.dataset.mode; draw();
   });
   document.getElementById("sim-note").textContent =
-    "출처: ⭐️분당부부_MASTER 시뮬레이션 · 소진 이후 구간은 표시에서 제외 (모델상 비현실적 부채 구간). 실질 = 물가를 반영한 오늘 돈 가치.";
+    "소진 이후 구간은 표시에서 제외 · 실질 = 물가 반영 후 오늘 돈 가치";
 }
 
 /* ---- 우리 부부 연간 리뷰 (연간리뷰) ---- */
