@@ -2738,8 +2738,11 @@ function applyLive(snap, live) {
   // '업데이트하기'로는 즉시 반영된다 (서버 live 잡이 시트를 읽어 발행). 없으면 일별 스냅샷 유지.
   // 은퇴 생활비(spending.retire)는 일별 잡만 싣는다 — live.spending로 덮이면 사라지므로 보존한다.
   const baseRetire = snap.spending && snap.spending.retire;
+  // prev_* (전일·전월·전년 기준)도 30분 잡이 싣는다 — 종전엔 일별 스냅샷에만 있어
+  // 달이 바뀐 날 아침(일별 잡 전)에 '전월'이 지지난달을 가리켰다.
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
-                   "spending", "cities", "simulation", "review"])
+                   "spending", "cities", "simulation", "review",
+                   "prev_day", "prev_month", "prev_year"])
     if (live[k]) snap[k] = live[k];
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
 
