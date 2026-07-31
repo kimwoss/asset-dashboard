@@ -2524,26 +2524,40 @@ function initTabs() {
    계산하지 않아 부드럽고, 한 번 본 카드는 관찰을 끊어 되돌아와도 다시 움직이지 않는다.
    움직임 최소화를 켠 사용자에겐 아예 걸지 않는다(CSS에서도 한 번 더 막는다). */
 let _revealObs = null;
+const _show = el => { el.classList.add("seen"); if (_revealObs) _revealObs.unobserve(el); };
+
 function revealIn(root) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   if (!("IntersectionObserver" in window)) return;
   if (!_revealObs) {
     _revealObs = new IntersectionObserver((entries, obs) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        e.target.classList.add("seen");
-        obs.unobserve(e.target);
-      }
+      for (const e of entries) if (e.isIntersecting) _show(e.target);
     }, { rootMargin: "0px 0px -8% 0px", threshold: 0.06 });
   }
   const scope = root || document;
-  // 이미 화면에 걸쳐 있는 것(첫 화면)은 지연 없이, 아래 것들만 차례를 준다
+  const inView = el => {
+    const r = el.getBoundingClientRect();
+    return r.height > 0 && r.top < innerHeight && r.bottom > 0;
+  };
   [...scope.querySelectorAll("section.card, .cards")].forEach((el, i) => {
     if (el.classList.contains("seen") || el.classList.contains("reveal")) return;
+    // 숨은 요소(display:none)에는 아예 걸지 않는다 — 높이가 0이라 영영 '보였다'가 안 되고
+    // opacity:0만 남아, 나중에 그 섹션이 켜져도 투명한 채로 남는다.
+    if (el.offsetParent === null && getComputedStyle(el).position !== "fixed") return;
     el.classList.add("reveal");
     el.style.transitionDelay = `${Math.min(i, 6) * 45}ms`;
+    // 이미 화면에 걸쳐 있으면 관찰을 기다리지 않고 바로 띄운다. 관찰자 콜백은 다음 프레임
+    // 이후에나 오는데, 그동안 첫 화면이 비어 보이는 게 연출보다 나쁘다.
+    if (inView(el)) { requestAnimationFrame(() => _show(el)); return; }
     _revealObs.observe(el);
   });
+  // 최후 안전장치 — 어떤 이유로든 관찰이 안 돌면 연출을 포기하고 내용을 드러낸다.
+  // 애니메이션이 콘텐츠를 영영 가리는 일만은 없어야 한다.
+  clearTimeout(revealIn._t);
+  revealIn._t = setTimeout(() => {
+    for (const el of document.querySelectorAll(".reveal:not(.seen)"))
+      if (inView(el)) _show(el);
+  }, 900);
 }
 
 /* ---- 복호화 (scripts/crypto_util.py와 동일 포맷) ---- */
