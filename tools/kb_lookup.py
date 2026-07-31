@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """아파트 단지ID/면적ID 대화형 조회 도구.
 
-사용법: python scripts/kb_lookup.py
+사용법: python tools/kb_lookup.py   (scripts/를 import 경로에 넣고 실행)
 시/도 → 시/군/구 → 동 → 단지 → 평형 순으로 골라가면
 portfolio.yaml에 넣을 complex_id / area_id를 출력합니다.
 """
 import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import kb_api
 
 sys.stdout.reconfigure(encoding="utf-8")

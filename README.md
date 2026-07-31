@@ -3,10 +3,24 @@
 부부 자산(아파트 KB시세 + 미국/한국 지수 ETF + 현금)을 자동 추적하는 대시보드.
 
 - **아파트**: KB부동산 시세 (주 1회, 금요일 갱신)
-- **증권**: yfinance 일일 종가 (미국 ETF는 USD/KRW 환율 자동 적용)
+- **증권**: ★주식계좌 GOOGLEFINANCE 평가액 + yfinance 지수·환율
 - **FIRE 목표**: ⭐️분당부부_MASTER `★종합` 탭에서 은퇴 목표·가정치 연동 (달성률은 실시간 순자산으로 재계산)
-- **자동 갱신**: GitHub Actions — 매일 KST 06:20(미국 마감 후) / 평일 16:20(한국 마감 후)
 - **대시보드**: `docs/index.html` (GitHub Pages, 비밀번호 입력 시 복호화)
+
+## 자동 갱신 두 갈래
+
+| 잡 | 주기 | 하는 일 | 산출 |
+|---|---|---|---|
+| `update.yml` | 매일 07:30 KST · 금 08:30(KB) · 말일 23:30 | 무거운 것 — KB시세·배당·이력 적재, ★월별자산 기록 | `docs/data/latest.enc` (main) |
+| `live.yml` | 30분 | 가벼운 것 — 시세·뉴스·시트 블록 | `live.enc` (live-data 브랜치) |
+
+`live.yml`은 크론(30분)과 외부 트리거를 함께 쓴다. GitHub의 schedule은 공개 레포에서
+best-effort라 실측 중앙값이 100분이었고, 정확한 30분이 필요해 Apps Script
+([tools/trigger_live.gs](tools/trigger_live.gs))가 `workflow_dispatch`로 깨운다.
+크론은 그 트리거가 멈췄을 때의 폴백으로 남겨 뒀다.
+
+블록마다 수명(TTL)이 달라 만료된 것만 다시 읽는다 — 실행당 시트 왕복이 9블록에서
+2블록으로 준다(`update_live.py`의 `TTL_MIN`). 읽기에 실패하면 직전 발행본 값을 유지한다.
 
 ## FIRE 목표 연동 (★종합 시트)
 
