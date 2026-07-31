@@ -106,6 +106,13 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
                 c["values"] = c["values"][:last_m]
             print(f"INFO: 아직 입력 전인 {trimmed}개월은 표시에서 제외 (마지막 표시 {months[-1]})")
 
+        # 마감된 달이 몇 개인지 — '진행 중인 달'은 월평균에서 빼야 하는데, 프론트가 그걸
+        # '배열의 마지막 달'로 짐작하면 틀린다. 위에서 빈 달을 잘라내므로 8월 1일에는
+        # 마지막이 7월(이미 마감)이 되고, 그대로 두면 마감된 7월이 평균에서 빠진다.
+        # 진행 중인 달은 '올해이면서 이번 달'뿐이니 여기서 세어 넘긴다.
+        closed = sum(1 for i in range(last_m)
+                     if not (today.year == 2026 and i + 1 == today.month))
+
         out = {
             "year": 2026,
             "months": months,
@@ -113,6 +120,7 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
             "excluded": excluded,
             "extra": [],
             "total": total,
+            "closed": closed,          # 월평균 분모 (진행 중인 달 제외)
         }
         ex_names = "·".join(c["name"] for c in excluded)
         print(f"OK: 월간 생활비 {last_m}개월 · 카테고리 {len(spend)}종 · "
