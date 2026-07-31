@@ -90,6 +90,39 @@ def month_col(y: int, m: int) -> Optional[int]:
     return MONTH_START_COL + MONTH_STEP * idx
 
 
+def latest_complete_month(grid: List[List], today: Optional[date] = None):
+    """대시보드가 '현재값'으로 삼을 달 → (col0, year, month). 없으면 (None, None, None).
+
+    '값이 있는 달'이 아니라 '완성된 달'을 고른다. 이 구분이 핵심이다 —
+    월이 바뀌면 일별 잡이 계좌·부동산을 새 달 칸에 자동으로 쓰지만 대출·전세보증금은
+    사용자가 손으로 넣는다. 그 사이에 새 달을 현재값으로 잡으면 부채가 0으로 읽혀
+    순자산이 통째로 부풀어 보인다(2026-08 기준 14억). 총자산·순자산 행은 수식이라
+    하위가 비어도 숫자가 찍히므로 판정 근거로 쓸 수 없다.
+
+    그래서 자산(계좌)과 부채(대출)가 '둘 다' 채워진 가장 최근 달을 쓴다.
+    사용자가 새 달 대출을 넣기 전까지는 직전 달 값이 그대로 유지된다 — 섞이지 않는다.
+    """
+    today = today or date.today()
+
+    def val(r1: int, c0: int) -> float:
+        r = grid[r1 - 1] if len(grid) >= r1 else []
+        v = r[c0] if len(r) > c0 else 0
+        return float(v) if isinstance(v, (int, float)) else 0.0
+
+    y, m = today.year, today.month
+    for _ in range(24):                      # 최대 2년 거슬러 올라간다
+        c = month_col(y, m)
+        if c is not None:
+            has_asset = any(val(r, c) > 0 for r in range(ACCT_ROW_FIRST, ACCT_ROW_LAST + 1))
+            has_debt = any(val(r, c) > 0 for r in LIAB_ROWS)
+            if has_asset and has_debt:
+                return c, y, m
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+    return None, None, None
+
+
 def _col_a1(idx0: int) -> str:
     s, n = "", idx0 + 1
     while n:
