@@ -35,12 +35,36 @@ def year_col(year: int) -> Optional[int]:
 
 
 def _grid(today: date):
+    """★연도별자산 격자 — 이제 '전년 비교'에만 쓴다 (현재값은 아래 _current 로 옮겼다)."""
     import gspread
     gc = sheets_fire._authorize(gspread)
     if gc is None:
         return None
     ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
     return ws.get(_BLOCK, value_render_option="UNFORMATTED_VALUE")
+
+
+def _current(today: date):
+    """현재값의 원천 → (★월별자산 격자, 그 달 열, 'YYYY-MM' 라벨).
+
+    종전엔 ★연도별자산 올해 열(K)을 현재값으로 읽었다. 그런데 그 열은 자동이 아니라
+    사용자가 매월 36개 수식을 손으로 W→Y처럼 옮겨 붙이는 수동 미러였다. 옮기는 걸
+    잊으면 지난달 숫자가 새 달 내내 조용히 표시된다(2026-08에 실제로 그럴 뻔했다).
+
+    그래서 원본인 ★월별자산에서 '완성된 최신 달'을 직접 찾아 쓴다 — 수식을 손볼 일이
+    사라지고, 자산·부채가 같은 달에서 나와 섞이지 않는다.
+    """
+    import gspread
+    gc = sheets_fire._authorize(gspread)
+    if gc is None:
+        return None, None, ""
+    ws = gc.open_by_key(sm.SPREADSHEET_ID).worksheet(sm.TAB)
+    grid = ws.get("A1:BN40", value_render_option="UNFORMATTED_VALUE")
+    col, y, m = sm.latest_complete_month(grid, today)
+    if col is None:
+        print("WARN: ★월별자산에 자산·부채가 모두 채워진 달이 없음")
+        return grid, None, ""
+    return grid, col, f"{y}-{m:02d}"
 
 
 def _num(v: Any) -> float:
@@ -69,9 +93,8 @@ def _label(grid, r1: int) -> str:
 def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
     """★연도별자산 올해 열에서 대출·전세보증금 잔액을 읽는다. 실패/빈 결과 시 [] → yaml 폴백."""
     today = today or date.today()
-    col = year_col(today.year)
     try:
-        grid = _grid(today)
+        grid, col, asof = _current(today)
         if grid is None or col is None:
             return []
         out: List[Dict] = []
@@ -85,10 +108,10 @@ def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
             out.append({
                 "name": name, "owner": owner, "kind": kind, "target": target,
                 "amount_krw": round(amount),
-                "note": f"★연도별자산 {today.year}" + (" · 파크하비오 보증금 조달" if r == 30 else ""),
+                "note": f"★월별자산 {asof}" + (" · 파크하비오 보증금 조달" if r == 30 else ""),
             })
         total = sum(l["amount_krw"] for l in out)
-        print(f"OK: 부채 {len(out)}건 {total/1e8:.2f}억 (★연도별자산 {today.year})")
+        print(f"OK: 부채 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {asof})")
         return out
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 부채 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
@@ -98,9 +121,8 @@ def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
 def fetch_other_assets(today: Optional[date] = None) -> int:
     """★연도별자산 올해 열의 회사주식·원달러/엔화 합. 없으면 0."""
     today = today or date.today()
-    col = year_col(today.year)
     try:
-        grid = _grid(today)
+        grid, col, _asof = _current(today)
         if grid is None or col is None:
             return 0
         total = 0.0
@@ -122,9 +144,8 @@ def fetch_residence_deposits(today: Optional[date] = None) -> List[Dict]:
     반환 [{name, owner, value_krw, note}], 실패/빈 결과 시 [] → 호출자가 yaml 폴백.
     """
     today = today or date.today()
-    col = year_col(today.year)
     try:
-        grid = _grid(today)
+        grid, col, asof = _current(today)
         if grid is None or col is None:
             return []
         out: List[Dict] = []
@@ -138,10 +159,10 @@ def fetch_residence_deposits(today: Optional[date] = None) -> List[Dict]:
             owner_raw = str(grid[r - 1][3]).strip() if len(grid) >= r and len(grid[r - 1]) > 3 else ""
             owner = sm._OWNER_KR.get(owner_raw, owner_raw or "공동")
             out.append({"name": label, "owner": owner, "value_krw": round(amount),
-                        "note": f"★연도별자산 {today.year} 기준"})
+                        "note": f"★월별자산 {asof} 기준"})
         if out:
             total = sum(d["value_krw"] for d in out)
-            print(f"OK: 거주 전세보증금 {len(out)}건 {total/1e8:.2f}억 (★연도별자산 {today.year})")
+            print(f"OK: 거주 전세보증금 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {asof})")
         return out
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 거주 전세보증금 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
@@ -149,20 +170,26 @@ def fetch_residence_deposits(today: Optional[date] = None) -> List[Dict]:
 
 
 def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
-    """자산 상세 증감용 — 현재·전년은 ★연도별자산(올해·작년 열), 전월은 ★월별자산에 위임.
+    """자산 상세 증감용 — 현재·전월은 ★월별자산, 전년은 ★연도별자산(작년 열).
+
+    현재값은 ★월별자산의 '완성된 최신 달'에서 읽는다(자산·부채가 둘 다 채워진 달).
+    전년 비교만 ★연도별자산에 남는다 — 그 탭은 연 1회만 손대면 되므로 수동 미러의
+    위험이 없다.
 
     반환 구조는 sheets_monthly.fetch_asset_history와 동일: {prev_month, prev_year,
     assets:{key:{cur,m1,y1}}, liabilities:{...}, totals:{k:{m1,y1}}}.
     """
     today = today or date.today()
     try:
-        grid = _grid(today)
-        cur_c = year_col(today.year)
+        grid, cur_c, asof = _current(today)          # 현재 = ★월별자산 최신 완성 달
+        ygrid = _grid(today)                          # 전년 = ★연도별자산
         y1_c = year_col(today.year - 1)
         if grid is None or cur_c is None:
             return {}
+        # 전년 격자를 못 읽으면 y1만 0으로 두고 현재·전월은 그대로 낸다
+        yc = (lambda r: round(_cell(ygrid, r, y1_c))) if (ygrid is not None and y1_c is not None) else (lambda r: 0)
 
-        # 전월 값은 ★월별자산이 원본(연도별엔 월별이 없다) — 월별 리더에서 그대로 가져온다.
+        # 전월 값은 ★월별자산이 원본 — 월별 리더에서 그대로 가져온다.
         m_hist = sm.fetch_asset_history(today) or {}
         m_assets = m_hist.get("assets", {})
         m_liab = m_hist.get("liabilities", {})
@@ -177,28 +204,28 @@ def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
                 assets[key] = {
                     "cur": round(sum(_cell(grid, r, cur_c) for r in rows)),
                     "m1": (m_assets.get(key) or {}).get("m1", 0),
-                    "y1": round(sum(_cell(grid, r, y1_c) for r in rows)),
+                    "y1": sum(yc(r) for r in rows),
                 }
         for r in range(sm.RE_ROW_FIRST, sm.RE_ROW_LAST + 1):
             lab = _label(grid, r)
             if not lab or "주식" in lab or "원달러" in lab:
                 continue
-            if _cell(grid, r, cur_c) or _cell(grid, r, y1_c):
+            if _cell(grid, r, cur_c) or yc(r):
                 assets[lab] = {"cur": round(_cell(grid, r, cur_c)),
                                "m1": (m_assets.get(lab) or {}).get("m1", 0),
-                               "y1": round(_cell(grid, r, y1_c))}
+                               "y1": yc(r)}
         liabilities: Dict[str, Dict] = {}
         for r in sm.LIAB_ROWS:
             lab = _label(grid, r)
-            if lab and (_cell(grid, r, cur_c) or _cell(grid, r, y1_c)):
+            if lab and (_cell(grid, r, cur_c) or yc(r)):
                 liabilities[lab] = {"cur": round(_cell(grid, r, cur_c)),
                                     "m1": (m_liab.get(lab) or {}).get("m1", 0),
-                                    "y1": round(_cell(grid, r, y1_c))}
-        totals = {k: {"m1": (m_tot.get(k) or {}).get("m1", 0), "y1": round(_cell(grid, r, y1_c))}
+                                    "y1": yc(r)}
+        totals = {k: {"m1": (m_tot.get(k) or {}).get("m1", 0), "y1": yc(r)}
                   for k, r in sm.SUMMARY_ROWS.items()}
 
         print(f"OK: 자산 이력 — 자산 {len(assets)}종 · 부채 {len(liabilities)}종 "
-              f"(현재/전년 ★연도별자산 {today.year}/{today.year-1} · 전월 ★월별자산)")
+              f"(현재 ★월별자산 {asof} · 전월 ★월별자산 · 전년 ★연도별자산 {today.year-1})")
         return {"prev_month": m_hist.get("prev_month", ""), "prev_year": str(today.year - 1),
                 "assets": assets, "liabilities": liabilities, "totals": totals}
     except Exception as e:  # noqa: BLE001
