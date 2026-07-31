@@ -423,24 +423,6 @@
   .cf-next-badge { display: inline-block; font-size: var(--fs-xs); font-weight: 700; color: var(--accent);
                    border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; }
 
-  /* 브리핑 — 오늘의 금융자산 */
-  .fin-row { display: grid; grid-template-columns: 84px minmax(0,1fr) auto; gap: 6px 14px;
-             align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--grid); }
-  .fin-row:last-of-type { border-bottom: none; }
-  .fin-row.big { padding-top: 2px; }
-  .fin-row.big .fin-who { color: var(--ink-1); font-weight: 700; }
-  .fin-row.big .fin-amt { font-size: var(--fs-num-lg); }
-  .fin-who { font-size: var(--fs-body); color: var(--ink-2); font-weight: 600; }
-  .fin-amt { font-size: var(--fs-h3); font-weight: 700; letter-spacing: -0.02em;
-             font-variant-numeric: tabular-nums; }
-  .fin-ds { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-cap);
-            font-variant-numeric: tabular-nums; }
-  .fin-d { white-space: nowrap; font-weight: 600; }
-  @media (max-width: 560px) {
-    .fin-row { grid-template-columns: 1fr auto; }
-    .fin-ds { grid-column: 1 / -1; }
-  }
-
   /* 뉴스 */
   .news-item { padding: 12px 0; border-bottom: 1px solid var(--grid); }
   .news-item:last-child { border-bottom: none; padding-bottom: 0; }
@@ -1228,28 +1210,36 @@ function finTodayHtml(fin, hist, ah) {
   });
   const sum = k => people.reduce((s, p) => { const v = base(p)[k]; return v == null ? s : s + v; }, 0) || null;
 
-  // 자산이라 오르면 좋다 → 상승 초록. 기준값이 없거나 0이면 그 칸은 조용히 뺀다.
-  const delta = (cur, prev, label) => {
-    if (!prev) return "";
-    const pct = (cur - prev) / prev * 100;
-    const up = pct >= 0;
-    return `<span class="fin-d ${up ? "delta-up" : "delta-down"}">${esc(label)} ${up ? "▲" : "▼"}${Math.abs(pct).toFixed(1)}%</span>`;
+  // 자산 현황 KPI 카드와 같은 형식으로 — 라벨 / 큰 숫자 / 그 아래 전일·전월·전년.
+  // 종전엔 한 줄에 [이름 | 금액 | 증감]을 늘어놓아 가운데가 휑했다. 같은 성격의 숫자는
+  // 같은 모양으로 보이는 게 읽기 쉽다.
+  const deltas = (cur, b) => {
+    const parts = [["전일", b.d1], ["전월", b.m1], ["전년", b.y1]].map(([lb, prev]) => {
+      if (!prev) return "";
+      const d = cur - prev, pct = d / prev * 100;
+      return `<span class="kd"><i>${lb}</i> <b class="${d >= 0 ? "delta-up" : "delta-down"}">`
+           + `${d >= 0 ? "▲" : "▼"}${Math.abs(pct).toFixed(1)}%</b></span>`;
+    }).filter(Boolean);
+    return parts.length ? `<span class="kpi-deltas">${parts.join("")}</span>` : "";
   };
-  const row = (label, cur, b, big) => `<div class="fin-row${big ? " big" : ""}">
-      <div class="fin-who">${esc(label)}</div>
-      <div class="fin-amt">${eokMan(cur)}</div>
-      <div class="fin-ds">${delta(cur, b.d1, "전일")}${delta(cur, b.m1, "전월")}${delta(cur, b.y1, "전년")}</div>
-    </div>`;
 
   const total = people.reduce((s, p) => s + own[p], 0);
-  const totalBase = { d1: sum("d1"), m1: sum("m1"), y1: sum("y1") };
-  const asof = [hist && `전일 ${hist.date.slice(5)}`, ah && ah.prev_month && `전월 ${ah.prev_month}`,
-                ah && ah.prev_year && `전년 ${ah.prev_year}`].filter(Boolean).join(" · ");
+  const card = (label, cur, b, hero) =>
+    kpiCard(esc(label), eokMan(cur), deltas(cur, b), hero);
+
+  // '전일'이 정말 어제인지 — 일별 잡이 밀리면 그저께 값과 비교하게 된다. 그때만 밝힌다.
+  const y = new Date(Date.now() + 9 * 3600e3 - 864e5).toISOString().slice(0, 10);
+  const stale = hist && hist.date !== y
+    ? `<div class="cp-mkt-note">전일 비교 기준이 ${esc(hist.date.slice(5))}입니다 — 기록이 하루 이상 밀렸습니다</div>`
+    : "";
+
   return `<section class="card">
     <h2>우리 부부 현재 금융자산</h2>
-    ${row("부부 합산", total, totalBase, true)}
-    ${people.map(p => row(p, own[p], base(p))).join("")}
-    <div class="cp-mkt-note">주식·ETF 평가액(★주식계좌) 실시간 · 비교 기준 ${esc(asof)}</div>
+    <div class="cards" style="margin-bottom:0">
+      ${card("부부 합산", total, { d1: sum("d1"), m1: sum("m1"), y1: sum("y1") }, true)}
+      ${people.map(p => card(p, own[p], base(p))).join("")}
+    </div>
+    ${stale}
   </section>`;
 }
 
