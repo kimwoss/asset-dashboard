@@ -28,6 +28,7 @@
     --fs-h1: 24px;      /* 대제목 — 사이트 타이틀 */
     --fs-h2: 17px;      /* 중제목 — 카드 제목 */
     --fs-h3: 15px;      /* 소제목 — 카드 안 구획·강조 라벨 */
+    --fs-nav: 16px;     /* 탭 — 전역 길잡이라 본문보다 확실히 크게 */
     --fs-body: 13.5px;  /* 본문 · 표 셀 */
     --fs-cap: 12.5px;   /* 설명글 · 캡션 */
     --fs-micro: 11.5px; /* 배지 · 단위 — 최소한만 */
@@ -113,19 +114,29 @@
   .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
           overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
   .tabs::-webkit-scrollbar { display: none; }
+  /* 좁은 화면에서 탭이 넘칠 때, 잘린 쪽 가장자리를 흐리게 해 '더 있다'를 알린다.
+     스크롤바를 숨겼으니 이 신호마저 없으면 나머지 탭의 존재를 모른다.
+     한 규칙 + 변수 두 개로 좌/우를 따로 켠다 (JS가 스크롤 위치를 보고 토글). */
+  .tabs { --fade-l: 0px; --fade-r: 0px;
+          -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l),
+                              #000 calc(100% - var(--fade-r)), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l),
+                      #000 calc(100% - var(--fade-r)), transparent 100%); }
+  .tabs.fade-l { --fade-l: 30px; }
+  .tabs.fade-r { --fade-r: 30px; }
   .tab { position: relative; background: none; border: none; cursor: pointer; font-family: inherit;
-         white-space: nowrap; font-size: var(--fs-body); font-weight: 600; color: var(--ink-muted);
-         padding: 11px 15px; margin-bottom: -1px; letter-spacing: -0.01em;
+         white-space: nowrap; font-size: var(--fs-nav); font-weight: 600; color: var(--ink-muted);
+         padding: 13px 18px; margin-bottom: -1px; letter-spacing: -0.015em;
          transition: color var(--dur-1) var(--ease); }
   /* 밑줄을 border가 아니라 의사요소로 그린다 — 좌우로 자라나는 연출이 가능해지고,
      hover 때 옅게 미리 비쳐 '여기를 누르면 여기가 켜진다'가 손끝에서 먼저 읽힌다. */
-  .tab::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px;
+  .tab::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 2.5px;
                 background: var(--accent); border-radius: 2px;
                 transform: scaleX(0); transform-origin: 50% 50%; opacity: 0;
                 transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-1) var(--ease); }
   .tab:hover { color: var(--ink-2); }
   .tab:hover::after { transform: scaleX(.55); opacity: .35; }
-  .tab.on { color: var(--accent); }
+  .tab.on { color: var(--accent); font-weight: 700; }   /* 굵기까지 올려 한눈에 잡히게 */
   .tab.on::after { transform: scaleX(1); opacity: 1; }
   .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
 
@@ -2467,6 +2478,16 @@ function initTabs() {
   nav.style.display = "flex";
   if (_tabsInited) return;   // 재렌더(업데이트 버튼) 시 리스너 중복 방지
   _tabsInited = true;
+
+  // 넘치는 쪽 가장자리만 흐리게 — 스크롤바를 숨겼으니 이게 유일한 '더 있다' 신호다
+  const syncFade = () => {
+    const max = nav.scrollWidth - nav.clientWidth;
+    nav.classList.toggle("fade-l", nav.scrollLeft > 1);
+    nav.classList.toggle("fade-r", nav.scrollLeft < max - 1);
+  };
+  nav.addEventListener("scroll", syncFade, { passive: true });
+  addEventListener("resize", syncFade);
+  syncFade();
   nav.addEventListener("click", ev => {
     const b = ev.target.closest(".tab");
     if (!b) return;
@@ -2485,6 +2506,9 @@ function initTabs() {
         revealIn(el);                            // 새 탭 안의 카드도 순서대로 떠오르게
       }
     }
+    // 좁은 화면에서 반쯤 잘린 탭을 눌렀을 때 그 탭이 온전히 보이게 끌어온다
+    b.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    syncFade();
     // 탭을 바꾸면 그 탭의 처음부터 읽는 게 자연스럽다 (이미 위에 있으면 건드리지 않는다)
     if (window.scrollY > 120) window.scrollTo({ top: 0, behavior: "smooth" });
   });
