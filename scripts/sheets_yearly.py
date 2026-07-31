@@ -54,12 +54,9 @@ def _current(today: date):
     그래서 원본인 ★월별자산에서 '완성된 최신 달'을 직접 찾아 쓴다 — 수식을 손볼 일이
     사라지고, 자산·부채가 같은 달에서 나와 섞이지 않는다.
     """
-    import gspread
-    gc = sheets_fire._authorize(gspread)
-    if gc is None:
+    grid = sm.sheet_grid()          # 캐시된 격자 — 한 실행에서 ★월별자산은 한 번만 읽는다
+    if grid is None:
         return None, None, ""
-    ws = gc.open_by_key(sm.SPREADSHEET_ID).worksheet(sm.TAB)
-    grid = ws.get("A1:BN40", value_render_option="UNFORMATTED_VALUE")
     col, y, m = sm.latest_complete_month(grid, today)
     if col is None:
         print("WARN: ★월별자산에 자산·부채가 모두 채워진 달이 없음")

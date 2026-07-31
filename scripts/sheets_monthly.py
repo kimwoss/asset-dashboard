@@ -5,11 +5,17 @@ GOOGLEFINANCE는 '지금' 시세만 안다 — 어제 값은 어디에도 남지
 월별 흐름을 그리려면 각 달의 값을 그 시점에 얼려 저장해야 하고,
 그 저장소로 이미 존재하는 ★월별자산 탭(2021~2028.4 계좌별 기록)을 재사용한다.
 
-  write_current_month()  이번 달 칸에 계좌별 합계 upsert (실행할 때마다 덮어씀 →
-                         달이 바뀌면 직전 달 마지막 값이 자연히 확정)
-  fetch_monthly()        전체 이력 → 대시보드 monthly 블록
-  fetch_liabilities()    대출·전세보증금(26~35행) 최신 월 잔액 — 사용자가 매월초 수기
-                         갱신하는 영역을 읽기만 한다 (target 매핑은 코드가 유지)
+  write_current_month()           이번 달 칸에 계좌별 합계 upsert (실행할 때마다 덮어씀 →
+                                  달이 바뀌면 직전 달 마지막 값이 자연히 확정)
+  write_current_month_realestate()  부동산 KB 실시세를 이번 달 칸에
+  fetch_monthly()                 전체 이력 → 대시보드 monthly 블록
+  fetch_asset_history()           전월 비교값 (현재값은 sheets_yearly가 담당)
+  month_summary()                 그 달 소계 (총자산·부채·순자산)
+  latest_complete_month()         '현재값'으로 삼을 달 — 자산·부채가 둘 다 채워진 최신 달
+  sheet_grid()                    이 탭의 격자 (실행당 1회만 읽는 캐시)
+
+현재값 읽기(부채·회사주식·전세보증금)는 sheets_yearly가 이 모듈의 상수·격자를 빌려
+수행한다. 같은 일을 하는 함수를 양쪽에 두면 한쪽만 고쳐져 어긋나므로 여기선 지웠다.
 
 안전장치: 3~15행(말단 계좌)의 '값' 칸만 쓴다. 소계·증감률·과거 월은 건드리지 않는다.
 """
@@ -131,6 +137,37 @@ def _col_a1(idx0: int) -> str:
     return s
 
 
+# ── 격자 캐시 ────────────────────────────────────────────────────────────────
+# 한 실행에서 이 탭을 여러 번 읽고 있었다. 월별 흐름·자산 이력·부채·회사주식이 저마다
+# 자기 범위를 따로 불러 ★월별자산만 실행당 5회 왕복했다. 값은 실행 중에 바뀌지 않으니
+# 넉넉한 범위(A1:BN40)로 한 번 읽어 모두가 나눠 쓴다 — 왕복 5회 → 1회.
+# 쓰기 뒤에는 반드시 버린다(_invalidate). 안 그러면 방금 기록한 이번 달 값을 못 본다.
+GRID_RANGE = "A1:BN40"
+_grid_cache = {}
+
+
+def sheet_grid(rng: str = GRID_RANGE):
+    """★월별자산 격자(캐시). 실패 시 None — 호출자가 각자 폴백한다."""
+    if rng in _grid_cache:
+        return _grid_cache[rng]
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        if gc is None:
+            return None
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        _grid_cache[rng] = ws.get(rng, value_render_option="UNFORMATTED_VALUE")
+        return _grid_cache[rng]
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: ★월별자산 읽기 실패 ({type(e).__name__}: {e})")
+        return None
+
+
+def _invalidate():
+    """시트에 쓴 뒤 캐시를 버린다 — 이후 읽기가 방금 기록한 값을 보게."""
+    _grid_cache.clear()
+
+
 def _group_of(name: str) -> str:
     return "연금성" if any(p in name for p in ("연저펀", "IRP", "퇴직연금", "연금저축")) else "유동성"
 
@@ -190,6 +227,7 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
         ws.batch_update(cells, value_input_option="USER_ENTERED")
         print(f"OK: ★월별자산 {today:%Y-%m} ({a1}열) 기록 — 계좌 합계 "
               f"{sum(totals.values())/1e8:.2f}억")
+        _invalidate()          # 방금 쓴 값을 이후 읽기가 보도록
         return True
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 월별 기록 실패 ({type(e).__name__}: {e})")
@@ -239,105 +277,11 @@ def write_current_month_realestate(re_assets: List[Dict], today: Optional[date] 
             return False
         ws.batch_update(cells, value_input_option="USER_ENTERED")
         print(f"OK: ★월별자산 {today:%Y-%m} ({a1}열) 부동산 KB 기록 — {' · '.join(matched)}")
+        _invalidate()          # 방금 쓴 값을 이후 읽기가 보도록
         return True
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 부동산 월별 기록 실패 ({type(e).__name__}: {e})")
         return False
-
-
-def fetch_other_assets(today: Optional[date] = None) -> int:
-    """★월별자산의 비계좌·비부동산 금융자산 합 (회사주식·원달러/엔화 등, 이번 달). 없으면 0.
-
-    자산 현황 순자산을 구글드라이브(시트) 순자산과 정확히 맞추기 위한 소액 항목.
-    시트 총자산 = 계좌(★주식계좌) + 이 항목 + 부동산. 대시보드도 같은 구성으로 만든다.
-    """
-    today = today or date.today()
-    col = month_col(today.year, today.month)
-    if col is None:
-        return 0
-    try:
-        import gspread
-        gc = sheets_fire._authorize(gspread)
-        if gc is None:
-            return 0
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        a1 = _col_a1(col)
-        grid = ws.get(f"A{RE_ROW_FIRST}:{a1}{RE_ROW_LAST}", value_render_option="UNFORMATTED_VALUE")
-        total = 0.0
-        for row in grid:
-            label = str(row[2]).replace(" ", "") if len(row) > 2 else ""
-            if any(k in label for k in ("회사주식", "원달러", "엔화", "외화")):
-                v = row[col] if len(row) > col else 0
-                total += float(v) if isinstance(v, (int, float)) else 0.0
-        return round(total)
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: 회사주식·외화 읽기 실패 ({type(e).__name__}: {e})")
-        return 0
-
-
-def fetch_residence_deposits(today: Optional[date] = None) -> List[Dict]:
-    """★월별자산 부동산 구분의 '거주 전세보증금'(받을 돈)을 읽는다.
-
-    파크하비오 전세·인텔리지 전세처럼 부부가 거주하려고 맡긴 전세보증금(자산, 받을 돈)이
-    부동산 영역(17~24행) 안에 라벨 '~전세'로 들어 있다. 소유 아파트(인덕원삼호·송천센트레빌)는
-    '전세'가 아니라 자동 제외된다. 이번 달이 비면 값 있는 직전 달로 폴백.
-    반환 [{name, owner, value_krw, note}], 실패/빈 결과 시 [] → 호출자가 yaml 폴백.
-    """
-    today = today or date.today()
-    try:
-        import gspread
-        gc = sheets_fire._authorize(gspread)
-        if gc is None:
-            return []
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        grid = ws.get(f"A{RE_ROW_FIRST}:BN{RE_ROW_LAST}",
-                      value_render_option="UNFORMATTED_VALUE")
-
-        def cell(r_abs: int, c0: int) -> float:
-            r = grid[r_abs - RE_ROW_FIRST] if len(grid) > r_abs - RE_ROW_FIRST else []
-            v = r[c0] if len(r) > c0 else 0
-            return float(v) if isinstance(v, (int, float)) else 0.0
-
-        # '전세' 라벨 행 수집 (소유 아파트는 라벨에 '전세'가 없어 자동 제외)
-        dep_rows = []
-        for r_abs in range(RE_ROW_FIRST, RE_ROW_LAST + 1):
-            r = grid[r_abs - RE_ROW_FIRST] if len(grid) > r_abs - RE_ROW_FIRST else []
-            label = (str(r[2]).strip() if len(r) > 2 else "")
-            if "전세" in label.replace(" ", ""):
-                owner_raw = str(r[3]).strip() if len(r) > 3 else ""
-                owner = _OWNER_NORM.get(owner_raw, owner_raw or "공동")
-                dep_rows.append((r_abs, label, owner))
-        if not dep_rows:
-            return []
-
-        # 값이 있는 최신 월 열 탐색 (이번 달 → 과거, 최대 18개월)
-        y, m = today.year, today.month
-        col, used = None, ""
-        for _ in range(18):
-            c = month_col(y, m)
-            if c is not None and any(cell(r_abs, c) > 0 for r_abs, _, _ in dep_rows):
-                col, used = c, f"{y}-{m:02d}"
-                break
-            m -= 1
-            if m == 0:
-                y, m = y - 1, 12
-        if col is None:
-            print("WARN: ★월별자산 거주 전세보증금 최근값 없음 — yaml 폴백")
-            return []
-
-        out: List[Dict] = []
-        for r_abs, label, owner in dep_rows:
-            v = cell(r_abs, col)
-            if v > 0:
-                out.append({"name": label, "owner": owner, "value_krw": round(v),
-                            "note": f"★월별자산 {used} 기준"})
-        if out:
-            total = sum(d["value_krw"] for d in out)
-            print(f"OK: 거주 전세보증금 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {used})")
-        return out
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: 거주 전세보증금 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
-        return []
 
 
 def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
@@ -352,12 +296,9 @@ def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
     """
     today = today or date.today()
     try:
-        import gspread
-        gc = sheets_fire._authorize(gspread)
-        if gc is None:
+        grid = sheet_grid()               # 캐시된 격자 — 같은 실행에선 한 번만 읽는다
+        if grid is None:
             return {}
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        grid = ws.get("A1:BN40", value_render_option="UNFORMATTED_VALUE")
 
         def cell(r1: int, c0: Optional[int]) -> float:
             if c0 is None:
@@ -420,12 +361,9 @@ def fetch_monthly(today: Optional[date] = None) -> Dict[str, Any]:
     """★월별자산 → {periods, accounts} (대시보드 월별 흐름용). 실패 시 {}."""
     today = today or date.today()
     try:
-        import gspread
-        gc = sheets_fire._authorize(gspread)
-        if gc is None:
+        grid = sheet_grid()               # 캐시된 격자 (A1:BN40이 16행 범위를 덮는다)
+        if grid is None:
             return {}
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        grid = ws.get("A1:BN16", value_render_option="UNFORMATTED_VALUE")
         acct_rows = _account_rows(grid)  # 라벨 기준 — 이름이 바뀌어도 따라간다
 
         def cell(row1: int, col0: int) -> float:
@@ -473,17 +411,12 @@ def month_summary(y: int, m: int) -> Dict[str, float]:
     if col is None:
         return {}
     try:
-        import gspread
-        gc = sheets_fire._authorize(gspread)
-        if gc is None:
+        grid = sheet_grid()               # 캐시된 격자 (소계 25·37·38행을 포함한다)
+        if grid is None:
             return {}
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        grid = ws.get(f"A{SUMMARY_ROWS['gross']}:BN{SUMMARY_ROWS['net']}",
-                      value_render_option="UNFORMATTED_VALUE")
-        base = SUMMARY_ROWS["gross"]
 
         def cell(row1: int) -> float:
-            r = grid[row1 - base] if len(grid) > row1 - base else []
+            r = grid[row1 - 1] if len(grid) >= row1 else []
             v = r[col] if len(r) > col else 0
             return float(v) if isinstance(v, (int, float)) else 0.0
 
@@ -495,69 +428,3 @@ def month_summary(y: int, m: int) -> Dict[str, float]:
         print(f"WARN: {y}-{m:02d} 시트 소계 읽기 실패 ({type(e).__name__}: {e})")
         return {}
 
-
-def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
-    """★월별자산 26~35행에서 최신 월의 대출·전세보증금 잔액을 읽는다.
-
-    사용자가 매월초 수기 갱신하는 영역 — 이번 달이 비어 있으면(월초 갱신 전)
-    값이 있는 직전 달로 폴백한다. 실패/빈 결과 시 [] → 호출자가 yaml 폴백.
-    """
-    today = today or date.today()
-    try:
-        import gspread
-        gc = sheets_fire._authorize(gspread)
-        if gc is None:
-            return []
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        grid = ws.get("A26:BN35", value_render_option="UNFORMATTED_VALUE")
-
-        def cell(row1: int, col0: int):
-            r = grid[row1 - 26] if len(grid) > row1 - 26 else []
-            return r[col0] if len(r) > col0 else ""
-
-        # 값이 있는 최신 월 열 탐색 (이번 달 → 과거로, 최대 12개월)
-        y, m = today.year, today.month
-        col, used = None, ""
-        for _ in range(12):
-            c = month_col(y, m)
-            if c is not None and any(
-                isinstance(cell(r, c), (int, float)) and cell(r, c) > 0 for r in LIAB_ROWS
-            ):
-                col, used = c, f"{y}-{m:02d}"
-                break
-            m -= 1
-            if m == 0:
-                y, m = y - 1, 12
-        if col is None:
-            print("WARN: ★월별자산 부채 영역에 최근 12개월 값 없음 — yaml 폴백")
-            return []
-
-        out: List[Dict] = []
-        for r, (kind, target) in LIAB_ROWS.items():
-            name = str(cell(r, 2)).strip()
-            amount = cell(r, col)
-            if not name or not isinstance(amount, (int, float)) or amount <= 0:
-                continue  # 상환 완료·빈 행은 제외
-            owner = _OWNER_NORM.get(str(cell(r, 3)).strip(), str(cell(r, 3)).strip() or "공동")
-            out.append({
-                "name": name, "owner": owner, "kind": kind, "target": target,
-                "amount_krw": round(amount),
-                "note": f"★월별자산 {used} 잔액" + (" · 파크하비오 보증금 조달" if r == 30 else ""),
-            })
-        total = sum(l["amount_krw"] for l in out)
-        print(f"OK: 부채 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {used})")
-        return out
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: 부채 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
-        return []
-
-
-if __name__ == "__main__":
-    import sys, json
-    sys.stdout.reconfigure(encoding="utf-8")
-    d = fetch_monthly()
-    for p, in zip(d.get("periods", [])):
-        pass
-    print(json.dumps(d.get("periods", []), ensure_ascii=False))
-    for a in d.get("accounts", []):
-        print(f"{a['owner']} {a['group']:4} {a['name'][:16]:16} {a['values'][-3:]}")
