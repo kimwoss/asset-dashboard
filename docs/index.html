@@ -18,12 +18,34 @@
     --c-vi: #6d5cd6; --c-debt: #c0645f;
     /* 하위호환 별칭 */
     --up: var(--pos); --down: var(--neg);
-    /* 타입 스케일 */
-    --fs-hero: 38px; --fs-1: 26px; --fs-2: 23px; --fs-3: 20px; --fs-4: 16px;
-    --fs-body: 13px; --fs-sm: 12.5px; --fs-xs: 11.5px;
+    /* ── 타이포 — 크기가 아니라 '역할'로 쓴다 ──────────────────────────────
+       종전 스케일은 아래쪽에 뭉쳐 있었다. 13/12.5/11.5는 1.5px 안에 세 단계가
+       겹쳐 사실상 구분이 안 되는데 전체 사용의 84%가 거기 몰렸고, 정작 h2(카드 제목)가
+       본문과 같은 13px이라 위계가 없었다. 그래서 중간을 열고 아래를 정리한다.
+         대제목 h1 › 중제목 h2 › 소제목 h3 › 본문 › 설명글 › 보조
+       숫자는 제목과 다른 리듬이 필요해 별도 축(num-*)으로 뗀다. */
+    --fs-display: clamp(30px, 5vw, 40px);  /* 인트로 히어로 */
+    --fs-h1: 24px;      /* 대제목 — 사이트 타이틀 */
+    --fs-h2: 17px;      /* 중제목 — 카드 제목 */
+    --fs-h3: 15px;      /* 소제목 — 카드 안 구획·강조 라벨 */
+    --fs-body: 13.5px;  /* 본문 · 표 셀 */
+    --fs-cap: 12.5px;   /* 설명글 · 캡션 */
+    --fs-micro: 11.5px; /* 배지 · 단위 — 최소한만 */
+    --fs-num-xl: 30px;  /* 대표 KPI */
+    --fs-num-lg: 23px;  /* 일반 KPI */
+    --fs-num-md: 18px;  /* 보조 수치 */
+    /* 하위호환 별칭 — 옛 이름을 새 역할로 잇는다 */
+    --fs-hero: var(--fs-display); --fs-1: var(--fs-num-xl); --fs-2: var(--fs-num-lg);
+    --fs-3: var(--fs-num-md); --fs-4: var(--fs-h3);
+    --fs-sm: var(--fs-cap); --fs-xs: var(--fs-micro);
     /* 형태 */
     --r: 12px; --r-sm: 8px; --r-pill: 999px;
     --shadow: 0 1px 2px rgba(11,11,11,.04);
+    --shadow-lift: 0 6px 18px rgba(11,11,11,.07);
+    /* 움직임 — 한 곳에서 관리해 화면 전체가 같은 호흡으로 움직이게 */
+    --ease: cubic-bezier(.22, .61, .36, 1);      /* 부드럽게 감속 */
+    --ease-out: cubic-bezier(.16, 1, .3, 1);     /* 크게 튀어나오듯 */
+    --dur-1: .16s; --dur-2: .28s; --dur-3: .45s;
   }
   /* 다크 팔레트 — OS 설정(수동 미지정 시) 또는 수동 토글(data-theme=dark) */
   @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
@@ -33,7 +55,7 @@
       --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
-      --shadow: none;
+      --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
   } }
   :root[data-theme="dark"] {
       --surface-1: #1a1a19; --page: #0d0d0d;
@@ -42,7 +64,7 @@
       --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
-      --shadow: none;
+      --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
   }
   /* data-theme="light"는 별도 변수 불필요 — :root 기본(라이트)이 그대로 적용되고
      위 OS-다크 규칙은 :not([data-theme])라 무효화된다 */
@@ -57,10 +79,10 @@
 
   /* 헤더 */
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
-  h1 { font-size: var(--fs-3); font-weight: 700; letter-spacing: -0.01em; }
-  .meta { color: var(--ink-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+  h1 { font-size: var(--fs-h1); font-weight: 750; letter-spacing: -0.02em; }
+  .meta { color: var(--ink-muted); font-size: var(--fs-cap); font-variant-numeric: tabular-nums; }
   #theme { margin-left: auto; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
-           font-size: 15px; cursor: pointer; background: var(--surface-1); border: 1px solid var(--border);
+           font-size: var(--fs-h3); cursor: pointer; background: var(--surface-1); border: 1px solid var(--border);
            border-radius: var(--r-sm); transition: border-color .15s; padding: 0; }
   #theme:hover { border-color: var(--accent); }
   #theme + #refresh { margin-left: 0; }
@@ -70,7 +92,7 @@
              transition: color .15s, border-color .15s; }
   #refresh:hover { border-color: var(--accent); color: var(--accent); }
   #refresh:disabled { cursor: default; opacity: .6; }
-  #refresh .ic { font-size: 14px; line-height: 1; }
+  #refresh .ic { font-size: var(--fs-body); line-height: 1; }
   #refresh.spin .ic { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -91,25 +113,59 @@
   .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
           overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
   .tabs::-webkit-scrollbar { display: none; }
-  .tab { background: none; border: none; cursor: pointer; font-family: inherit; white-space: nowrap;
-         font-size: var(--fs-body); font-weight: 600; color: var(--ink-muted);
-         padding: 10px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s; }
+  .tab { position: relative; background: none; border: none; cursor: pointer; font-family: inherit;
+         white-space: nowrap; font-size: var(--fs-body); font-weight: 600; color: var(--ink-muted);
+         padding: 11px 15px; margin-bottom: -1px; letter-spacing: -0.01em;
+         transition: color var(--dur-1) var(--ease); }
+  /* 밑줄을 border가 아니라 의사요소로 그린다 — 좌우로 자라나는 연출이 가능해지고,
+     hover 때 옅게 미리 비쳐 '여기를 누르면 여기가 켜진다'가 손끝에서 먼저 읽힌다. */
+  .tab::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 2px;
+                background: var(--accent); border-radius: 2px;
+                transform: scaleX(0); transform-origin: 50% 50%; opacity: 0;
+                transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-1) var(--ease); }
   .tab:hover { color: var(--ink-2); }
-  .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover::after { transform: scaleX(.55); opacity: .35; }
+  .tab.on { color: var(--accent); }
+  .tab.on::after { transform: scaleX(1); opacity: 1; }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
+
+  /* 탭 전환 — 내용이 아래에서 살짝 떠오르며 들어온다. 갈아끼운 티가 나야 방금 바뀐 걸 안다. */
+  @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .tab-panel-in { animation: tabIn var(--dur-3) var(--ease-out) both; }
 
   /* 카드 */
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r);
-          padding: 16px 18px; box-shadow: var(--shadow); }
+          padding: 16px 18px; box-shadow: var(--shadow);
+          transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease),
+                      border-color var(--dur-2) var(--ease); }
+  /* KPI 카드만 살짝 떠오른다 — 섹션 카드(section.card)는 문서라 들썩이면 산만하다.
+     그림자 색은 테마 변수(--shadow-lift)로 빼서 라이트·다크가 각자 맞는 농도를 갖는다. */
+  .cards > .card:hover { transform: translateY(-2px); border-color: var(--baseline);
+                         box-shadow: var(--shadow-lift); }
   section.card { margin-bottom: 14px; }
-  .card .label { font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 7px; }
-  .card .value { font-size: var(--fs-1); font-weight: 700; line-height: 1.1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
-  /* hero 카드도 같은 행의 다른 카드와 숫자 크기를 맞춘다 (행 내 크기 불일치 방지) */
-  .card .sub { font-size: var(--fs-sm); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
+
+  /* 스크롤 진입 — 화면에 들어올 때 한 번만 떠오른다. 아래로 내려갈수록 카드가
+     차례로 나타나 페이지에 리듬이 생긴다. 이미 본 것은 다시 움직이지 않는다. */
+  .reveal { opacity: 0; transform: translateY(14px);
+            transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out); }
+  .reveal.seen { opacity: 1; transform: none; }
+
+  /* 움직임을 줄여달라고 한 사용자에겐 전부 끈다 — 접근성 기본값 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+                             transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+  .card .label { font-size: var(--fs-cap); color: var(--ink-2); margin-bottom: 7px; font-weight: 500; }
+  /* KPI 숫자는 한 축(num-lg)으로 고정한다 — 종전엔 개요 탭만 23px, 나머지 탭은 26px이라
+     탭을 옮길 때마다 같은 성격의 숫자가 커졌다 작아졌다 했다. hero도 같은 행에 서므로 같은 크기. */
+  .card .value { font-size: var(--fs-num-lg); font-weight: 700; line-height: 1.12;
+                 letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .card .sub { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
   .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
   .delta-none { color: var(--ink-muted); }
-  /* 순자산·총자산·부채 카드 — '억+만원'은 더 길어 값 폰트를 살짝 줄이고, 전일·전월·전년 델타를 정돈 */
-  #kpis .value { font-size: var(--fs-2); }
+  /* 순자산·총자산·부채 카드 — 전일·전월·전년 델타 정돈 (값 크기는 .card .value로 통일) */
   .kpi-deltas { display: flex; flex-wrap: wrap; gap: 2px 12px; }
   .kpi-deltas .kd { white-space: nowrap; }
   .kpi-deltas .kd i { color: var(--ink-muted); font-style: normal; margin-right: 2px; }
@@ -126,14 +182,14 @@
   .hi-tbl td { padding: 7px 4px; border-bottom: 1px solid var(--grid); vertical-align: top; }
   .hi-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 1%; padding-left: 12px; }
   .hi-name { word-break: keep-all; }
-  .hi-why { color: var(--ink-muted); font-size: var(--fs-xs); line-height: 1.45; margin-top: 3px; word-break: keep-all; }
+  .hi-why { color: var(--ink-muted); font-size: var(--fs-cap); line-height: 1.45; margin-top: 3px; word-break: keep-all; }
   .hi-tbl tr.hi-tot td { border-top: 2px solid var(--border); border-bottom: none; color: var(--ink-1); }
   .hi-tbl tr:last-child td { border-bottom: none; }
   #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
   /* 지금 vs 은퇴 비교 (표준 카테고리) */
   .cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; font-size: var(--fs-body); }
   .cmp-head b { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .kind-dot { font-size: 9px; margin-left: 4px; vertical-align: 1px; cursor: help; }
+  .kind-dot { font-size: 10px; margin-left: 4px; vertical-align: 1px; cursor: help; }
   /* 브릿지(폭포) — 지금 월평균에서 은퇴 월평균까지 요인별 누적 */
   .brg-row { display: grid; grid-template-columns: 116px 1fr 74px; gap: 10px; align-items: center; padding: 5px 0; }
   .brg-name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -161,14 +217,20 @@
   .kpi-gauge { margin-top: 14px; }
   .kpi-gauge-track { height: 6px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; }
   .kpi-gauge-fill { height: 100%; background: var(--c-us); border-radius: var(--r-pill); transition: width .6s ease; }
-  .kpi-gauge-lb { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .kpi-gauge-lb { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
   .kpi-gauge-lb b { color: var(--ink-2); font-weight: 700; }
 
   /* 섹션 타이틀 */
-  h2 { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-bottom: 14px; letter-spacing: 0.01em; }
+  /* 카드 제목 — 종전엔 본문과 같은 크기·흐린 색이라 구획이 안 보였다.
+     크기·굵기·색을 함께 올려 '여기서 새 이야기가 시작된다'를 분명히 한다. */
+  h2 { font-size: var(--fs-h2); font-weight: 700; color: var(--ink-1);
+       margin-bottom: 16px; letter-spacing: -0.015em; line-height: 1.35; }
+  /* 소제목 — 카드 안에서 한 번 더 나누는 자리 */
+  h3 { font-size: var(--fs-h3); font-weight: 700; color: var(--ink-1);
+       letter-spacing: -0.01em; line-height: 1.4; }
 
   /* 설명 문구 (통일) */
-  .note, .goal-sub, .cp-mkt-note { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 10px; line-height: 1.5; }
+  .note, .goal-sub, .cp-mkt-note { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 10px; line-height: 1.5; }
   .goal-sub { margin-top: 5px; }
 
   /* 범례 */
@@ -181,13 +243,13 @@
   .donut-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
   .donut-cell { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 2px; }
   .donut-cell h3 { font-size: var(--fs-body); font-weight: 600; color: var(--ink-1); margin-bottom: 2px; text-align: center; }
-  .donut-cell .cap { font-size: var(--fs-xs); color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
+  .donut-cell .cap { font-size: var(--fs-cap); color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
   svg text { font-family: inherit; }
 
   /* 표 (전 화면 공통 규격) */
   table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
   th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  th { color: var(--ink-muted); font-weight: 500; font-size: var(--fs-xs); border-bottom: 1px solid var(--baseline); }
+  th { color: var(--ink-muted); font-weight: 500; font-size: var(--fs-cap); border-bottom: 1px solid var(--baseline); }
   th:first-child, td:first-child { text-align: left; white-space: normal; }
   td.name { font-weight: 600; }
   tbody tr:last-child td { border-bottom: none; }
@@ -242,10 +304,10 @@
   .goal-fill { height: 100%; border-radius: var(--r-pill); transition: width .5s ease; }
   .fire-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-top: 18px; }
   .fact { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; }
-  .fact .l { font-size: var(--fs-xs); color: var(--ink-2); margin-bottom: 5px; }
+  .fact .l { font-size: var(--fs-cap); color: var(--ink-2); margin-bottom: 5px; }
   .fact .v { font-size: var(--fs-4); font-weight: 700; font-variant-numeric: tabular-nums; }
   .fact .v.dual { font-size: var(--fs-body); letter-spacing: -0.02em; white-space: nowrap; }
-  .fact .s { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 3px; }
+  .fact .s { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 3px; }
 
   /* 세그먼트 토글 */
   .seg { display: inline-flex; background: var(--grid); border-radius: var(--r-sm); padding: 2px; gap: 2px; margin-bottom: 14px; }
@@ -263,7 +325,7 @@
   .ct-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
                     padding-bottom: 14px; border-bottom: 1px solid var(--grid); margin-bottom: 14px; }
   .ct-detail-city { font-size: var(--fs-2); font-weight: 700; letter-spacing: -0.01em; }
-  .ct-detail-sub { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 3px; }
+  .ct-detail-sub { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 3px; }
   .ct-detail-fire { text-align: right; }
   .ct-detail-fire-pct { font-size: var(--fs-2); font-weight: 700; font-variant-numeric: tabular-nums; }
   .ct-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
@@ -275,7 +337,7 @@
   .sim-stats span { font-size: var(--fs-body); color: var(--ink-1); font-variant-numeric: tabular-nums; }
   .sim-stats em { font-style: normal; color: var(--ink-muted); font-size: var(--fs-sm); margin-right: 4px; }
   .sim-stats b { font-weight: 700; }
-  .sim-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-xs); color: var(--ink-2); margin-top: 10px; }
+  .sim-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-cap); color: var(--ink-2); margin-top: 10px; }
   .sim-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; }
 
   /* 연간 리뷰 */
@@ -300,7 +362,7 @@
 
   /* 오늘의 체크포인트 */
   /* 인사말은 한 문장이 길다 — 자간·행간을 넉넉히 주고 폭을 제한해 눈이 줄을 잃지 않게 한다 */
-  .cp-hero { font-size: 16.5px; line-height: 1.75; color: var(--ink-1); font-weight: 500;
+  .cp-hero { font-size: var(--fs-h3); line-height: 1.75; color: var(--ink-1); font-weight: 500;
              letter-spacing: -.01em; max-width: 62ch; margin-bottom: 14px; word-break: keep-all; }
   .cp-sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 8px; white-space: pre-line; line-height: 1.6; }
   /* 날씨 — 오늘 기온·미세먼지는 한 줄로 크게, 시간대별은 칩으로 흩어 스캔되게 */
@@ -317,7 +379,7 @@
   /* 현금 흐름 계획 */
   .cf-pipe { display: grid; grid-template-columns: 200px 1fr 132px; gap: 12px; align-items: center; padding: 9px 0; }
   .cf-pipe-name { font-size: var(--fs-body); font-weight: 600; }
-  .cf-pipe-name small { display: block; font-weight: 400; font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 2px; white-space: normal; }
+  .cf-pipe-name small { display: block; font-weight: 400; font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 2px; white-space: normal; }
   .cf-pipe-track { height: 20px; background: var(--grid); border-radius: 4px; position: relative; overflow: hidden; }
   .cf-pipe-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
   .cf-pipe-v { text-align: right; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
@@ -332,7 +394,7 @@
   .cf-signal-pct { font-size: var(--fs-3); font-weight: 700; font-variant-numeric: tabular-nums; }
   .cf-signal-track { height: 10px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; margin-top: 10px; }
   .cf-signal-fill { height: 100%; border-radius: var(--r-pill); transition: width .6s ease; }
-  .cf-signal-lb { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .cf-signal-lb { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
   .cf-lv-ok  { color: var(--pos); } .cf-bg-ok  { background: var(--pos); }
   .cf-lv-warn{ color: #F59F00; }    .cf-bg-warn{ background: #F59F00; }
   .cf-lv-bad { color: var(--neg); } .cf-bg-bad { background: var(--neg); }
@@ -357,14 +419,14 @@
   .news-title { font-size: var(--fs-body); font-weight: 600; color: var(--ink-1); line-height: 1.5; }
   .news-title a { color: inherit; text-decoration: none; }
   .news-title a:hover { color: var(--accent); }
-  .news-meta { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 4px; }
+  .news-meta { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 4px; }
   .news-tag { display: inline-block; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
               background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 4px; padding: 1px 7px; margin-right: 7px; }
   .news-insight { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 5px; line-height: 1.55; }
 
   /* 운세 */
   .luck { display: inline-block; background: var(--page); border-radius: var(--r-sm); padding: 4px 10px;
-          font-size: var(--fs-xs); color: var(--ink-2); margin-top: 8px; }
+          font-size: var(--fs-cap); color: var(--ink-2); margin-top: 8px; }
   .fortune-person { padding: 14px 0; border-bottom: 1px solid var(--grid); }
   .fortune-person:last-child { border-bottom: none; padding-bottom: 0; }
   .fortune-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
@@ -402,7 +464,7 @@
   #intro .wrap { position: relative; z-index: 3; width: 100%; max-width: 760px;
     padding: clamp(30px,7vw,78px); }
   #intro .cap { display: flex; align-items: center; gap: 11px; margin-bottom: 17px;
-    font-size: 11.5px; letter-spacing: .22em; text-transform: uppercase; font-weight: 600;
+    font-size: var(--fs-micro); letter-spacing: .22em; text-transform: uppercase; font-weight: 600;
     color: rgba(255,255,255,.76); opacity: 0; animation: introUp .95s cubic-bezier(.2,.7,.2,1) .55s both; }
   #intro .cap i { display: inline-block; width: 28px; height: 1px; background: rgba(255,255,255,.55); }
   #intro .title { font-size: clamp(31px,6.2vw,56px); font-weight: 760; line-height: 1.05; color: #fff;
@@ -414,20 +476,20 @@
   #intro .cta { margin-top: clamp(24px,4vw,38px); opacity: 0;
     animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) 1.55s both; }
   #intro .pwrow { display: flex; gap: 10px; max-width: 410px; }
-  #intro .pwrow input { flex: 1; min-width: 0; font-size: 15px; padding: 13px 16px; border-radius: 12px;
+  #intro .pwrow input { flex: 1; min-width: 0; font-size: var(--fs-h3); padding: 13px 16px; border-radius: 12px;
     color: #fff; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.30);
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color .2s, background .2s; }
   #intro .pwrow input:focus { outline: none; border-color: rgba(255,255,255,.72); background: rgba(255,255,255,.19); }
   #intro .pwrow input::placeholder { color: rgba(255,255,255,.6); }
-  #intro .pwrow button { flex: none; padding: 0 24px; font-size: 15px; font-weight: 700; border: none;
+  #intro .pwrow button { flex: none; padding: 0 24px; font-size: var(--fs-h3); font-weight: 700; border: none;
     border-radius: 12px; color: #123049; background: #fff; cursor: pointer; white-space: nowrap;
     transition: transform .12s, box-shadow .25s; }
   #intro .pwrow button:hover { box-shadow: 0 10px 34px rgba(255,255,255,.22); }
   #intro .pwrow button:active { transform: translateY(1px); }
   #intro .pwrow button:disabled { opacity: .6; cursor: default; }
-  #intro .msg { margin-top: 11px; min-height: 17px; font-size: 12.5px; color: #ffd6d1;
+  #intro .msg { margin-top: 11px; min-height: 17px; font-size: var(--fs-cap); color: #ffd6d1;
     text-shadow: 0 1px 8px rgba(0,0,0,.45); }
-  #intro .enter { display: inline-flex; align-items: center; gap: 12px; font-size: 14.5px; letter-spacing: .01em;
+  #intro .enter { display: inline-flex; align-items: center; gap: 12px; font-size: var(--fs-body); letter-spacing: .01em;
     color: rgba(255,255,255,.9); text-shadow: 0 1px 12px rgba(0,0,0,.35); }
   #intro .enter .load { position: relative; width: 40px; height: 3px; border-radius: 3px; overflow: hidden;
     background: rgba(255,255,255,.24); }
@@ -968,7 +1030,7 @@ function indexDonut(cell, title, hs) {
   const total = sum(hs);
   if (total <= 0) {
     cell.innerHTML = `<h3>${title}</h3><div class="cap">보유내역 입력 전</div>
-      <div style="height:150px;display:flex;align-items:center;color:var(--ink-muted);font-size:12.5px">—</div>`;
+      <div style="height:150px;display:flex;align-items:center;color:var(--ink-muted);font-size:var(--fs-cap)">—</div>`;
     return;
   }
   donut(cell, {
@@ -995,7 +1057,7 @@ function portfolioDonut(cell, title, hs) {
   const total = sum(hs);
   if (total <= 0) {
     cell.innerHTML = `<h3>${title}</h3><div class="cap">보유내역 입력 전</div>
-      <div style="height:150px;display:flex;align-items:center;color:var(--ink-muted);font-size:12.5px">—</div>`;
+      <div style="height:150px;display:flex;align-items:center;color:var(--ink-muted);font-size:var(--fs-cap)">—</div>`;
     return;
   }
   donut(cell, {
@@ -1230,7 +1292,7 @@ function renderCheckpoint(cp) {
     </section>`;
   }
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
-    <div style="font-size:13.5px">🗓️ ${esc(cp.macro_dday)}</div></section>`;
+    <div style="font-size:var(--fs-body)">🗓️ ${esc(cp.macro_dday)}</div></section>`;
 
   // 뉴스 — 30분마다 관심 주제(보유 ETF·미국증시·환율금리·FIRE)로 갱신되는 실시간 피드.
   if ((cp.news || []).length) h += `<section class="card">
@@ -1792,7 +1854,7 @@ function renderSpending(sp, liabs) {
     `<thead><tr><th>카테고리</th>${months.map(m => `<th>${m.label}</th>`).join("")}<th>누적</th></tr></thead>
      <tbody>${body}${totRow}${exRow}</tbody>`;
   document.getElementById("sp-table").insertAdjacentHTML("afterbegin",
-    `<caption style="caption-side:top;text-align:left;font-size:11.5px;color:var(--ink-muted);padding-bottom:6px">단위: 만원</caption>`);
+    `<caption style="caption-side:top;text-align:left;font-size:var(--fs-micro);color:var(--ink-muted);padding-bottom:6px">단위: 만원</caption>`);
 
   const exNames = (sp.excluded || []).map(c => c.name).join("·");
   document.getElementById("sp-note").innerHTML =
@@ -2408,9 +2470,50 @@ function initTabs() {
   nav.addEventListener("click", ev => {
     const b = ev.target.closest(".tab");
     if (!b) return;
+    if (b.classList.contains("on")) return;      // 같은 탭 다시 눌러 깜빡이지 않게
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["checkpoint", "overview", "financial", "spending", "cashflow", "review", "cities"])
-      document.getElementById("tab-" + id).style.display = b.dataset.tab === id ? "" : "none";
+    for (const id of ["checkpoint", "overview", "financial", "spending", "cashflow", "review", "cities"]) {
+      const el = document.getElementById("tab-" + id);
+      if (!el) continue;
+      const show = b.dataset.tab === id;
+      el.style.display = show ? "" : "none";
+      if (show) {
+        // 애니메이션을 매번 다시 태우려면 클래스를 뗐다가 리플로우 후 붙여야 한다
+        el.classList.remove("tab-panel-in");
+        void el.offsetWidth;
+        el.classList.add("tab-panel-in");
+        revealIn(el);                            // 새 탭 안의 카드도 순서대로 떠오르게
+      }
+    }
+    // 탭을 바꾸면 그 탭의 처음부터 읽는 게 자연스럽다 (이미 위에 있으면 건드리지 않는다)
+    if (window.scrollY > 120) window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+/* ---- 스크롤 진입 연출 -------------------------------------------------------
+   화면에 들어오는 카드를 한 번만 떠오르게 한다. IntersectionObserver라 스크롤마다
+   계산하지 않아 부드럽고, 한 번 본 카드는 관찰을 끊어 되돌아와도 다시 움직이지 않는다.
+   움직임 최소화를 켠 사용자에겐 아예 걸지 않는다(CSS에서도 한 번 더 막는다). */
+let _revealObs = null;
+function revealIn(root) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!("IntersectionObserver" in window)) return;
+  if (!_revealObs) {
+    _revealObs = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add("seen");
+        obs.unobserve(e.target);
+      }
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.06 });
+  }
+  const scope = root || document;
+  // 이미 화면에 걸쳐 있는 것(첫 화면)은 지연 없이, 아래 것들만 차례를 준다
+  [...scope.querySelectorAll("section.card, .cards")].forEach((el, i) => {
+    if (el.classList.contains("seen") || el.classList.contains("reveal")) return;
+    el.classList.add("reveal");
+    el.style.transitionDelay = `${Math.min(i, 6) * 45}ms`;
+    _revealObs.observe(el);
   });
 }
 
@@ -2779,6 +2882,9 @@ async function render() {
   document.getElementById("detail").innerHTML = `
     <thead><tr><th>항목</th><th>소유</th><th>분류</th><th>평가액</th><th>${hpm} 대비</th><th>${H.prev_year || "전년"} 대비</th></tr></thead>
     <tbody>${rows}${grossRow}${debtRows}${debtSumRow}${netRow}</tbody>`;
+
+  // 렌더가 끝난 뒤 보이는 탭의 카드에 스크롤 진입 연출을 건다 (숨은 탭은 열릴 때 건다)
+  revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
   return liveAt ? `시세 ${liveAt} 기준` : `${snap.updated_at} 기준`;
 }
