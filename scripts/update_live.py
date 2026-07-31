@@ -58,6 +58,7 @@ TTL_MIN = {
     "asset_history": 180,
     "liabilities":   180,
     "monthly":       180,
+    "baselines":     180,   # 전일·전월·전년 기준 — 하루 한 번 바뀌지만 달 바뀜을 놓치지 않게
     "cities":        720,   # 🌍이주 대시보드 — 도시를 더할 때만 바뀐다
     "review":        720,   # 연간 리뷰 — 거의 안 바뀐다
 }
@@ -83,6 +84,42 @@ def _load_prev():
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 직전 live.enc 불러오기 실패 ({type(e).__name__}: {e}) — 전체 갱신")
         return {}, {}
+
+
+def _delta_baselines(today) -> dict:
+    """KPI 전일·전월·전년 기준값 {prev_day, prev_month, prev_year}.
+
+    일별 잡(update_data)의 함수를 그대로 빌려 쓴다 — 같은 숫자를 두 벌로 계산하면
+    언젠가 어긋난다. history.csv는 레포에 암호화본만 있으니 임시로 풀어서 넘긴다.
+    """
+    import tempfile
+    import update_data as ud
+
+    hist_enc = DATA_DIR / "history.enc"
+    with tempfile.TemporaryDirectory() as td:
+        hist = Path(td) / "history.csv"
+        if hist_enc.exists():
+            try:
+                crypto_util.decrypt_file(hist_enc, hist, crypto_util.get_passphrase())
+            except Exception as e:  # noqa: BLE001 — 이력 없이도 시트 소계로 낼 수 있다
+                print(f"WARN: history 복호화 실패 ({type(e).__name__}: {e}) — 시트 소계로 대체")
+        pm = ud.prev_month_baseline(today, hist)
+        pd_ = ud.prev_day_baseline(today, hist)
+
+    py = {}
+    ah = sheets_yearly.fetch_asset_history(today) or {}
+    tot = ah.get("totals") or {}
+    if tot.get("net", {}).get("y1"):
+        py = {"key": ah.get("prev_year") or str(today.year - 1),
+              "gross_krw": tot.get("gross", {}).get("y1", 0),
+              "debt_krw": tot.get("debt", {}).get("y1", 0),
+              "net_krw": tot["net"]["y1"]}
+    out = {k: v for k, v in
+           (("prev_day", pd_), ("prev_month", pm), ("prev_year", py)) if v}
+    if out:
+        print("OK: KPI 기준 — " + " · ".join(
+            f"{k.replace('prev_', '')} {v.get('key')}" for k, v in out.items()))
+    return out
 
 
 def _fresh(key: str, meta: dict, now: datetime) -> bool:
@@ -270,6 +307,12 @@ def main():
         **({"retire": r} if (r := sheets_spending.fetch_retirement_expense(d)) else {}),
     }, now.date())
 
+    # KPI 델타의 기준(전일·전월·전년) — 종전엔 일별 잡만 만들어 하루 한 번(07:30)에야 바뀌었다.
+    # 달이 바뀐 8/1 아침에 '전월'이 아직 6월을 가리키는 문제가 여기서 나왔다(일별 잡 전이라
+    # 어제 발행본이 그대로 살아 있어서). 30분 잡이 같이 계산해 달이 바뀌면 곧바로 따라간다.
+    # 근거는 일별 잡과 완전히 같은 함수를 쓴다 — 두 벌로 갈라져 어긋나는 일을 만들지 않는다.
+    baselines = _block("baselines", lambda d: _delta_baselines(d), now.date()) or {}
+
     live = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "updated_iso": now.isoformat(),
@@ -292,6 +335,10 @@ def main():
         "cities": cities or None,
         "simulation": simulation or None,
         "review": review or None,
+        # KPI 델타 기준 — 일별 스냅샷에만 있어 하루 한 번 바뀌던 것을 30분 잡으로 옮겼다
+        "prev_day": baselines.get("prev_day") or None,
+        "prev_month": baselines.get("prev_month") or None,
+        "prev_year": baselines.get("prev_year") or None,
         # 블록별 마지막 '실제 조회' 시각 — 다음 실행이 수명을 재는 기준이자, 화면에 신선도를 밝히는 근거
         "_fetched": meta,
     }
