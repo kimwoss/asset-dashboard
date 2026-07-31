@@ -24,17 +24,17 @@
        본문과 같은 13px이라 위계가 없었다. 그래서 중간을 열고 아래를 정리한다.
          대제목 h1 › 중제목 h2 › 소제목 h3 › 본문 › 설명글 › 보조
        숫자는 제목과 다른 리듬이 필요해 별도 축(num-*)으로 뗀다. */
-    --fs-display: clamp(30px, 5vw, 40px);  /* 인트로 히어로 */
-    --fs-h1: 24px;      /* 대제목 — 사이트 타이틀 */
-    --fs-h2: 17px;      /* 중제목 — 카드 제목 */
-    --fs-h3: 15px;      /* 소제목 — 카드 안 구획·강조 라벨 */
-    --fs-nav: 16px;     /* 탭 — 전역 길잡이라 본문보다 확실히 크게 */
-    --fs-body: 13.5px;  /* 본문 · 표 셀 */
-    --fs-cap: 12.5px;   /* 설명글 · 캡션 */
-    --fs-micro: 11.5px; /* 배지 · 단위 — 최소한만 */
-    --fs-num-xl: 30px;  /* 대표 KPI */
-    --fs-num-lg: 23px;  /* 일반 KPI */
-    --fs-num-md: 18px;  /* 보조 수치 */
+    --fs-display: clamp(32px, 5.2vw, 44px);  /* 인트로 히어로 */
+    --fs-h1: 26px;      /* 대제목 — 사이트 타이틀 */
+    --fs-h2: 19px;      /* 중제목 — 카드 제목 */
+    --fs-h3: 16.5px;      /* 소제목 — 카드 안 구획·강조 라벨 */
+    --fs-nav: 17px;     /* 탭 — 전역 길잡이라 본문보다 확실히 크게 */
+    --fs-body: 14.5px;  /* 본문 · 표 셀 */
+    --fs-cap: 13.5px;   /* 설명글 · 캡션 */
+    --fs-micro: 12.5px; /* 배지 · 단위 — 최소한만 */
+    --fs-num-xl: 32px;  /* 대표 KPI */
+    --fs-num-lg: 25px;  /* 일반 KPI */
+    --fs-num-md: 19.5px;  /* 보조 수치 */
     /* 하위호환 별칭 — 옛 이름을 새 역할로 잇는다 */
     --fs-hero: var(--fs-display); --fs-1: var(--fs-num-xl); --fs-2: var(--fs-num-lg);
     --fs-3: var(--fs-num-md); --fs-4: var(--fs-h3);
@@ -2249,14 +2249,19 @@ function renderCities(ct, net) {
   if (!ct || !ct.cities || !ct.cities.length || !ct.seoul) { if (tabBtn) tabBtn.style.display = "none"; return; }
   const seoul = ct.seoul;
   const byCost = [...ct.cities].sort((a, b) => a.avg_monthly - b.avg_monthly);
-  const cheapest = byCost[0];
   const reachable = ct.cities.filter(c => c.fire_target > 0 && net >= c.fire_target).length;
   const vsSeoul = c => seoul.avg_monthly ? c.avg_monthly / seoul.avg_monthly * 100 : 0;
 
-  // KPI — 서울 기준 · 최저 도시 · 지금 순자산으로 은퇴 가능한 도시 수
+  // 지금 순자산으로 감당되는 생활비 — 시트가 도시별 FIRE 필요자금을 낼 때 쓰는 것과 같은
+  // 비례식(서울 기준)을 그대로 쓴다. 그래야 아래 막대·달성률과 숫자가 어긋나지 않는다.
+  //   순자산 / 서울 FIRE필요 = 달성률 → 그 비율만큼의 연 예산이 지금 감당 가능한 몫
+  // '가장 저렴한 도시가 얼마'보다 '내가 지금 얼마까지 쓸 수 있나'가 판단에 바로 쓰인다.
+  const afford = seoul.fire_target ? seoul.annual_budget * (net / seoul.fire_target) : 0;
+
+  // KPI — 서울 기준 · 지금 감당 가능한 생활비 · 은퇴 가능한 도시 수
   document.getElementById("ct-kpis").innerHTML =
     kpiCard("서울 (기준)", fmtMan(seoul.avg_monthly) + "/월", `FIRE 필요 ${fmtEok(seoul.fire_target)} · 연 ${fmtMan(seoul.annual_budget)}`, true) +
-    kpiCard(`가장 저렴 · ${esc(ctShort(cheapest.name))}`, fmtMan(cheapest.avg_monthly) + "/월", `서울 대비 ${vsSeoul(cheapest).toFixed(0)}% · 월 ${fmtMan(seoul.avg_monthly - cheapest.avg_monthly)} 절약`) +
+    kpiCard("현재 순자산 기준", fmtMan(afford / 12) + "/월", `현재 순자산 ${fmtEok(net)} · 연 ${fmtMan(afford)}`) +
     kpiCard("지금 순자산으로 은퇴 가능", `${reachable} / ${ct.cities.length}곳`, `현재 순자산 ${fmtEok(net)} 기준 · 도시별 FIRE 필요자금 대비`);
 
   // 서울 대비 가로 막대 (도시명이 길어 가로가 읽기 좋다). 서울은 기준선으로 표시.
