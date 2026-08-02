@@ -266,7 +266,10 @@ def main():
         종전에는 실패하면 None을 실어 보내 프론트가 아침 스냅샷(최대 12시간 전)으로
         후퇴했다. 직전 성공값이 있는데 버릴 이유가 없다.
         """
-        if not _fresh(key, meta, now):
+        # 물려받을 값이 실제로 있을 때만 재사용한다. 스탬프만 보고 넘기면, 값이 빈 채
+        # 스탬프만 찍힌 상태에서 수명이 다할 때까지 계속 빈 값을 실어 나른다
+        # (2026-08-02 baselines가 이 상태로 몇 시간씩 null이었다).
+        if not _fresh(key, meta, now) and prev.get(key):
             reused.append(key)
             return prev.get(key)
         try:
@@ -340,12 +343,26 @@ def main():
         "simulation": simulation or None,
         "review": review or None,
         # KPI 델타 기준 — 일별 스냅샷에만 있어 하루 한 번 바뀌던 것을 30분 잡으로 옮겼다
+        # 블록을 제 이름으로도 싣는다 — _block은 수명이 남으면 prev.get("baselines")를
+        # 물려주는데, 결과를 prev_* 세 키로 흩어 담기만 하면 물려받을 원본이 없어
+        # 만료된 실행에서만 값이 서고 나머지는 전부 null이 된다. 그때마다 프론트가
+        # live 기준값과 일별 스냅샷 기준값 사이를 오가서 증감률이 하루에도 몇 번씩
+        # 튀었다 (2026-08-02 확인). 아래 prev_*는 프론트 호환용 평면 표기.
+        "baselines": baselines or None,
         "prev_day": baselines.get("prev_day") or None,
         "prev_month": baselines.get("prev_month") or None,
         "prev_year": baselines.get("prev_year") or None,
         # 블록별 마지막 '실제 조회' 시각 — 다음 실행이 수명을 재는 기준이자, 화면에 신선도를 밝히는 근거
         "_fetched": meta,
     }
+    # 자기점검 — _block(key)로 읽은 것은 반드시 payload[key]로도 실려야 다음 실행이
+    # 수명 안에서 물려받는다. 이름이 어긋나면 만료된 실행에서만 값이 서고 나머지는
+    # 조용히 비어, 화면이 두 기준값 사이를 오간다. 조용히 틀리느니 시끄럽게 막는다.
+    orphan = [k for k in TTL_MIN if TTL_MIN[k] > 0 and k not in live]
+    if orphan:
+        raise SystemExit(f"ERROR: 블록 {orphan} 이 payload에 없음 — "
+                         f"캐시가 물려받을 원본이 없어진다. 같은 이름으로 실어야 한다.")
+
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / "live.json").write_text(
         json.dumps(live, ensure_ascii=False, indent=1), encoding="utf-8")
