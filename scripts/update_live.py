@@ -33,6 +33,7 @@ import sheets_cities
 import sheets_sim
 import sheets_review
 import sheets_yearly
+import sheets_annual
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "docs" / "data"
@@ -55,6 +56,7 @@ TTL_MIN = {
     "fire":          180,   # ★종합 목표치. 달성률은 프론트가 순자산으로 재계산한다
     "simulation":    180,   # 은퇴 지도 — 순자산 연동이지만 하루 단위로 봐도 무방
     "spending":      180,   # 가계부. 사용자가 시트를 고치면 3시간 내 반영
+    "annual_flow":   180,   # 연도별 소득·지출. 과거는 확정값, 올해만 월별 표 따라 움직인다
     "asset_history": 180,
     "liabilities":   180,
     "monthly":       180,
@@ -298,6 +300,7 @@ def main():
     asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
     liabilities   = _block("liabilities", sheets_yearly.fetch_liabilities, now.date())
     cities        = _block("cities", sheets_cities.fetch_cities, now.date())
+    annual_flow   = _block("annual_flow", lambda _d: sheets_annual.fetch_annual_flow(), now.date())
     simulation    = _block("simulation", sheets_sim.fetch_simulation)
     review        = _block("review", sheets_review.fetch_review)
 
@@ -332,6 +335,7 @@ def main():
         "asset_history": asset_history or None,
         "liabilities": liabilities or None,
         "spending": spending or None,
+        "annual_flow": annual_flow or None,
         "cities": cities or None,
         "simulation": simulation or None,
         "review": review or None,
