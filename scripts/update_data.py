@@ -25,6 +25,7 @@ import sheets_cities
 import sheets_sim
 import sheets_review
 import sheets_yearly
+import sheets_annual
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -337,6 +338,9 @@ def main():
     if retire_exp:
         spending["retire"] = retire_exp
 
+    # 연도별 소득·지출 (시각화 탭 '연도별 소득·지출 요약'). 저축률 KPI와 연도별 표의 원본.
+    annual_flow = sheets_annual.fetch_annual_flow()
+
     # 살고싶은 도시 (🌍이주 대시보드) — Numbeo 기반 도시별 생활비. 실패 시 {} → 탭만 생략.
     cities = sheets_cities.fetch_cities(now.date())
 
@@ -375,6 +379,7 @@ def main():
         "asset_history": asset_history,
         "checkpoint": checkpoint,
         "spending": spending,
+        "annual_flow": annual_flow,
         "cities": cities,
         "simulation": simulation,
         "review": review,
