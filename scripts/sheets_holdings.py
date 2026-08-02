@@ -23,6 +23,8 @@ SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "★주식계좌"
 DATA_RANGE = "A4:K42"
 FX_CELL = "H1"
+# 일별 잡이 값을 써 넣는 탭. 이 탭을 참조하는 셀은 원 소스가 아니다 (아래 순환참조 탐지).
+_WRITEBACK_TAB = "★월별자산"
 
 # 연금성 계좌 판별 (인출 제약) — 그 외는 유동성
 _PENSION_PAT = ("연저펀", "IRP", "퇴직연금", "연금저축")
@@ -134,12 +136,18 @@ def fetch_holdings(with_dividends: bool = True, today: Optional[date] = None) ->
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
         fx = _num(ws.acell(FX_CELL, value_render_option="UNFORMATTED_VALUE").value)
         rows = ws.get(DATA_RANGE, value_render_option="UNFORMATTED_VALUE")
+        # 순환참조 탐지 — 아래 write_current_month()가 쓰는 탭을 이 셀이 되읽고 있으면
+        # 값이 자기 자신에서 나온다(A→B→A). 한 번 잘못 쓰이면 시트가 그 값을 사실로
+        # 굳혀버린다 (2026-08-01 우현 주택청약 10,098,550이 실제로 이렇게 박혔다).
+        formulas = ws.get(DATA_RANGE, value_render_option="FORMULA")
 
         holdings: List[Dict] = []
         last_account = ""
         div_cache: Dict[str, Dict[int, Tuple[float, str]]] = {}
 
-        for r in rows:
+        for i, r in enumerate(rows):
+            fr = (list(formulas[i]) + [""] * 11)[:11] if i < len(formulas) else [""] * 11
+            circular = any(_WRITEBACK_TAB in str(c) for c in fr)
             r = (list(r) + [""] * 11)[:11]
             account, owner, kind, ticker, name, qty, cur = (
                 str(r[0]).strip(), str(r[1]).strip(), str(r[2]).strip(),
@@ -190,6 +198,7 @@ def fetch_holdings(with_dividends: bool = True, today: Optional[date] = None) ->
                 "div_kinds": div_kinds,          # 월별 'actual'(확정) / 'est'(추정) / ''(없음)
                 "tax_rate": tax_rate,
                 "tax_note": tax_note,
+                "circular": circular,            # 이 값은 ★월별자산에서 되읽은 것 → 되쓰기 금지
             })
 
         if not holdings:
