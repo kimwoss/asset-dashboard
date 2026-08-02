@@ -183,13 +183,20 @@ def _totals_by_row(holdings: List[Dict], acct_rows: Dict[int, tuple]):
     index = {v: r for r, v in acct_rows.items()}  # (정규화 계좌명, 소유자) → 행
     totals: Dict[int, float] = {}
     unmapped = set()
+    circular = set()
     for h in holdings:
         row = index.get((_norm(h["account"]), h["owner"]))
         if row is None:
             unmapped.add((h["account"], h["owner"]))
             continue
+        # 이 보유내역이 ★월별자산을 되읽은 값이면, 그 행은 우리가 쓸 대상이 아니다.
+        # 되쓰면 값이 자기 자신에서 나오게 되어(A→B→A) 한 번의 오기록이 영구히 굳는다.
+        if h.get("circular"):
+            circular.add(row)
         totals[row] = totals.get(row, 0) + h["value_krw"]
-    return totals, unmapped
+    for row in circular:
+        totals.pop(row, None)
+    return totals, unmapped, circular
 
 
 def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> bool:
@@ -210,7 +217,11 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
         # 라벨을 먼저 읽어 행을 정한다 — 이름이 바뀌어도 따라간다
         acct_rows = _account_rows(ws.get(f"A1:D{ACCT_ROW_LAST}"))
-        totals, unmapped = _totals_by_row(holdings, acct_rows)
+        totals, unmapped, circular = _totals_by_row(holdings, acct_rows)
+        if circular:
+            names = ", ".join(f"{acct_rows[r][1]} {acct_rows[r][0]}({r}행)" for r in sorted(circular))
+            print(f"WARN: ★주식계좌가 ★월별자산을 되읽는 계좌 [{names}] — 해당 행 기록 생략. "
+                  f"★주식계좌의 해당 셀을 실제 잔액(하드값)으로 바꿔주세요.")
         if unmapped:
             # 부분 기록은 하지 않는다 — 매핑 못 한 계좌의 행에 0이 박혀 실제 잔액을
             # 지워버린다 (2026-07-17 W13이 실제로 이렇게 0이 됐다).
@@ -223,7 +234,7 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
         a1 = _col_a1(col)
         # 말단 계좌 행만, 한 칸씩 (소계·증감률 절대 미접촉)
         cells = [{"range": f"{a1}{row}", "values": [[round(totals.get(row, 0))]]}
-                 for row in acct_rows]
+                 for row in acct_rows if row not in circular]
         ws.batch_update(cells, value_input_option="USER_ENTERED")
         print(f"OK: ★월별자산 {today:%Y-%m} ({a1}열) 기록 — 계좌 합계 "
               f"{sum(totals.values())/1e8:.2f}억")
