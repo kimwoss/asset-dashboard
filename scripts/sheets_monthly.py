@@ -26,7 +26,29 @@ from typing import Any, Dict, List, Optional
 import sheets_fire  # 인증 재사용
 
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
-TAB = "★월별자산(2026년)"
+
+# 월별 원장 탭. 2026-08 '★월별자산(2026년)' → '★월별자산'으로 변경(연도 무관 이름).
+# 이 탭은 코드가 값을 '쓰기'까지 하므로 이름이 어긋나면 조용히 실패하면 안 된다 —
+# _ws()가 새 이름 → 옛 이름 순으로 찾고, 못 찾으면 예외를 그대로 올려 잡을 실패시킨다.
+TAB = "★월별자산"
+TAB_LEGACY = ("★월별자산(2026년)",)
+
+
+def _ws(gc):
+    """월별 원장 워크시트. 새 이름 → 옛 이름 순으로 찾는다 (이름 변경 전/후 모두 동작).
+
+    워크시트 목록 한 번으로 해결하므로 worksheet(title)과 API 비용이 같다.
+    둘 다 없으면 gspread 예외를 그대로 올린다 — 쓰기 대상 탭이라 조용히 넘기면 안 된다.
+    """
+    sh = gc.open_by_key(SPREADSHEET_ID)
+    by_title = {w.title: w for w in sh.worksheets()}
+    for t in (TAB, *TAB_LEGACY):
+        if t in by_title:
+            if t != TAB:
+                print(f"INFO: 월별 원장 탭이 아직 옛 이름('{t}')입니다 — '{TAB}'로 바꿔도 그대로 동작합니다")
+            return by_title[t]
+    return sh.worksheet(TAB)   # 없으면 WorksheetNotFound를 그대로 올린다
+
 
 # 계좌 행 탐색 범위 (3~15행이 말단 계좌, 16행부터 소계)
 ACCT_ROW_FIRST, ACCT_ROW_LAST = 3, 15
@@ -155,7 +177,7 @@ def sheet_grid(rng: str = GRID_RANGE):
         gc = sheets_fire._authorize(gspread)
         if gc is None:
             return None
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        ws = _ws(gc)
         _grid_cache[rng] = ws.get(rng, value_render_option="UNFORMATTED_VALUE")
         return _grid_cache[rng]
     except Exception as e:  # noqa: BLE001
@@ -214,7 +236,7 @@ def write_current_month(holdings: List[Dict], today: Optional[date] = None) -> b
         if gc is None:
             print("WARN: 시트 인증 없음 — 월별 기록 생략")
             return False
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        ws = _ws(gc)
         # 라벨을 먼저 읽어 행을 정한다 — 이름이 바뀌어도 따라간다
         acct_rows = _account_rows(ws.get(f"A1:D{ACCT_ROW_LAST}"))
         totals, unmapped, circular = _totals_by_row(holdings, acct_rows)
@@ -269,7 +291,7 @@ def write_current_month_realestate(re_assets: List[Dict], today: Optional[date] 
         gc = sheets_fire._authorize(gspread)
         if gc is None:
             return False
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        ws = _ws(gc)
         labels = ws.get(f"C{RE_ROW_FIRST}:C{RE_ROW_LAST}")
         a1 = _col_a1(col)
         cells, matched = [], []
