@@ -1,9 +1,17 @@
 # -*- coding: utf-8 -*-
 """⭐️분당부부_MASTER > 시각화 탭의 '상세항목별 지출 금액' → 월간 생활비.
 
-시각화 블록은 '2026년' 탭(월별 가계부)에서 INDEX/MATCH로 끌어온 파생표다.
-원본이 아니라 이 블록을 읽는 이유: 부호가 이미 지출=양수로 정규화돼 있고,
-월 12칸이 한 줄로 정렬돼 있어 파싱이 단순하다.
+원장(사용자가 매달 직접 적는 곳)은 **★가계부** 탭이다. 한 탭에 월별 7열 블록
+(소득 및 투자 / 고정비 / 변동비)이 1월부터 12월까지 나란히 있다.
+시각화 블록은 그 원장을 OFFSET으로 끌어온 파생표이고, 대시보드는 이 파생표만 읽는다.
+원본 대신 파생표를 읽는 이유: 부호가 이미 지출=양수로 정규화돼 있고, 월 12칸이
+한 줄로 정렬돼 있어 파싱이 단순하다.
+
+⚠️ 탭 이름을 바꿀 때 — 시각화 수식은 `'★가계부'!$E$5` 같은 직접 참조라 구글시트가
+   이름 변경을 자동으로 따라간다(INDIRECT를 쓰지 않는다). 코드도 원장 탭을 이름으로
+   직접 읽지 않으므로 파이프라인은 그대로 돈다. 다만 오타·삭제를 조용히 넘기지 않도록
+   아래에서 원장 탭이 실제로 있는지 확인하고 로그에 남긴다.
+   (2026-08 '2026년' → '★가계부'로 변경 — 해가 바뀌어도 같은 탭을 계속 쓰기 위함)
 
 블록 구조 (2026-07 사용자 재정리)
   헤더행  A='항목'  B='상세항목'  C~N = 2026년 1월 ~ 12월
@@ -25,6 +33,12 @@ import sheets_fire  # 인증·스프레드시트 ID 재사용
 
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "시각화"
+
+# 원장(사용자가 매달 쓰는 가계부) 탭. 코드가 직접 읽지는 않지만 — 시각화 수식이 이걸 참조하므로
+# 이 탭이 사라지거나 이름이 어긋나면 생활비가 조용히 0이 된다. 그래서 이름을 여기에 새겨 두고
+# 매 실행마다 존재를 확인한다. LEGACY는 이름을 바꾸기 전/후 모두 동작하게 하는 하위호환.
+LEDGER_TAB = "★가계부"
+LEDGER_TAB_LEGACY = ("2026년",)
 
 BLOCK = "A35:N60"          # 표 아래(합계·향후 행)까지 넉넉히 — 헤더는 라벨로 찾는다
 HEADER_A = "항목"          # 헤더행 A열 라벨 — 이 행 아래부터 항목
@@ -59,7 +73,21 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
         if gc is None:
             print("WARN: 시트 인증 없음 — 월간 생활비 생략")
             return {}
-        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        # 워크시트 목록을 한 번만 받아 시각화 탭을 집고, 겸사겸사 원장 탭 존재를 확인한다
+        # (worksheet(title)도 어차피 같은 메타데이터를 받으므로 API 호출은 늘지 않는다).
+        sheets = gc.open_by_key(SPREADSHEET_ID).worksheets()
+        titles = [w.title for w in sheets]
+        ledger = next((t for t in (LEDGER_TAB, *LEDGER_TAB_LEGACY) if t in titles), None)
+        if ledger is None:
+            print(f"WARN: 원장 탭('{LEDGER_TAB}')을 못 찾았습니다 — 시각화 수식이 끊겨 "
+                  f"생활비가 0으로 보일 수 있습니다. 탭 이름을 확인하세요.")
+        elif ledger != LEDGER_TAB:
+            print(f"INFO: 원장 탭이 아직 옛 이름('{ledger}')입니다 — '{LEDGER_TAB}'로 바꾸면 "
+                  f"해가 바뀌어도 그대로 쓸 수 있습니다 (수식은 자동으로 따라갑니다)")
+        ws = next((w for w in sheets if w.title == TAB), None)
+        if ws is None:
+            print(f"WARN: '{TAB}' 탭 없음 — 월간 생활비 생략")
+            return {}
         grid = ws.get(BLOCK, value_render_option="UNFORMATTED_VALUE")
 
         # 헤더행('항목')을 라벨로 찾는다 — 행이 밀려도 추적 가능
@@ -94,7 +122,7 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
         total = [sum(c["values"][i] for c in spend) for i in range(last_m)]
 
         # 아직 손대지 않은 달은 빼고 보여준다 — 달이 바뀌는 날(예: 8월 1일) 사용자가 가계부를
-        # 쓰기 전이면 '8월 0원 · 월평균 대비 −100%'처럼 보여 오해를 준다. '2026년' 탭에 그 달
+        # 쓰기 전이면 '8월 0원 · 월평균 대비 −100%'처럼 보여 오해를 준다. ★가계부 탭에 그 달
         # 숫자를 넣는 순간 시각화 수식이 채워지고 다음 갱신에서 자동으로 등장한다.
         trimmed = 0
         while last_m > 1 and total[last_m - 1] == 0:
