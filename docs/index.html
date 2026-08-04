@@ -3072,6 +3072,12 @@ async function render() {
     if (category === "전세보증금") return Object.entries(hAssets).find(([k]) => k.includes("전세"))?.[1];
     return null;  // 현금 등 이력 없음
   };
+  // ⚠️ 증감의 '현재값'은 반드시 이 표에 찍은 평가액(라이브)을 쓴다.
+  //    예전엔 asset_history.cur(=일별 잡이 ★월별자산에 얼려 둔 값)을 썼는데, 평가액 열은
+  //    30분마다 갱신되는 라이브라 둘의 기준이 어긋났다. 2026-08-04 실측: 우현 주식계좌가
+  //    평가액 4.08억(라이브)인데 전월 대비는 스냅샷(4.04억) 기준 +119만으로 찍혀,
+  //    표의 4.08억 − 전월 4.03억 = 478만과 맞지 않았다. 합계 행은 라이브 기준이라
+  //    개별 행을 다 더해도 합계 증감과 어긋났다. 기준을 평가액으로 통일한다.
   // 증감 셀: base(전월/전년값) 대비 cur의 변화. goodWhenUp=false면 감소가 초록(부채).
   // 억/만원 혼합 — 대출 상환 등 소액도 '33만'처럼 보이게 (fmtEok만 쓰면 0.00억).
   const fmtChg = v => Math.abs(v) >= 1e8 ? fmtEok(v) : fmtMan(v);
@@ -3090,8 +3096,8 @@ async function render() {
       <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${a.name}</td>
       <td>${a.owner}</td><td>${a.category}</td>
       <td><b>${fmtEok(a.value_krw)}</b></td>
-      ${deltaCell(h.cur ?? a.value_krw, h.m1, true)}
-      ${deltaCell(h.cur ?? a.value_krw, h.y1, true)}
+      ${deltaCell(a.value_krw, h.m1, true)}
+      ${deltaCell(a.value_krw, h.y1, true)}
     </tr>`;
   }).join("");
   const debtRows = (snap.liabilities || []).map(l => {
@@ -3100,8 +3106,8 @@ async function render() {
       <td class="name"><span class="chip" style="background:var(--down)"></span>${l.name}</td>
       <td>${l.owner}</td><td>부채</td>
       <td class="delta-down"><b>−${fmtEok(l.amount_krw)}</b></td>
-      ${deltaCell(h.cur ?? l.amount_krw, h.m1, false)}
-      ${deltaCell(h.cur ?? l.amount_krw, h.y1, false)}
+      ${deltaCell(l.amount_krw, h.m1, false)}
+      ${deltaCell(l.amount_krw, h.y1, false)}
     </tr>`;
   }).join("");
   // 합계 행 — 총자산은 자산 행 끝, 총부채는 부채 행 끝, 순자산은 맨 아래.
