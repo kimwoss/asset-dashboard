@@ -612,6 +612,7 @@
   <section class="card">
     <h2>순자산 추이</h2>
     <div id="trend"></div>
+    <div class="note" id="trend-note"></div>
   </section>
 
   <section class="card" id="flow-section" style="display:none">
@@ -2920,6 +2921,14 @@ function showToast(msg) {
   showToast._t = setTimeout(() => t.classList.remove("on"), 2200);
 }
 
+// 업데이트 트리 — 화면의 숫자는 반드시 이 순서로만 내려온다.
+//   ① 구글시트(★월별자산·★가계부·★주식계좌 등)  = 사람이 쓰는 원장
+//   ② 일별 잡 07:30 KST → latest.enc / history.enc = 그날의 확정 스냅샷
+//   ③ 30분 잡 → live.enc                          = 시세·보유·부채 실시간 덮어쓰기
+//   ④ applyLive(snap, live)                       = ②에 ③을 통째로 갈아끼움
+//   ⑤ 아래 net / gross / debt                     = '지금'을 뜻하는 단 하나의 값
+//   ⑥ KPI · 자산 배분 도넛 · FIRE · 후보 도시 · 순자산 추이 끝점이 전부 ⑤만 참조
+// ⑤를 건너뛰고 위젯이 ②를 직접 읽으면 한 화면에 시점이 두 개 생긴다 — 금지.
 async function render() {
   const snap = structuredClone(baseSnap);
 
@@ -2932,7 +2941,17 @@ async function render() {
     ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$" + (liveAt ? "" : " (" + snap.fx_asof + ")")
     : "";
 
-  // history → 일별 총자산
+  // ── '지금' 값 (단일 기준) ─────────────────────────────────────────────
+  // 화면에 현재로 찍히는 순자산·총자산·부채는 전부 여기서만 나온다. applyLive가
+  // 끝난 직후 한 번 확정하고 KPI·도넛·FIRE·후보 도시·추이 끝점이 모두 이걸 참조한다.
+  // 예전엔 KPI/도넛은 라이브, 추이는 history.csv(그날 아침 스냅샷)를 따로 읽어서
+  // 같은 화면에 순자산이 18.28억과 18.23억으로 동시에 떴다 (2026-08-04).
+  const todayKST = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const net = snap.net_krw ?? snap.total_krw;
+  const gross = snap.gross_krw ?? snap.assets.reduce((s, a) => s + a.value_krw, 0);
+  const debt = snap.debt_krw ?? 0;
+
+  // history → 일별 순자산 (부채가 음수로 들어와 행 합계가 곧 순자산)
   const daily = new Map();
   for (const line of histText.trim().split("\n").slice(1)) {
     if (!line) continue;
@@ -2947,13 +2966,14 @@ async function render() {
   // history.csv는 실행할 때마다 그날 행이 쌓여 이번 달만 일별로 촘촘해진다.
   // 그대로 그리면 시간이 갈수록 x축이 뭉개지므로 월 단위로 접는다 (KPI 델타는 daily 유지).
   const byMonth = new Map();
-  for (const p of hist) byMonth.set(p.date.slice(0, 7), p);
-  const histM = [...byMonth.values()];
+  for (const p of hist) byMonth.set(p.date.slice(0, 7), { ...p });
+  // 이번 달 점은 위에서 확정한 '지금' 순자산으로 덮는다 — 이력 파일의 오늘 행은
+  // 일별 잡이 아침에 기록한 값이라, 그대로 두면 도넛과 추이가 서로 다른 시점을 말한다.
+  const curKey = todayKST.slice(0, 7);
+  byMonth.set(curKey, { date: todayKST, total: net });
+  const histM = [...byMonth.values()].sort((a, b) => a.date < b.date ? -1 : 1);
 
   // KPI
-  const net = snap.net_krw ?? snap.total_krw;
-  const gross = snap.gross_krw ?? snap.assets.reduce((s, a) => s + a.value_krw, 0);
-  const debt = snap.debt_krw ?? 0;
   // 전일·전월·전년 대비 (%). 색은 방향이 아니라 '우리에게 좋은가'로 — 부채는 줄면 초록.
   // 전월=지금이면 6월말, 전년=2025년말 기준. 기준값이 없는 항목은 조용히 생략한다.
   const pm = snap.prev_month;
@@ -3045,8 +3065,13 @@ async function render() {
     `대출을 담보 자산에 상계한 순지분 기준` +
     (unsecured > 0 ? ` · 무담보 ${fmtEok(unsecured)}은 자산 비중대로 안분` : "");
 
-  // 추이
+  // 추이 — 마지막 점은 위 KPI·도넛과 같은 '지금' 값이다 (아래 안내로 명시).
   lineChart(document.getElementById("trend"), histM);
+  document.getElementById("trend-note").textContent =
+    `2025년까지는 연말 기준 · 2026년부터는 월말 기준 · `
+    + `${curKey.slice(0, 4)}년 ${Number(curKey.slice(5))}월은 `
+    + (liveAt ? `${liveAt} 실시간 평가액` : `${snap.updated_at} 스냅샷`)
+    + ` — 위 KPI·자산 배분과 같은 시점입니다`;
 
   // 금융자산 탭 (★주식계좌)
   initTabs();
@@ -3058,7 +3083,6 @@ async function render() {
   renderSim(snap.simulation);
   renderReview(snap.review);
   // 브리핑 맨 위 금융자산 — 현재값은 실시간, 전일은 history, 전월·전년은 asset_history
-  const todayKST = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
   renderCheckpoint(snap.checkpoint,
     finTodayHtml(snap.financial, finDailyByOwner(histText, todayKST), snap.asset_history));
 
