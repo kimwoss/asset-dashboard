@@ -3094,7 +3094,8 @@ async function render() {
     if (category === "주식") return hAssets["계좌:" + owner];
     if (category === "부동산") return Object.entries(hAssets).find(([k]) => name.includes(k))?.[1];
     if (category === "전세보증금") return Object.entries(hAssets).find(([k]) => k.includes("전세"))?.[1];
-    return null;  // 현금 등 이력 없음
+    // 이름이 곧 이력 키인 항목 (회사주식·외화). 없으면 null — 현금성 자산 등은 이력이 없다.
+    return hAssets[name] || null;
   };
   // ⚠️ 증감의 '현재값'은 반드시 이 표에 찍은 평가액(라이브)을 쓴다.
   //    예전엔 asset_history.cur(=일별 잡이 ★월별자산에 얼려 둔 값)을 썼는데, 평가액 열은
