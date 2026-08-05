@@ -360,14 +360,24 @@ def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
                     "m1": round(sum(cell(r, prev_col) for r in rows)),
                     "y1": round(sum(cell(r, year_col) for r in rows)),
                 }
-        # 부동산·전세 (17~24행): 라벨을 키로
+        # 부동산·전세 (17~24행): 라벨을 키로. 기타(회사주식·원달러)는 대시보드가 '회사주식·외화'
+        # 한 줄로 합쳐 보여주므로 여기서도 합산해 같은 키로 넣는다 — 안 넣으면 그 행만 전월·전년이
+        # 비고, 시트 소계(25행)에는 포함돼 있어 개별 증감의 합이 총자산 증감과 어긋난다.
+        etc = {"cur": 0.0, "m1": 0.0, "y1": 0.0}
         for r in range(RE_ROW_FIRST, RE_ROW_LAST + 1):
             lab = label(r)
-            if not lab or "주식" in lab or "원달러" in lab:
+            if not lab:
+                continue
+            if "주식" in lab or "원달러" in lab:
+                for k, c in (("cur", cur_col), ("m1", prev_col), ("y1", year_col)):
+                    etc[k] += cell(r, c)
                 continue
             if cell(r, cur_col) or cell(r, prev_col):
                 assets[lab] = {"cur": round(cell(r, cur_col)), "m1": round(cell(r, prev_col)),
                                "y1": round(cell(r, year_col))}
+        # 전월 값이 없으면 기준이 없는 것 — 0을 기준으로 삼아 +∞%를 찍느니 그냥 비워 둔다.
+        if etc["m1"]:
+            assets["회사주식·외화"] = {k: round(v) for k, v in etc.items()}
         # 부채 (26~35행): 라벨을 키로 (자산 상세 이름과 동일)
         liabilities: Dict[str, Dict] = {}
         for r in LIAB_ROWS:
