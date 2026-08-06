@@ -592,7 +592,7 @@
   </section>
 
   <section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적 — 39세부터 100세까지</h2>
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
       <div class="seg" id="sim-seg" style="margin-bottom:0">
         <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
         <button class="seg-btn" data-mode="nominal">명목</button>
@@ -903,7 +903,7 @@ function donutCell(parent) {
 }
 
 /* ---- 추이 라인 차트 (크로스헤어 + 툴팁) ---- */
-function lineChart(container, points) {
+function lineChart(container, points, opts) {
   // points: [{date, total}]
   const W = Math.min(container.clientWidth || 900, 1000), H = 260;
   const m = { l: 56, r: 16, t: 24, b: 26 };  // t: 점 위 값 라벨 자리
@@ -924,10 +924,13 @@ function lineChart(container, points) {
     t.textContent = fmtEok(v);
   }
   // x labels — 연말은 "YYYY", 그 외는 "YY.MM". 겹치지 않게 최대 ~8개 균등 표시.
-  const xlab = date => {
-    const [y, mo, d] = date.split("-");
-    return (mo === "12" && d === "31") ? y : y.slice(2) + "." + mo;
-  };
+  // 연 단위 보기에서는 날짜가 연말이 아니어도(올해 점은 오늘) 연도만 찍는다.
+  const xlab = (opts && opts.yearly)
+    ? date => date.slice(0, 4)
+    : date => {
+        const [y, mo, d] = date.split("-");
+        return (mo === "12" && d === "31") ? y : y.slice(2) + "." + mo;
+      };
   // 라벨은 매 기간 표시. 다만 폭이 부족하면(연 단위로 늘어나면) 겹치지 않게 솎는다.
   const per = (W - m.l - m.r) / Math.max(1, points.length - 1);
   const step = Math.max(1, Math.ceil(34 / Math.max(per, 1)));
@@ -2973,6 +2976,13 @@ async function render() {
   byMonth.set(curKey, { date: todayKST, total: net });
   const histM = [...byMonth.values()].sort((a, b) => a.date < b.date ? -1 : 1);
 
+  // 연 단위 보기 — 각 해의 마지막 점 하나. 올해는 '지금' 값이 그 해의 끝점이 된다.
+  // 기본을 이쪽으로 두는 이유: 지난 해들은 어차피 연말 1점뿐이라, 올해만 월별로 촘촘하면
+  // x축의 한 칸이 어떤 해는 1년이고 어떤 해는 1달이라 기울기를 눈으로 비교할 수 없다.
+  const byYear = new Map();
+  for (const p of histM) byYear.set(p.date.slice(0, 4), p);
+  const histY = [...byYear.values()];
+
   // KPI
   // 전일·전월·전년 대비 (%). 색은 방향이 아니라 '우리에게 좋은가'로 — 부채는 줄면 초록.
   // 전월=지금이면 6월말, 전년=2025년말 기준. 기준값이 없는 항목은 조용히 생략한다.
@@ -3066,12 +3076,27 @@ async function render() {
     (unsecured > 0 ? ` · 무담보 ${fmtEok(unsecured)}은 자산 비중대로 안분` : "");
 
   // 추이 — 마지막 점은 위 KPI·도넛과 같은 '지금' 값이다 (아래 안내로 명시).
-  lineChart(document.getElementById("trend"), histM);
-  document.getElementById("trend-note").textContent =
-    `2025년까지는 연말 기준 · 2026년부터는 월말 기준 · `
-    + `${curKey.slice(0, 4)}년 ${Number(curKey.slice(5))}월은 `
-    + (liveAt ? `${liveAt} 실시간 평가액` : `${snap.updated_at} 스냅샷`)
-    + ` — 위 KPI·자산 배분과 같은 시점입니다`;
+  // 기본은 연 단위. 올해만 월별로 촘촘하면 x축 한 칸의 뜻이 해마다 달라져
+  // 기울기를 눈으로 비교할 수 없다. 올해 안을 보고 싶으면 차트를 눌러 펼친다.
+  const asof = liveAt ? `${liveAt} 실시간 평가액` : `${snap.updated_at} 스냅샷`;
+  const curY = curKey.slice(0, 4), curM = Number(curKey.slice(5));
+  let trendYearly = true;
+  const drawTrend = () => {
+    const box = document.getElementById("trend");
+    lineChart(box, trendYearly ? histY : histM, { yearly: trendYearly });
+    box.style.cursor = "pointer";
+    box.title = trendYearly ? `${curY}년 월별로 펼치기` : "연 단위로 접기";
+    document.getElementById("trend-note").textContent = trendYearly
+      ? `해마다 1점 — ${curY}년은 ${asof} 기준으로, 위 KPI·자산 배분과 같은 시점입니다.`
+        + ` 차트를 누르면 ${curY}년을 월별로 펼칩니다.`
+      : `2025년까지는 연말 기준 · 2026년부터는 월말 기준 · ${curY}년 ${curM}월은 ${asof}`
+        + ` — 위 KPI·자산 배분과 같은 시점입니다. 차트를 누르면 연 단위로 접힙니다.`;
+  };
+  document.getElementById("trend").addEventListener("click", () => {
+    trendYearly = !trendYearly;
+    drawTrend();
+  });
+  drawTrend();
 
   // 금융자산 탭 (★주식계좌)
   initTabs();
