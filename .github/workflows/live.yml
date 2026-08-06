@@ -12,7 +12,11 @@ name: update-live-quotes
 # (update_live.py TTL_MIN)가 눌러 준다 — 캐시 적중 시 9블록 중 2블록만 읽는다.
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    # 폴백 전용 — 정시 30분 간격은 tools/trigger_live.gs(Apps Script)가 담당한다.
+    # 종전엔 여기도 */30이라 dispatch와 계속 겹쳤다. 러너 배정이 밀리는 시간대에는
+    # 그 겹침이 곧 '취소된 실행'이 되어 실패 알림 메일로 돌아왔다(2026-08-07 새벽).
+    # 트리거가 죽었을 때만 받쳐 주면 되므로 시간당 1회로 낮춘다.
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 # main을 30분마다 더럽히지 않도록 live-data 고아 브랜치에 단일 커밋으로 굴린다.
@@ -21,7 +25,10 @@ permissions:
 
 concurrency:
   group: update-live
-  cancel-in-progress: true   # 지연 누적 시 최신 것만 남기면 된다
+  # 취소하지 않는다. 취소된 실행은 GitHub이 '실패'로 알림을 보내는데, 실제로는
+  # 러너를 기다리다 밀린 것뿐이라 고칠 게 없는 메일만 쌓인다(2026-08-07 새벽 4건).
+  # 실제 작업은 30~70초라 뒤로 밀려 순서대로 도는 편이 낫다 — 결과도 같고 알림도 없다.
+  cancel-in-progress: false
 
 jobs:
   live:
