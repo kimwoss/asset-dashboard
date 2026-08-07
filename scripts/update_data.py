@@ -228,6 +228,17 @@ def main():
             "value_krw": price_man * 10000,
         })
 
+    # KB 신선도 점검 — KB시세는 매주 금요일 08:00 KST에 갱신된다. 예약 실행이 밀리거나
+    # 유실되면 지난주 시세를 그대로 들고 가는데, '값이 안 오른 주'와 겉으로 구분이 안 돼
+    # 조용히 묵는다. 2026-08-07 실제: 금요일 크론이 통째로 유실돼 송천센트레빌 +1,500만이
+    # 반나절 늦게 반영됐고, 로그만 봐선 정상 실행과 똑같아 보였다. 그래서 명시적으로 남긴다.
+    friday = now.date() - timedelta(days=(now.weekday() - 4) % 7)
+    for a in assets:
+        if a["category"] == "부동산" and str(a.get("asof", "")) < friday.isoformat():
+            print(f"WARN: {a['name']} KB시세 기준일이 {a.get('asof')}입니다 — "
+                  f"이번 주 금요일({friday}) 시세가 아직 안 잡혔습니다. "
+                  f"KB 갱신(금 08:00) 전에 실행됐거나 금요일 실행이 유실된 것입니다.")
+
     # 3) 현금성 (cash 목록 — manual_assets로 통합 가능하나 하위호환 유지)
     for c in pf.get("cash") or []:
         assets.append({
