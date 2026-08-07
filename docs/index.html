@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>분당부부 대시보드</title>
+<!-- 히어로 이미지에 <link rel=preload>를 걸지 않는다. 크롬의 preload 스캐너는 뷰포트가
+     정해지기 전에 돌아 media 조건을 무시하고 양쪽 파일을 다 받아버린다(실측 확인).
+     이 페이지는 CSS가 통째로 인라인이라 스타일시트 왕복이 없어 preload 이득도 거의 없다. -->
 <style>
   :root {
     /* 색 — 표면/잉크 */
@@ -474,16 +477,32 @@
            display: flex; flex-direction: column; justify-content: flex-end;
            opacity: 1; transition: opacity 1.05s cubic-bezier(.4,0,.2,1); }
   #intro.out { opacity: 0; pointer-events: none; }
-  #intro .bg { position: absolute; inset: 0;
-    /* assets/hero.jpg 가 있으면 그 사진이, 없으면 아래 포르투 톤 그라디언트가 보인다.
-       초점 60% — 하늘(위)보다 도시·강(아래)이 더 보이도록 아래쪽으로 내렸다. */
-    background:
-      url("assets/hero.jpg") center 60%/cover no-repeat,
+  /* 사진이 없을 때 보이는 포르투 톤 폴백 — 아래 규칙들이 공유한다. */
+  #intro .bg {
+    --hero-tone:
       radial-gradient(92% 26% at 50% 56%, rgba(214,126,66,.20), transparent 62%),
       radial-gradient(120% 82% at 50% 15%, #2f6f9c 0%, #235c85 42%, transparent 72%),
-      linear-gradient(180deg, #16466f 0%, #1e5680 40%, #17496a 62%, #103a54 82%, #0b2b3d 100%);
+      linear-gradient(180deg, #16466f 0%, #1e5680 40%, #17496a 62%, #103a54 82%, #0b2b3d 100%); }
+  #intro .bg { position: absolute; inset: 0;
+    /* 초점 60% — 하늘(위)보다 도시·강(아래)이 더 보이도록 아래쪽으로 내렸다.
+       ⚠️ 해상도: 인트로는 화면을 꽉 채우고(cover) 시작할 때 1.045배로 확대돼 있어,
+       레티나(DPR 2)에서는 뷰포트 폭의 2배가 넘는 원본이 필요하다. 한때 2000px짜리로
+       줄여 둔 적이 있는데(0a2a975) 1.4배 이상 늘어나 눈에 띄게 뭉갰다.
+       지금은 3456px WebP가 기본, WebP를 못 읽는 브라우저만 2400px JPEG로 내려간다. */
+    background: url("assets/hero.jpg") center 60%/cover no-repeat, var(--hero-tone);
     opacity: 0; transform: scale(1.045); transform-origin: 50% 62%;
     animation: introBg 1.6s ease forwards, introZoom 22s ease-out forwards; }
+  @supports (background-image: image-set(url("assets/hero.webp") type("image/webp"))) {
+    #intro .bg { background-image:
+      image-set(url("assets/hero.webp") type("image/webp"),
+                url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
+    /* 좁은 화면은 3456px을 받아 봐야 다 못 쓴다 — 1600px로 충분히 선명하고 4배 가볍다. */
+    @media (max-width: 760px) {
+      #intro .bg { background-image:
+        image-set(url("assets/hero-sm.webp") type("image/webp"),
+                  url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
+    }
+  }
   #intro .scrim { position: absolute; inset: 0; pointer-events: none;
     /* 글자 영역만 은은하게 — 하단을 너무 어둡게 덮지 않아 강·수변이 드러난다 */
     background:
