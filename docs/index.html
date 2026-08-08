@@ -252,6 +252,10 @@
 
   /* 설명 문구 (통일) */
   .note, .goal-sub, .cp-mkt-note { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 10px; line-height: 1.5; }
+  /* 설명글 안에 섞이는 되돌리기 버튼 — 링크처럼 보이되 버튼이라 키보드로도 닿는다 */
+  .linkish { font: inherit; color: var(--c-re); background: none; border: none; padding: 0;
+    cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .linkish:hover { opacity: .75; }
   .goal-sub { margin-top: 5px; }
 
   /* 범례 */
@@ -1898,7 +1902,10 @@ const manNum = v => { const r = Math.round(v / 1e4); return (r === 0 ? 0 : r).to
 /* 월별 스택 막대 — 막대 위에 합계, 모든 달 라벨 (마우스오버 없이 읽히게).
    음수 항목(환급·정정)은 쌓지 않고 합계에만 반영한다. 스택 막대에 음수를 넣으면
    기준선이 무너져 다른 달과 높이를 비교할 수 없게 되기 때문. */
-function stackedBars(container, months, series, totals) {
+// opts.onPick(i)를 주면 달을 고를 수 있다 — 아래 '카테고리 비중' 도넛이 그 달로 바뀐다.
+// 하이라이트·클릭판은 세그먼트보다 먼저 그려 뒤에 깔린다. 위에 덮으면 세그먼트 툴팁이 죽는다.
+function stackedBars(container, months, series, totals, opts) {
+  const { onPick = null, selected = -1 } = opts || {};
   container.innerHTML = "";
   const n = months.length;
   if (!n) { container.textContent = "데이터가 아직 없습니다."; return; }
@@ -1918,6 +1925,16 @@ function stackedBars(container, months, series, totals) {
       .textContent = manNum(v);
   }
 
+  if (onPick) {
+    for (let i = 0; i < n; i++) {
+      const col = el("rect", { x: m.l + bw * i + 2, y: m.t - 22, width: bw - 4,
+                               height: H - m.t - m.b + 24, rx: 8,
+                               fill: i === selected ? "var(--grid)" : "transparent" }, svg);
+      col.style.cursor = "pointer";
+      col.addEventListener("click", () => onPick(i));
+    }
+  }
+
   const base = new Array(n).fill(0);
   for (const [si, s] of series.entries()) {
     for (let i = 0; i < n; i++) {
@@ -1926,6 +1943,7 @@ function stackedBars(container, months, series, totals) {
       const y0 = ys(base[i]), y1 = ys(base[i] + v);
       const r = el("rect", { x: xc(i) - barW / 2, y: y1, width: barW, height: Math.max(0.6, y0 - y1),
                              fill: s.color, "fill-opacity": 0.92 }, svg);
+      if (onPick) { r.style.cursor = "pointer"; r.addEventListener("click", () => onPick(i)); }
       r.addEventListener("mousemove", ev => showTip(ev,
         `<b>${months[i].label}</b> · ${s.label}<br>${fmtWon(s.values[i])}` +
         `<br><span style="color:var(--ink-muted)">합계 ${fmtWon(totals[i])} 중 ` +
@@ -1939,7 +1957,9 @@ function stackedBars(container, months, series, totals) {
     el("text", { x: xc(i), y: ys(base[i]) - 8, "text-anchor": "middle", "font-size": 11.5,
                  "font-weight": 700, fill: "var(--ink-1)" }, svg)
       .textContent = manNum(totals[i]);
-    el("text", { x: xc(i), y: H - 9, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
+    el("text", { x: xc(i), y: H - 9, "text-anchor": "middle", "font-size": 11,
+                 "font-weight": i === selected ? 700 : 400,
+                 fill: i === selected ? "var(--ink-1)" : "var(--ink-muted)" }, svg)
       .textContent = months[i].label;
   }
   el("text", { x: m.l - 8, y: m.t - 12, "text-anchor": "end", "font-size": 10, fill: "var(--ink-muted)" }, svg)
@@ -1982,10 +2002,9 @@ function renderSpending(sp, liabs) {
   cards += kpiCard(`${sp.year}년 누적`, fmtMan(ytd), `${n}개월 합계`);
   document.getElementById("sp-kpis").innerHTML = cards;
 
-  stackedBars(document.getElementById("sp-bars"), months, series, totals);
-
-  // 카테고리 비중 — 누적·이번 달·월평균을 나란히. 탭으로 갈아끼우면 서로 비교가 안 됐다.
-  const row = document.getElementById("sp-donuts"); row.innerHTML = "";
+  // 카테고리 비중 — 고른 달과 월평균을 나란히. 탭으로 갈아끼우면 서로 비교가 안 됐다.
+  const row = document.getElementById("sp-donuts");
+  const noteEl = document.getElementById("sp-donut-note");
   const donutOf = (title, caption, pick) => {
     const slices = sp.categories.map((c, i) => ({ label: c.name, value: Math.max(0, pick(c)), color: spColor(c.name, i) }))
       .filter(s => s.value > 0).sort((a, b) => b.value - a.value);
@@ -1996,13 +2015,39 @@ function renderSpending(sp, liabs) {
       annotateTop: 3, annFmt: v => manNum(v) + "만",       // 상위 3개는 링 위에 값 병기
     });
   };
-  donutOf(months[n - 1].label, "진행 중", c => c.values[n - 1] || 0);
-  donutOf("월평균", `${months[0].label}~${months[cn - 1].label} 마감 ${cn}개월`,
-          c => c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn);
+  // 왼쪽 도넛은 '이번 달' 고정이 아니라 위 막대에서 고른 달을 따라간다.
+  // 지난달 구성을 보려고 시트를 다시 여는 게 이 화면에서 제일 잦은 이탈이었다.
+  let selMonth = n - 1;
 
-  const re = sp.retire;
-  document.getElementById("sp-donut-note").textContent =
-    "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다.";
+  const paintDonuts = () => {
+    row.innerHTML = "";
+    const isCur = selMonth === n - 1;
+    donutOf(months[selMonth].label, isCur && inProgress ? "진행 중" : "마감",
+            c => c.values[selMonth] || 0);
+    donutOf("월평균", `${months[0].label}~${months[cn - 1].label} 마감 ${cn}개월`,
+            c => c.values.slice(0, cn).reduce((a, b) => a + b, 0) / cn);
+    noteEl.innerHTML =
+      "월평균은 마감된 달만 반영 — 가운데 금액이 '보통 달' 기준선입니다."
+      + `<br>위 막대에서 달을 누르면 왼쪽 도넛이 그 달로 바뀝니다.`
+      + (isCur ? "" : ` 지금 <b>${months[selMonth].label}</b>을 보는 중 —`
+                    + ` <button type="button" class="linkish" id="sp-donut-reset">`
+                    + `${months[n - 1].label}로 돌아가기</button>`);
+    const reset = document.getElementById("sp-donut-reset");
+    if (reset) reset.addEventListener("click", () => pick(n - 1));
+  };
+
+  const paintBars = () => stackedBars(document.getElementById("sp-bars"), months, series, totals,
+                                      { selected: selMonth, onPick: pick });
+
+  function pick(i) {
+    if (i === selMonth) return;
+    selMonth = i;
+    paintBars();
+    paintDonuts();
+  }
+
+  paintBars();
+  paintDonuts();
 
   // ── 지금 vs 은퇴: 표준 카테고리로 정규화해 비교 ────────────────────────────
   // 두 데이터는 분류가 아니라 '포함 범위'가 다르다. 가계부는 통장에서 나간 돈만 적히니
@@ -2012,7 +2057,7 @@ function renderSpending(sp, liabs) {
   const jeanseNote = jeonse.monthly
     ? `🟡 지금 주거 = 가계부 관리비 + <b>전세대출 이자 ${manNum(jeonse.monthly)}만/월</b> (보증금 ${Math.round(jeonse.principal / 1e8 * 10) / 10}억 조달분, 원금 상환 제외)`
     : "";
-  const norm = buildStdCompare(sp, re, cn, jeonse.monthly ? { "주거": jeonse.monthly } : null);
+  const norm = buildStdCompare(sp, sp.retire, cn, jeonse.monthly ? { "주거": jeonse.monthly } : null);
   document.getElementById("sp-retire-card").style.display = norm ? "" : "none";
   document.getElementById("sp-bridge-card").style.display = norm ? "" : "none";
   if (norm) {
