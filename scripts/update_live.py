@@ -323,6 +323,7 @@ def main():
     asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
     liabilities   = _block("liabilities", sheets_yearly.fetch_liabilities, now.date())
     cities        = _block("cities", sheets_cities.fetch_cities, now.date())
+    annual_flow   = _block("annual_flow", lambda _d: sheets_annual.fetch_annual_flow(), now.date())
     simulation    = _block("simulation", sheets_sim.fetch_simulation)
     review        = _block("review", sheets_review.fetch_review)
 
@@ -331,10 +332,6 @@ def main():
         **(sheets_spending.fetch_spending(d) or {}),
         **({"retire": r} if (r := sheets_spending.fetch_retirement_expense(d)) else {}),
     }, now.date())
-    # ⚠️ annual_flow는 반드시 spending 뒤에 온다 — 원금 차감의 상한(그 해 '대출' 지출액)을
-    # spending의 excluded에서 가져오기 때문이다. 위로 올리면 NameError.
-    annual_flow   = _block("annual_flow", lambda _d: sheets_annual.fetch_annual_flow(
-        sheets_annual.loan_expense_from_spending(spending)), now.date())
 
     # KPI 델타의 기준(전일·전월·전년) — 종전엔 일별 잡만 만들어 하루 한 번(07:30)에야 바뀌었다.
     # 달이 바뀐 8/1 아침에 '전월'이 아직 6월을 가리키는 문제가 여기서 나왔다(일별 잡 전이라

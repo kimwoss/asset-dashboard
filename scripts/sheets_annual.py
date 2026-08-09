@@ -18,7 +18,6 @@
 from typing import Any, Dict, List
 
 import sheets_fire
-import sheets_monthly
 
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "시각화"
@@ -35,65 +34,7 @@ def _num(v: Any) -> float:
         return 0.0
 
 
-def loan_expense_from_spending(spending: Dict[str, Any]) -> Dict[int, float]:
-    """생활비 블록에서 '올해 지출에 대출로 잡힌 금액'을 뽑는다 — 원금 차감의 상한.
-
-    sheets_spending이 '대출'을 excluded로 이미 분리해 두었으므로 그 값을 그대로 쓴다.
-    두 곳에서 따로 세면 어긋나므로 출처를 하나로 묶는다.
-    """
-    if not spending:
-        return {}
-    year = spending.get("year")
-    if not year:
-        return {}
-    for e in spending.get("excluded") or []:
-        if e.get("name") == "대출":
-            return {int(year): sum(e.get("values") or [])}
-    return {}
-
-
-# ── 대출 원금 상환액 ──────────────────────────────────────────────────────────
-# 빚 갚는 돈은 이자(진짜 나간 돈)와 원금(순자산이 그만큼 는 것)이 섞여 있다. 원금을
-# 지출로 세면 저축률이 실제보다 낮게 나온다. 2025년은 사용자가 원장에 조정 셀을 넣어
-# 걷어냈고 2026년은 그대로 들어 있어, 두 해 저축률이 같은 잣대가 아니었다.
-#
-# 원금은 ★월별자산의 대출 잔액이 줄어든 만큼이다 — 가계부를 손대지 않아도 뽑힌다.
-# ⚠️ 합계끼리 빼면 안 된다. 2025년은 파크하비오 전세대출 3억을 새로 빌려 잔액이 순증했고,
-#    그대로 빼면 '원금 상환 −1.7억'이라는 헛소리가 나온다. 대출 '한 건씩' 감소분만 세고
-#    늘어난 건(신규 차입)은 0으로 둔다. 대환(A 상환+B 신규)은 과대 추정될 수 있다.
-def _attach_principal(rows: List[Dict[str, Any]], loan_expense: Dict[int, float]) -> None:
-    """각 연도 행에 principal(원금 상환 추정)과 principal_applied(실제 차감액)를 붙인다.
-
-    실제 차감은 '그 해 지출에 대출이 얼마나 잡혀 있는지' 아는 해에만 한다(loan_expense).
-    모르는 해까지 빼면, 지출에 애초에 대출이 없던 해(2022~2024: 시트 비고에 '고정비
-    미항목화'로 명시)나 사용자가 이미 시트에서 걷어낸 해에서 이중으로 빠진다.
-    """
-    try:
-        bal = sheets_monthly.fetch_loan_balances()
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: 대출 잔액 읽기 실패 ({type(e).__name__}: {e}) — 원금 상환 조정 생략")
-        return
-    if not bal:
-        return
-    for r in rows:
-        y, prev = str(r["year"]), str(r["year"] - 1)
-        if y not in bal or prev not in bal:
-            continue
-        paid = sum(max(0.0, bal[prev].get(k, 0.0) - bal[y].get(k, 0.0))
-                   for k in set(bal[prev]) | set(bal[y]))
-        r["principal"] = round(paid)
-        cap = loan_expense.get(r["year"])
-        if cap is None:
-            continue
-        # 원금 추정이 그 해 '대출' 지출보다 크면 초과분은 애초에 지출로 안 잡힌 상환이다
-        # (예: 부모님 대출). 잡히지도 않은 걸 빼면 지출이 과소해지므로 잡힌 만큼만 뺀다.
-        applied = round(min(paid, cap))
-        if applied > 0:
-            r["principal_applied"] = applied
-            r["expense"] = r["expense"] - applied
-
-
-def fetch_annual_flow(loan_expense: Dict[int, float] = None) -> List[Dict[str, Any]]:
+def fetch_annual_flow() -> List[Dict[str, Any]]:
     """[{year, months, income, expense}] — 연도 내림차순. 실패/미입력 시 [].
 
     소득과 지출이 모두 채워진 행만 낸다. 2024·2023처럼 자리만 잡아 둔 빈 행은
@@ -124,7 +65,6 @@ def fetch_annual_flow(loan_expense: Dict[int, float] = None) -> List[Dict[str, A
                 "note": str(row[4] or "").strip(),
             })
         out.sort(key=lambda d: d["year"], reverse=True)
-        _attach_principal(out, loan_expense or {})
         if not out:
             print("WARN: 시각화 연도별 소득·지출 표가 비어 있음")
         else:

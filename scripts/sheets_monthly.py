@@ -317,41 +317,6 @@ def write_current_month_realestate(re_assets: List[Dict], today: Optional[date] 
         return False
 
 
-def fetch_loan_balances(today: Optional[date] = None) -> Dict[str, Dict[str, float]]:
-    """기간별 '대출' 잔액 {기간: {대출명: 잔액}}. 전세보증금은 뺀다 —
-    남의 돈을 맡아 둔 것이지 갚아 나가는 빚이 아니라 상환 개념이 없다.
-
-    기간 = ANNUAL_COLS의 연도 + 올해의 '마지막 완성 월'(진행 중인 달은 대출·보증금이
-    아직 안 채워져 0으로 보이므로 제외). 실패 시 {}.
-    """
-    today = today or date.today()
-    grid = sheet_grid()
-    if grid is None:
-        return {}
-
-    def cell(r1: int, c0: int) -> float:
-        r = grid[r1 - 1] if len(grid) >= r1 else []
-        v = r[c0] if len(r) > c0 else 0
-        return float(v) if isinstance(v, (int, float)) else 0.0
-
-    def label(r1: int) -> str:
-        r = grid[r1 - 1] if len(grid) >= r1 else []
-        return str(r[2]).strip() if len(r) > 2 else ""
-
-    rows = [r for r, (kind, _) in LIAB_ROWS.items() if kind == "loan"]
-    out: Dict[str, Dict[str, float]] = {}
-    for c0, y in sorted(ANNUAL_COLS.items()):
-        vals = {label(r): cell(r, c0) for r in rows if label(r)}
-        if any(vals.values()):
-            out[y] = vals
-    col0, cy, cm = latest_complete_month(grid, today)
-    if col0 is not None:
-        vals = {label(r): cell(r, col0) for r in rows if label(r)}
-        if any(vals.values()):
-            out[str(cy)] = vals
-    return out
-
-
 def fetch_asset_history(today: Optional[date] = None) -> Dict[str, Any]:
     """자산 상세용 전월·전년 이력 → {prev_month, prev_year, assets:{key:{m1,y1}}, liabilities:{...}}.
 
