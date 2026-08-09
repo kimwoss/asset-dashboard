@@ -1815,13 +1815,16 @@ function jeonseInterest(liabs) {
 /* 양쪽을 표준 카테고리로 접는다. 어느 쪽도 금액을 버리지 않는다 —
    매핑에 없는 항목은 '기타'로 떨어뜨리고 이름을 unmapped로 넘겨 화면에 경고한다.
    (시트를 또 재정리해도 합계가 틀어지지 않고, 무엇이 빠졌는지 즉시 보인다)
-   extraCur: 가계부 밖에 있지만 현재도 실제로 나가는 돈 (예: 전세대출 이자 → 주거) */
-function buildStdCompare(sp, re, cn, extraCur) {
+   housingInterest: 지금 사는 집(파크하비오 오피스텔)의 보증금을 마련한 대출의 월 이자.
+   가계부는 이걸 '대출'에 적지만, 은퇴 계획의 '주거비'는 월세다 — 성격이 같은 돈이
+   서로 다른 칸에 있으면 주거를 27만 vs 230만으로 비교하게 돼 완전히 다른 그림이 된다.
+   그래서 '대출'에서 덜어 '주거'로 옮긴다. 더하는 게 아니라 옮기는 것이라 총액은 그대로다
+   (예전엔 대출을 통째로 빼 두고 주거에 이자를 얹었는데, 대출을 다시 넣자 이중계상이 됐다). */
+function buildStdCompare(sp, re, cn, housingInterest) {
   if (!re || !re.avg_monthly) return null;
   const curOf = {}, retOf = {}, unmapped = [];
   for (const c of STD_CATS) { curOf[c.key] = 0; retOf[c.key] = 0; }
   const find = (name, side) => (STD_CATS.find(c => c[side].includes(name)) || {}).key;
-  for (const [k, v] of Object.entries(extraCur || {})) if (k in curOf) curOf[k] += v;
 
   // 현재 — 마감 월 평균
   for (const c of sp.categories) {
@@ -1849,6 +1852,11 @@ function buildStdCompare(sp, re, cn, extraCur) {
   if (Math.abs(gap) > 0) retOf["기타"] += gap;
   for (const it of (re.annual_items || [])) add(it.name, it.amount / 12);
 
+  // 거주 조달 대출 이자를 '대출' → '주거'로 이동. 가계부에 잡힌 대출을 넘겨 옮길 수는
+  // 없으므로 실제 있는 만큼만 옮긴다(원금까지 주거로 넘어가지 않게 하는 안전장치이기도 하다).
+  const moved = Math.min(Math.max(0, housingInterest || 0), curOf["대출"] || 0);
+  if (moved > 0) { curOf["대출"] -= moved; curOf["주거"] += moved; }
+
   const rows = STD_CATS
     .map(c => ({ name: c.key, kind: c.kind, avg: Math.round(curOf[c.key]), ret: Math.round(retOf[c.key]) }))
     .filter(x => x.avg > 0 || x.ret > 0)
@@ -1860,7 +1868,7 @@ function buildStdCompare(sp, re, cn, extraCur) {
   // 합계는 행별 반올림 전 값으로 — 14행을 각각 반올림해 더하면 원본과 몇 원씩 어긋나
   // 헤드라인이 862/863처럼 널뛴다 (은퇴 862.5만이 내림돼 보이던 문제).
   return {
-    rows, byKind, unmapped,
+    rows, byKind, unmapped, moved: Math.round(moved),
     totAvg: Math.round(Object.values(curOf).reduce((s, v) => s + v, 0)),
     totRet: Math.round(Object.values(retOf).reduce((s, v) => s + v, 0)),
   };
@@ -1868,7 +1876,7 @@ function buildStdCompare(sp, re, cn, extraCur) {
 
 /* 브릿지(폭포) — 현재 월평균에서 은퇴 월평균까지 무엇이 얼마나 보태는지.
    "2배 써야 한다"가 아니라 "구조·제도가 대부분이고 씀씀이 상향은 이만큼"을 읽게 한다. */
-function renderBridge(from, to, byKind, jeonse) {
+function renderBridge(from, to, byKind, jeonse, moved) {
   const steps = Object.keys(KIND_META)
     .filter(k => Math.round((byKind[k] || 0) / 1e4) !== 0)
     .map(k => ({ kind: k, v: byKind[k] }));
@@ -1896,9 +1904,10 @@ function renderBridge(from, to, byKind, jeonse) {
   const big = steps.slice().sort((a, b) => b.v - a.v)[0];
   const lifePct = to > from ? Math.round((byKind["생활"] || 0) / (to - from) * 100) : 0;
   const jLoans = (jeonse && jeonse.parts || []).map(p => `${Math.round(p.amount / 1e8 * 10) / 10}억@${p.rate}%`).join(" + ");
-  const jp = (jeonse && jeonse.monthly)
-    ? `🟡 <b>주거</b>는 지금 <b>관리비 + 전세대출 이자 ${manNum(jeonse.monthly)}만</b>(${jLoans})으로 잡았습니다. `
-      + `보증금 마련 대출 이자는 가계부의 '대출'에 묶여 생활비에서 빠져 있어, 그대로 두면 은퇴(월세)와 견줄 때 주거비가 부풀려 보입니다. `
+  const jp = moved
+    ? `🟡 <b>주거</b>는 <b>관리비 + 거주 조달 대출 이자 ${manNum(moved)}만</b>(${jLoans})으로 잡았습니다. `
+      + `그 이자는 가계부에서 '대출'에 적히지만 은퇴 계획의 주거비는 월세라, 같은 성격끼리 `
+      + `놓으려고 대출에서 <b>옮겨</b> 왔습니다(더한 게 아니라 옮긴 것이라 합계는 그대로). `
       + `원금 상환은 저축이라 뺐습니다.<br>`
     : "";
   document.getElementById("sp-bridge-note").innerHTML = big
@@ -2065,18 +2074,15 @@ function renderSpending(sp, liabs) {
   // 두 데이터는 분류가 아니라 '포함 범위'가 다르다. 가계부는 통장에서 나간 돈만 적히니
   // 급여에서 원천공제되는 건보·국민연금이 안 보이고, 전세라 월세도 0이다. 반면 은퇴 계획은
   // 살아가는 데 드는 모든 돈을 담는다. 그래서 이름만 맞추면 안 되고 성격까지 갈라줘야 한다.
-  // ⚠️ 전세대출 이자를 '주거'에 얹던 보정을 걷어냈다. 그건 가계부에서 '대출'을 통째로
-  //    빼던 시절, 집에 사는 값이 관리비만 남아 은퇴(월세)와 견줄 수 없어서 넣은 추정치다.
-  //    지금은 '대출' 행이 실제 납입액 그대로 들어오므로, 얹으면 같은 이자를 두 번 센다.
-  const jeanseNote = "";
-  const norm = buildStdCompare(sp, sp.retire, cn, null);
+  const jeonse = jeonseInterest(liabs);
+  const norm = buildStdCompare(sp, sp.retire, cn, jeonse.monthly);
   document.getElementById("sp-retire-card").style.display = norm ? "" : "none";
   document.getElementById("sp-bridge-card").style.display = norm ? "" : "none";
   if (norm) {
   const { rows: cmp, totAvg, totRet, byKind, unmapped } = norm;
 
   // 브릿지(폭포) — 현재 월평균에서 은퇴 월평균까지, 늘어나는 이유를 성격별로 쌓는다.
-  renderBridge(totAvg, totRet, byKind, null);
+  renderBridge(totAvg, totRet, byKind, jeonse, norm.moved);
 
   const cmpMax = Math.max(...cmp.map(x => Math.max(x.avg, x.ret)), 1) * 1.02;
   // 막대는 두 색뿐이다 — 회색=지금, 파랑=은퇴. 예전엔 항목마다 다른 색을 줬는데,
@@ -2108,7 +2114,12 @@ function renderSpending(sp, liabs) {
     + "<br>분류 기준은 <b>가계부(시각화 탭)</b>입니다 — 은퇴 계획이 더 잘게 나눠 둔 항목도 가계부에서 한 칸에 적는 것끼리 접어 비교합니다. "
     + "예: 가계부 <b>생활</b>에는 식비·자기계발·건강이 함께 담기므로 은퇴 계획의 그 항목들도 <b>생활</b>로 합쳤습니다."
     + "<br>양쪽 모두 합계는 전체 금액 그대로입니다(누락 없음). 은퇴 계획은 오늘 가치이며 물가 반영 전 · 참조.연간 생활비 시트 기준."
-    + (jeanseNote ? `<br>${jeanseNote}` : "")
+    + (norm.moved ? `<br>🟡 지금 <b>주거</b>에는 가계부의 주거(관리비)에 더해, 지금 사는 `
+        + `오피스텔 보증금을 마련한 대출의 <b>이자 ${manNum(norm.moved)}만/월</b>을 `
+        + `<b>대출에서 옮겨</b> 담았습니다 (${(jeonse.parts || []).map(x => `${Math.round(x.amount / 1e8 * 10) / 10}억@${x.rate}%`).join(" + ")}). `
+        + `은퇴 계획의 주거비는 월세라, 같은 성격의 돈을 같은 칸에 놓아야 비교가 됩니다. `
+        + `더한 게 아니라 옮긴 것이라 합계는 그대로이고, 원금 상환은 저축이라 넣지 않았습니다. `
+        + `월별 카테고리 소비·상세 표는 가계부 원본 그대로(대출은 대출)입니다.` : "")
     + (unmapped.length ? `<br><b class="delta-down">⚠️ 표준 분류에 없는 항목 ${unmapped.length}건은 '기타'로 넣었습니다 — ${esc(unmapped.join(", "))}</b>` : "");
   }
 
