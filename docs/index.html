@@ -19,6 +19,8 @@
     /* 색 — 자산 카테고리 (차트·칩 공용) */
     --c-re: #2a78d6; --c-us: #17a074; --c-kr: #e0961a; --c-cash: #0a9668;
     --c-vi: #6d5cd6; --c-debt: #c0645f;
+    /* '지금 vs 은퇴' 비교 막대 전용 — 항목 색을 쓰지 않고 두 계열만 구분한다 */
+    --cmp-now: #b9b7ae; --cmp-ret: #2a78d6;
     /* 하위호환 별칭 */
     --up: var(--pos); --down: var(--neg);
     /* ── 타이포 — 크기가 아니라 '역할'로 쓴다 ──────────────────────────────
@@ -60,6 +62,7 @@
       --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
+      --cmp-now: #55544f; --cmp-ret: #4a92ea;
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   } }
@@ -70,6 +73,7 @@
       --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
+      --cmp-now: #55544f; --cmp-ret: #4a92ea;
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   }
@@ -1779,8 +1783,11 @@ const STD_CATS = [
   { key: "보험",    kind: "생활", cur: ["보험"],  ret: ["국내보험(종합/실손)", "해외여행자보험"] },
   { key: "세금·연금", kind: "제도", cur: ["세금"], ret: ["국민연금", "건강보험료", "재산세"] },
   { key: "기부",    kind: "생활", cur: ["기부"],  ret: ["기부"] },
-  // 은퇴 계획이 따로 세지 않는 잔돈(구독·모임)은 가계부의 기타와 함께 예비비에 대응시킨다
-  { key: "기타",    kind: "생활", cur: ["기타", "구독", "모임"], ret: ["예비비"] },
+  { key: "기타",    kind: "생활", cur: ["기타", "구독", "모임"], ret: [] },
+  // 예비비는 은퇴 계획에만 있는 줄이다 — 지금은 쓰고 남으면 그만이지만, 근로소득이 끊기면
+  // 예상 못 한 지출을 받아 줄 완충이 따로 있어야 한다. 한때 가계부의 기타·구독·모임과
+  // 같은 칸에 접어 뒀는데, 성격이 달라 '새로 생기는 부담'이 안 보였다.
+  { key: "예비비",  kind: "구조", cur: [],        ret: ["예비비"] },
 ];
 
 /* 거주(전세) 조달 대출의 월 이자 — 지금 '집에 사는 값'의 실체.
@@ -1842,7 +1849,9 @@ function buildStdCompare(sp, re, cn, extraCur) {
   const rows = STD_CATS
     .map(c => ({ name: c.key, kind: c.kind, avg: Math.round(curOf[c.key]), ret: Math.round(retOf[c.key]) }))
     .filter(x => x.avg > 0 || x.ret > 0)
-    .sort((a, b) => (b.ret - b.avg) - (a.ret - a.avg));   // 격차 큰 순 — 왜 늘어나는지가 먼저 보이게
+    // 지금 많이 쓰는 순. 격차 큰 순으로도 놔 봤는데, 몇 만원짜리 항목이 증가폭만 크다고
+    // 맨 위로 올라와 '우리 살림의 무게'와 순서가 어긋났다. 증가폭은 오른쪽 숫자로 읽는다.
+    .sort((a, b) => (b.avg - a.avg) || (b.ret - a.ret));
   const byKind = {};
   for (const x of rows) byKind[x.kind] = (byKind[x.kind] || 0) + (x.ret - x.avg);
   // 합계는 행별 반올림 전 값으로 — 14행을 각각 반올림해 더하면 원본과 몇 원씩 어긋나
@@ -2067,8 +2076,11 @@ function renderSpending(sp, liabs) {
   renderBridge(totAvg, totRet, byKind, jeonse);
 
   const cmpMax = Math.max(...cmp.map(x => Math.max(x.avg, x.ret)), 1) * 1.02;
-  const bar = (v, col, solid) => `<div class="cmp-line">
-    <div class="cmp-fill" style="width:${v / cmpMax * 100}%;background:${col};opacity:${solid ? 1 : .38}"></div>
+  // 막대는 두 색뿐이다 — 회색=지금, 파랑=은퇴. 예전엔 항목마다 다른 색을 줬는데,
+  // 14줄 × 2막대에 15가지 색이 깔리니 정작 읽어야 할 '위아래 길이 차이'가 묻혔다.
+  // 항목 색은 왼쪽 점에만 남겨 다른 차트(도넛·스택)와의 연결고리로 쓴다.
+  const bar = (v, solid) => `<div class="cmp-line">
+    <div class="cmp-fill" style="width:${v / cmpMax * 100}%;background:${solid ? "var(--cmp-ret)" : "var(--cmp-now)"}"></div>
     <span class="cmp-v">${v ? manNum(v) + "만" : "–"}</span></div>`;
   document.getElementById("sp-retire").innerHTML = cmp.map((x, i) => {
     const col = spColor(x.name, i);
@@ -2078,7 +2090,7 @@ function renderSpending(sp, liabs) {
     return `<div class="cmp-row">
       <div class="cmp-name"><span class="chip" style="background:${col}"></span>${esc(x.name)}
         <span class="kind-dot" title="${esc(k.desc)}">${k.icon}</span></div>
-      <div class="cmp-track">${bar(x.avg, col, false)}${bar(x.ret, col, true)}</div>
+      <div class="cmp-track">${bar(x.avg, false)}${bar(x.ret, true)}</div>
       <div class="cmp-diff ${dcls}">${dm ? (dm > 0 ? "+" : "−") + Math.abs(dm) + "만" : "="}</div>
     </div>`;
   }).join("");
