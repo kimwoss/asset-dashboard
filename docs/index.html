@@ -2133,9 +2133,13 @@ function renderSpending(sp, liabs) {
   document.getElementById("sp-table").insertAdjacentHTML("afterbegin",
     `<caption style="caption-side:top;text-align:left;font-size:var(--fs-micro);color:var(--ink-muted);padding-bottom:6px">단위: 만원</caption>`);
 
-  const exNames = (sp.excluded || []).map(c => c.name).join("·");
+  // 제외 사유는 항목마다 다르다 — 파이프라인이 붙여 보낸 문구를 그대로 쓴다.
+  // 예전엔 "부채 상환이라"로 못박아 둬서, 대출 말고 다른 게 빠지면 각주가 거짓말이 됐다.
+  const exNames = (sp.excluded || [])
+    .map(c => c.reason ? `${c.name}(${c.reason})` : c.name).join(" · ");
   document.getElementById("sp-note").innerHTML =
-    "고정비·변동비 전부 집계" + (exNames ? ` · ${exNames}은 부채 상환이라 생활비에서 제외 (표 하단 참고)` : "");
+    "고정비·변동비 전부 집계"
+    + (exNames ? ` · 생활비에서 제외 — ${exNames}. 금액은 표 하단에 그대로 남깁니다.` : "");
 }
 
 /* ---- 현금 흐름 계획 (은퇴 후 연 1억을 세금·건보료 없이) ------------------------
