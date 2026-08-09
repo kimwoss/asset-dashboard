@@ -46,7 +46,17 @@ STOP_LABEL = "합계"        # A/B에 이 라벨이 오면 항목 끝
 MONTH_COL_FIRST = 2        # C열 (0-indexed) = 1월
 MONTHS = 12
 
-EXCLUDED = {"대출"}        # 대출 상환은 부채 상환이라 생활비에서 제외 (위 docstring)
+# 생활비에서 빼는 항목 — '왜 빼는지'를 값으로 들고 다닌다(화면 각주가 이 문구를 그대로 쓴다).
+#   대출: 부채 상환이라 소비가 아니다.
+#   기타: 전세보증금 같은 대형 자금이동이 이 칸에 섞여 들어온다. 2026-02에 −2,398만이
+#         들어오자 그 달 생활비가 −2,046만이 되고 마감 7개월 월평균이 90만으로 주저앉았다
+#         (2026-08-09 사용자 신고). 시각화의 연도별 총지출도 같은 이유로 '기타'를 빼고
+#         집계한다 — 한 대시보드에 지출 정의가 둘이 되지 않도록 여기에 맞춘다.
+#         표 하단에 '(제외)' 행으로 그대로 남으니 금액이 사라지지는 않는다.
+EXCLUDED = {
+    "대출": "부채 상환",
+    "기타": "전세보증금 등 대형 자금이동이 섞임",
+}
 
 
 def _num(v: Any) -> float:
@@ -117,7 +127,10 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
                 continue
             values = [round(_num(_cell(r, c))) for c in cols]
             item = {"name": name, "values": values, "group": group}
-            (excluded if name in EXCLUDED else spend).append(item)
+            if name in EXCLUDED:
+                excluded.append({**item, "reason": EXCLUDED[name]})
+            else:
+                spend.append(item)
 
         if not spend:
             print("WARN: 시각화 소비 항목 없음 — 월간 생활비 생략")
