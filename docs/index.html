@@ -1020,6 +1020,11 @@ function annualFlow(rows) {
       savingsRate: income > 0 ? surplus / income * 100 : 0,
       monthlyExpense: Math.round(expense / months),
       partial: months < 12,
+      // 원금 상환 — 빚이 준 만큼은 저축이지 지출이 아니다. principal은 ★월별자산의
+      // 대출 잔액 감소로 추정한 값, principal_applied는 그중 실제로 지출에서 뺀 금액
+      // (그 해 '대출'로 잡힌 지출을 넘겨 뺄 수는 없다). expense는 이미 차감된 값이다.
+      principal: Number(r.principal) || 0,
+      principalApplied: Number(r.principal_applied) || 0,
       note: r.note || "",
     };
   }).sort((a, b) => b.year - a.year);
@@ -1033,20 +1038,27 @@ function renderAnnualFlow(rows) {
 
   const man = v => Math.round(v / 1e4).toLocaleString("ko-KR") + "만원";
   document.getElementById("flow-table").innerHTML =
-    `<thead><tr><th>연도</th><th class="num">총소득</th><th class="num">총지출<span class="th-sub">투자 제외</span></th>
+    `<thead><tr><th>연도</th><th class="num">총소득</th><th class="num">총지출<span class="th-sub">투자·원금 제외</span></th>
+       <th class="num">대출 원금<span class="th-sub">지출에서 뺌</span></th>
        <th class="num">순잉여자금</th><th class="num">저축률</th><th class="num">월평균 지출</th></tr></thead>
      <tbody>${list.map(r => `<tr>
        <td>${r.year}${r.partial ? `<span class="th-sub">1~${r.months}월</span>` : ""}</td>
        <td class="num">${man(r.income)}</td>
        <td class="num">${man(r.expense)}</td>
+       <td class="num" style="color:var(--ink-muted)">${r.principalApplied ? man(r.principalApplied) : "–"}</td>
        <td class="num flow-surplus ${r.surplus >= 0 ? "delta-up" : "delta-down"}">${man(r.surplus)}</td>
        <td class="num flow-rate">${r.savingsRate.toFixed(1)}%</td>
        <td class="num">${man(r.monthlyExpense)}</td></tr>`).join("")}</tbody>`;
 
   // 해마다 가계부 양식이 달라 집계 근거가 다르다. 비교할 때 알고 봐야 하는 것만 적는다.
   const caveat = list.filter(r => /과소|누락/.test(r.note)).map(r => r.year);
-  document.getElementById("flow-note").textContent =
+  const adj = list.filter(r => r.principalApplied).map(r => r.year);
+  document.getElementById("flow-note").innerHTML =
     "투자 매수액과 전세보증금 같은 자금 이동은 지출에서 제외했습니다."
+    + (adj.length ? ` <b>${adj.join("·")}년</b>은 대출 상환 중 <b>원금</b>을 지출에서 뺐습니다 — `
+        + `빚이 준 만큼은 돈이 나간 게 아니라 순자산이 는 것이라 저축에 가깝습니다. `
+        + `금액은 ★월별자산의 대출 잔액이 줄어든 폭에서 자동으로 잡습니다(대출 건별로 계산해 `
+        + `신규 차입은 상계하지 않습니다).` : "")
     + (caveat.length ? ` ${caveat.join("·")}년은 당시 가계부에 고정비(대출·보험·통신)가 항목으로 남아 있지 않아 지출이 실제보다 적게 잡혔습니다.` : "");
 }
 
