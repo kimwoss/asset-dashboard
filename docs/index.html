@@ -1783,6 +1783,9 @@ const STD_CATS = [
   { key: "보험",    kind: "생활", cur: ["보험"],  ret: ["국내보험(종합/실손)", "해외여행자보험"] },
   { key: "세금·연금", kind: "제도", cur: ["세금"], ret: ["국민연금", "건강보험료", "재산세"] },
   { key: "기부",    kind: "생활", cur: ["기부"],  ret: ["기부"] },
+  // 은퇴 계획에는 대출 예산이 없다 — 그때는 다 갚는다는 전제라 ret가 비어 있는 게 맞다.
+  // 그래서 이 줄은 '은퇴하면 사라지는 부담'으로 읽힌다(감소 = 초록).
+  { key: "대출",    kind: "구조", cur: ["대출"],  ret: [] },
   { key: "기타",    kind: "생활", cur: ["기타", "구독", "모임"], ret: [] },
   // 예비비는 은퇴 계획에만 있는 줄이다 — 지금은 쓰고 남으면 그만이지만, 근로소득이 끊기면
   // 예상 못 한 지출을 받아 줄 완충이 따로 있어야 한다. 한때 가계부의 기타·구독·모임과
@@ -2062,18 +2065,18 @@ function renderSpending(sp, liabs) {
   // 두 데이터는 분류가 아니라 '포함 범위'가 다르다. 가계부는 통장에서 나간 돈만 적히니
   // 급여에서 원천공제되는 건보·국민연금이 안 보이고, 전세라 월세도 0이다. 반면 은퇴 계획은
   // 살아가는 데 드는 모든 돈을 담는다. 그래서 이름만 맞추면 안 되고 성격까지 갈라줘야 한다.
-  const jeonse = jeonseInterest(liabs);
-  const jeanseNote = jeonse.monthly
-    ? `🟡 지금 주거 = 가계부 관리비 + <b>전세대출 이자 ${manNum(jeonse.monthly)}만/월</b> (보증금 ${Math.round(jeonse.principal / 1e8 * 10) / 10}억 조달분, 원금 상환 제외)`
-    : "";
-  const norm = buildStdCompare(sp, sp.retire, cn, jeonse.monthly ? { "주거": jeonse.monthly } : null);
+  // ⚠️ 전세대출 이자를 '주거'에 얹던 보정을 걷어냈다. 그건 가계부에서 '대출'을 통째로
+  //    빼던 시절, 집에 사는 값이 관리비만 남아 은퇴(월세)와 견줄 수 없어서 넣은 추정치다.
+  //    지금은 '대출' 행이 실제 납입액 그대로 들어오므로, 얹으면 같은 이자를 두 번 센다.
+  const jeanseNote = "";
+  const norm = buildStdCompare(sp, sp.retire, cn, null);
   document.getElementById("sp-retire-card").style.display = norm ? "" : "none";
   document.getElementById("sp-bridge-card").style.display = norm ? "" : "none";
   if (norm) {
   const { rows: cmp, totAvg, totRet, byKind, unmapped } = norm;
 
   // 브릿지(폭포) — 현재 월평균에서 은퇴 월평균까지, 늘어나는 이유를 성격별로 쌓는다.
-  renderBridge(totAvg, totRet, byKind, jeonse);
+  renderBridge(totAvg, totRet, byKind, null);
 
   const cmpMax = Math.max(...cmp.map(x => Math.max(x.avg, x.ret)), 1) * 1.02;
   // 막대는 두 색뿐이다 — 회색=지금, 파랑=은퇴. 예전엔 항목마다 다른 색을 줬는데,
