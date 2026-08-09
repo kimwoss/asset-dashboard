@@ -15,6 +15,7 @@
 
 ※ GOOGLEFINANCE는 15~20분 지연 시세다. 30분 주기 + 지연 = 최대 ~50분 전 값.
 """
+import hashlib
 import json
 import sys
 from datetime import datetime, timedelta, timezone
@@ -122,6 +123,20 @@ def _delta_baselines(today) -> dict:
         print("OK: KPI 기준 — " + " · ".join(
             f"{k.replace('prev_', '')} {v.get('key')}" for k, v in out.items()))
     return out
+
+
+def _code_fingerprint() -> str:
+    """시트 파싱 코드의 지문 — 코드가 바뀌면 TTL이 남아 있어도 블록을 다시 읽는다.
+
+    캐시 키가 '시각'뿐이라, 파싱 로직을 고쳐도 최대 TTL(3시간)까지 옛 로직의 결과가
+    live.enc에 그대로 실려 나갔다. 2026-08-09: '기타' 제외 수정을 배포하고 일별 잡까지
+    돌려 latest.enc는 바로잡혔는데, applyLive가 옛 spending으로 덮어써 화면은 계속
+    틀린 값을 보여줬다. 스냅샷은 맞고 라이브만 틀리니 원인을 짚기도 어려웠다.
+    """
+    h = hashlib.sha1()
+    for f in sorted(Path(__file__).parent.glob("sheets_*.py")):
+        h.update(f.read_bytes())
+    return h.hexdigest()[:12]
 
 
 def _fresh(key: str, meta: dict, now: datetime) -> bool:
@@ -258,6 +273,11 @@ def main():
     # 4) 직전 발행본 — 수명이 남은 블록은 여기서 그대로 가져다 쓴다.
     prev, meta = _load_prev()
     meta = dict(meta)
+    code = _code_fingerprint()
+    if prev and prev.get("_code") != code:
+        print(f"INFO: 시트 파싱 코드가 바뀌었습니다({prev.get('_code')} -> {code}) "
+              f"— 수명이 남은 블록도 전부 다시 읽습니다")
+        meta = {}
     reused, refetched = [], []
 
     def _block(key, fn, *a):
@@ -354,6 +374,8 @@ def main():
         "prev_year": baselines.get("prev_year") or None,
         # 블록별 마지막 '실제 조회' 시각 — 다음 실행이 수명을 재는 기준이자, 화면에 신선도를 밝히는 근거
         "_fetched": meta,
+        # 이 페이로드를 만든 파싱 코드의 지문 — 다음 실행이 캐시 무효화 판단에 쓴다
+        "_code": code,
     }
     # 자기점검 — _block(key)로 읽은 것은 반드시 payload[key]로도 실려야 다음 실행이
     # 수명 안에서 물려받는다. 이름이 어긋나면 만료된 실행에서만 값이 서고 나머지는
