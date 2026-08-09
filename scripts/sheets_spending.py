@@ -77,6 +77,10 @@ def fetch_spending(today: Optional[date] = None) -> Dict[str, Any]:
         # (worksheet(title)도 어차피 같은 메타데이터를 받으므로 API 호출은 늘지 않는다).
         sheets = gc.open_by_key(SPREADSHEET_ID).worksheets()
         titles = [w.title for w in sheets]
+        # 탭 이름을 남긴다 — 이 프로젝트는 탭 개명(2026년→★가계부, ★월별자산(2026년)→
+        # ★월별자산)으로 두 번 조용히 깨졌다. 로그에 이름만 있으면 즉시 짚인다.
+        # 금액이 아니라 이름뿐이라 공개 저장소 로그에 남아도 무방하다.
+        print(f"INFO: 워크북 탭 {len(titles)}개 — {' | '.join(titles)}")
         ledger = next((t for t in (LEDGER_TAB, *LEDGER_TAB_LEGACY) if t in titles), None)
         if ledger is None:
             print(f"WARN: 원장 탭('{LEDGER_TAB}')을 못 찾았습니다 — 시각화 수식이 끊겨 "
