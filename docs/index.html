@@ -10,12 +10,18 @@
      이 페이지는 CSS가 통째로 인라인이라 스타일시트 왕복이 없어 preload 이득도 거의 없다. -->
 <style>
   :root {
-    /* 색 — 표면/잉크 */
-    --surface-1: #fcfcfb; --page: #f9f9f7;
-    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #8b8983;
-    --grid: #e4e3dc; --baseline: #c7c6bb; --border: rgba(11,11,11,0.09);
+    /* 색 — 표면/잉크
+       중립을 액센트(파랑) 쪽으로 살짝 기울인 냉색으로. 따뜻한 회색은 문서 느낌이 강했고,
+       금융 계기판은 차가운 중립이 '정밀하다'는 인상을 준다. 액센트 계열은 그대로 잇는다. */
+    --surface-1: #ffffff; --page: #f6f7f9;
+    --ink-1: #11151b; --ink-2: #4a525e; --ink-muted: #87909c;
+    --grid: #e0e4ea; --baseline: #c8cfd8; --border: rgba(17,21,27,0.10);
     /* 색 — 의미 */
-    --pos: #067a2e; --neg: #d03b3b; --accent: #2a78d6;
+    --pos: #0a7a3d; --neg: #c14340; --accent: #1f5fd0; --warn: #a9741a;
+    /* 의미색 배경 틴트 — 등락을 '색'만이 아니라 '형태(칩)'로도 읽히게 한다.
+       색각 특성과 무관하게 훑을 때 시선에 걸리는 것이 목적. */
+    --pos-bg: rgba(10,122,61,.10); --neg-bg: rgba(193,67,64,.10); --warn-bg: rgba(169,116,26,.12);
+    --accent-bg: rgba(31,95,208,.08);
     /* 색 — 자산 카테고리 (차트·칩 공용) */
     --c-re: #2a78d6; --c-us: #17a074; --c-kr: #e0961a; --c-cash: #0a9668;
     --c-vi: #6d5cd6; --c-debt: #c0645f;
@@ -44,6 +50,12 @@
     --fs-hero: var(--fs-display); --fs-1: var(--fs-num-xl); --fs-2: var(--fs-num-lg);
     --fs-3: var(--fs-num-md); --fs-4: var(--fs-h3);
     --fs-sm: var(--fs-cap); --fs-xs: var(--fs-micro);
+    /* 서체 축 — 본문(sans)과 데이터(mono)를 역할로 가른다.
+       라벨·단위·시각·표 헤더를 모노+대문자+자간으로 쓰면 본문과 층이 갈리면서
+       '계기판'의 인상이 생긴다. 웹폰트를 링크하면 CSP/오프라인에서 조용히 깨지므로
+       설치 폰트 스택만 쓴다. */
+    --sans: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Segoe UI Mono", monospace;
     /* 형태 */
     --r: 12px; --r-sm: 8px; --r-pill: 999px;
     --shadow: 0 1px 2px rgba(11,11,11,.04);
@@ -56,10 +68,12 @@
   }
   /* 다크 팔레트 — OS 설정(수동 미지정 시) 또는 수동 토글(data-theme=dark) */
   @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
-      --surface-1: #1a1a19; --page: #0d0d0d;
-      --ink-1: #f5f5f2; --ink-2: #c3c2b7; --ink-muted: #8f8d86;
-      --grid: #2c2c2a; --baseline: #3a3a37; --border: rgba(255,255,255,0.10);
-      --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
+      --surface-1: #141920; --page: #0b0e12;
+      --ink-1: #eef1f5; --ink-2: #b3bcc8; --ink-muted: #7d8794;
+      --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
+      --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
+      --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --accent-bg: rgba(91,149,238,.13);
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
@@ -67,10 +81,12 @@
       --flow-hi: rgba(74,146,234,.12);
   } }
   :root[data-theme="dark"] {
-      --surface-1: #1a1a19; --page: #0d0d0d;
-      --ink-1: #f5f5f2; --ink-2: #c3c2b7; --ink-muted: #8f8d86;
-      --grid: #2c2c2a; --baseline: #3a3a37; --border: rgba(255,255,255,0.10);
-      --pos: #35b95e; --neg: #e66767; --accent: #4a92ea;
+      --surface-1: #141920; --page: #0b0e12;
+      --ink-1: #eef1f5; --ink-2: #b3bcc8; --ink-muted: #7d8794;
+      --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
+      --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
+      --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --accent-bg: rgba(91,149,238,.13);
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
@@ -82,16 +98,41 @@
   * { box-sizing: border-box; margin: 0; }
   body {
     background: var(--page); color: var(--ink-1);
-    font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    font-family: var(--sans);
     font-size: var(--fs-body); line-height: 1.5;
-    padding: 22px 20px 60px; max-width: 1080px; margin: 0 auto;
+    padding: 22px 20px 60px; max-width: 1200px; margin: 0 auto;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* ── 데이터 표기 유틸 ──────────────────────────────────────────────────
+     .u-mono  : 라벨·단위·시각 등 '기계가 읽어준 값'에 붙이는 축
+     .chip    : 등락을 형태로 감싼다 (색만으로 의미를 지지 않게)
+     .live-dot: 실시간 여부를 점 하나로 — 문구보다 먼저 눈에 걸린다 */
+  .u-mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .u-label { font-family: var(--mono); font-size: var(--fs-micro); font-weight: 700;
+             letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); }
+  /* 이름 주의: 표 안 `td .chip`은 이미 8×8 범례 점으로 쓰이고 있다.
+     같은 이름을 쓰면 표에서 짓눌리므로 등락 칩은 .delta-chip으로 분리한다. */
+  .delta-chip { display: inline-flex; align-items: center; gap: 4px; font-weight: 700;
+          font-size: var(--fs-cap); padding: 2px 8px; border-radius: var(--r-sm);
+          font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .delta-chip.up { background: var(--pos-bg); color: var(--pos); }
+  .delta-chip.dn { background: var(--neg-bg); color: var(--neg); }
+  .delta-chip.flat { background: var(--accent-bg); color: var(--ink-2); }
+  /* 표 안에서도 배경 틴트가 유지되도록 크기 규칙을 명시적으로 되돌린다 */
+  td .delta-chip { width: auto; height: auto; border-radius: var(--r-sm); margin-right: 0; vertical-align: baseline; }
 
   /* 헤더 */
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
   h1 { font-size: var(--fs-h1); font-weight: 750; letter-spacing: -0.02em; }
   .meta { color: var(--ink-muted); font-size: var(--fs-cap); font-variant-numeric: tabular-nums; }
+  /* 헤더 상태 — '지금 값인가'를 점 하나로 먼저 말한다 */
+  #updated { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .hdr-live { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
+              font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
+              color: var(--pos); background: var(--pos-bg); padding: 3px 9px; border-radius: var(--r-pill); }
+  .hdr-live .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .hdr-snap { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted); }
   #theme { margin-left: auto; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
            font-size: var(--fs-h3); cursor: pointer; background: var(--surface-1); border: 1px solid var(--border);
            border-radius: var(--r-sm); transition: border-color .15s; padding: 0; }
@@ -117,6 +158,34 @@
   #updated.flash-in { animation: flashText .9s ease; }
   @keyframes flashIn { 0% { opacity: .35; } 100% { opacity: 1; } }
   @keyframes flashText { 0%,100% { color: var(--ink-muted); } 30% { color: var(--pos); font-weight: 700; } }
+
+  /* ── 히어로 밴드 ────────────────────────────────────────────────────────
+     표면 3단계 중 최상위. 좌측 액센트 레일 + 옅은 그라데이션으로 '여기가 제일 중요'를
+     형태로 말한다 (일반 카드는 테두리만, 하위 블록은 여백만). */
+  .heroband { background: var(--surface-1); border: 1px solid var(--border);
+              border-left: 3px solid var(--accent); border-radius: var(--r);
+              padding: 15px 18px; margin-bottom: 16px; box-shadow: var(--shadow);
+              background-image: linear-gradient(180deg, var(--accent-bg), transparent 62%);
+              display: grid; gap: 14px 26px; grid-template-columns: 1fr; align-items: center; }
+  @media (min-width: 720px) { .heroband { grid-template-columns: minmax(210px, auto) 1fr; } }
+  .hb-main .u-label { display: block; margin-bottom: 3px; }
+  .hb-val { font-size: var(--fs-num-xl); font-weight: 800; letter-spacing: -.03em;
+            line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .hb-deltas { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 7px; }
+  .hb-sub { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+            display: flex; gap: 11px; flex-wrap: wrap; }
+  .hb-sub b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* FIRE 게이지 — '얼마나 왔나'를 막대로. 숫자만 있을 때보다 진척이 즉시 읽힌다. */
+  .hb-gauges { display: grid; gap: 9px; }
+  .hb-g-head { display: flex; justify-content: space-between; align-items: baseline;
+               font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+               letter-spacing: .06em; margin-bottom: 4px; }
+  .hb-g-head b { color: var(--ink-1); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hb-track { height: 6px; border-radius: var(--r-pill); background: var(--grid); overflow: hidden; }
+  .hb-fill { height: 100%; border-radius: var(--r-pill); }
+  @media (prefers-reduced-motion: no-preference) {
+    .hb-fill { transition: width var(--dur-3) var(--ease); }
+  }
 
   /* 탭 */
   /* overflow-x:auto 는 CSS 규칙상 overflow-y 도 auto 로 만든다 — 탭 높이가 살짝 넘치면
@@ -149,6 +218,10 @@
   .tab.on { color: var(--accent); font-weight: 700; }   /* 굵기까지 올려 한눈에 잡히게 */
   .tab.on::after { transform: scaleX(1); opacity: 1; }
   .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
+  /* 키보드 포커스 기본값 — 탭에만 있던 링을 나머지 조작 요소로 넓힌다.
+     :focus-visible이라 마우스 클릭에는 링이 뜨지 않고 키보드 이동에만 보인다. */
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 
   /* 탭 전환 — 내용이 아래에서 살짝 떠오르며 들어온다. 갈아끼운 티가 나야 방금 바뀐 걸 안다. */
   @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -202,7 +275,9 @@
   .hi-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
   .hi-tbl td { padding: 7px 4px; border-bottom: 1px solid var(--grid); vertical-align: top; }
   #flow-table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
-  #flow-table th, #flow-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  /* --line은 어디에도 정의된 적이 없어 이 테두리가 통째로 무효였다(선이 안 그려짐).
+     다른 표와 같은 토큰(--grid)으로 맞춘다. */
+  #flow-table th, #flow-table td { padding: 9px 10px; border-bottom: 1px solid var(--grid); }
   #flow-table thead th { color: var(--ink-muted); font-weight: 600; text-align: left; white-space: nowrap; }
   #flow-table td.num, #flow-table th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   #flow-table tbody tr:last-child td { border-bottom: 0; }
@@ -278,7 +353,9 @@
   /* 표 (전 화면 공통 규격) */
   table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
   th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  th { color: var(--ink-muted); font-weight: 500; font-size: var(--fs-cap); border-bottom: 1px solid var(--baseline); }
+  /* 표 헤더는 '데이터 축' — 모노+대문자+자간으로 본문과 층을 가른다 */
+  th { color: var(--ink-muted); font-family: var(--mono); font-weight: 700; font-size: var(--fs-micro);
+       letter-spacing: .08em; border-bottom: 1px solid var(--baseline); }
   th:first-child, td:first-child { text-align: left; white-space: normal; }
   td.name { font-weight: 600; }
   tbody tr:last-child td { border-bottom: none; }
@@ -288,10 +365,17 @@
   table.mkt td:first-child { font-weight: 600; }
   /* 통합 시세표 — 그룹 소제목 행 (미국 지수 / 국내 지수·ETF / 환율) */
   table.mkt-unified { table-layout: auto; }
-  .mkt-grp td { text-align: left; padding: 10px 10px 5px; font-size: var(--fs-xs); font-weight: 700;
-    letter-spacing: .04em; color: var(--ink-muted); background: var(--grid);
+  /* 그룹 소제목은 눌러서 종목명이 주인공이 되게 — 배경 블록 대신 얇은 라벨 + 하단 선 */
+  .mkt-grp td { text-align: left; padding: 14px 10px 5px; font-family: var(--mono);
+    font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-muted); background: transparent;
     border-bottom: 1px solid var(--baseline); }
   .mkt-grp + tr td { border-top: none; }
+
+  /* 브리핑 탭 하단 2단 — 시세·매크로·뉴스. 좁은 화면은 그대로 1단으로 쌓인다.
+     align-items:start 가 없으면 두 열이 서로의 높이에 끌려 늘어난다. */
+  .cp-cols { display: grid; gap: 0 14px; align-items: start; }
+  @media (min-width: 900px) { .cp-cols { grid-template-columns: 1.15fr 1fr; } }
 
   #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
              background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
@@ -598,6 +682,11 @@
 
 <div id="err"></div>
 <div id="toast"></div>
+
+<!-- 히어로 밴드 — 탭 위에 두어 어느 탭에 있든 '지금 얼마인가'가 보인다.
+     대시보드의 첫 원칙은 요약을 먼저, 상세는 나중. 종전엔 순자산이 '자산 현황' 탭
+     안에만 있어서, 첫 화면(브리핑)에서는 정작 가장 중요한 숫자가 보이지 않았다. -->
+<section id="heroband" style="display:none"></section>
 
 <nav class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-tab="checkpoint">오늘의 브리핑</button>
@@ -1050,6 +1139,49 @@ function renderAnnualFlow(rows) {
     + (caveat.length ? ` ${caveat.join("·")}년은 당시 가계부에 고정비(대출·보험·통신)가 항목으로 남아 있지 않아 지출이 실제보다 적게 잡혔습니다.` : "");
 }
 
+/* ---- 히어로 밴드 (탭 위 고정) ----
+   '지금 순자산 + 오늘 변화 + FIRE 진척' 세 가지만. 여기서 더 늘리면 요약이 아니라
+   또 하나의 표가 된다. 전일은 칩으로 승격하고 전월·전년은 보조행으로 내린다 —
+   종전엔 셋이 같은 크기라 '오늘 어땠나'가 묻혔다. */
+function renderHeroBand(snap, net) {
+  const el = document.getElementById("heroband");
+  if (!el || !net) return;
+  el.className = "heroband";
+  el.style.display = "";
+
+  const d = snap.prev_day && snap.prev_day.net_krw ? net - snap.prev_day.net_krw : null;
+  const chip = d == null ? ""
+    : `<span class="delta-chip ${d >= 0 ? "up" : "dn"}">${d >= 0 ? "▲" : "▼"} ${eokMan(Math.abs(d))}</span>`;
+
+  const subs = [["전월", snap.prev_month], ["전년", snap.prev_year]].map(([lb, b]) => {
+    const base = b && b.net_krw;
+    if (!base) return "";
+    const p = (net - base) / base * 100;
+    return `<span>${lb} <b style="color:${p >= 0 ? "var(--pos)" : "var(--neg)"}">`
+         + `${p >= 0 ? "+" : ""}${p.toFixed(1)}%</b></span>`;
+  }).filter(Boolean).join("");
+
+  const f = snap.fire || {};
+  const gauge = (lb, target, color) => {
+    if (!target) return "";
+    const p = net / target * 100;
+    return `<div>
+      <div class="hb-g-head"><span>${lb}</span><b>${p.toFixed(1)}%</b></div>
+      <div class="hb-track"><div class="hb-fill" style="width:${Math.min(100, p).toFixed(1)}%;background:${color}"></div></div>
+    </div>`;
+  };
+  const gauges = gauge("FIRE 기본", f.target_basic, "var(--c-us)")
+               + gauge("FIRE 부자", f.target_rich, "var(--c-vi)");
+
+  el.innerHTML = `
+    <div class="hb-main">
+      <span class="u-label">순자산</span>
+      <div class="hb-val">${eokMan(net)}</div>
+      <div class="hb-deltas">${chip}${subs ? `<span class="hb-sub">${subs}</span>` : ""}</div>
+    </div>
+    ${gauges ? `<div class="hb-gauges">${gauges}</div>` : ""}`;
+}
+
 function kpiCard(label, value, sub, hero) {
   return `<div class="card${hero ? " hero" : ""}">
     <div class="label">${label}</div><div class="value">${value}</div>
@@ -1416,10 +1548,16 @@ function renderCheckpoint(cp, finBlock) {
   const HZ = [["d1", "1일"], ["w1", "1주"], ["m1", "1개월"], ["y1", "1년"]];
   // 시세 3종(미국·국내·환율)을 한 표로 합치기 위한 행 빌더 — 종목명 폭이 달라도
   // 하나의 <table>이라 현재가·등락 열이 자동 정렬된다. 환율만 mode="won"(원 변동).
+  // 1일만 칩(배경 틴트)으로 승격 — 오늘 어땠는지가 먼저 눈에 걸려야 한다.
+  // 나머지 기간은 조용한 수치로 둬서, 넷이 같은 목소리로 떠들지 않게 한다.
   const mktCell = (i, k, mode) => {
     const p = i[k] !== undefined ? i[k] : (k === "d1" ? i.change_pct : null);
     if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
     const v = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
+    if (k === "d1") {
+      const dir = Math.abs(p) < 0.005 ? "flat" : (p > 0 ? "up" : "dn");
+      return `<td><span class="delta-chip ${dir}">${v}</span></td>`;
+    }
     return `<td class="${cls(p)}"><b>${v}</b></td>`;
   };
   const mktRow = (i, mode) => `<tr>
@@ -1502,6 +1640,10 @@ function renderCheckpoint(cp, finBlock) {
     ["국내 지수·ETF", cp.kr, undefined],
     ["환율", cp.fx, "won"],
   ].filter(g => (g[1] || []).length);
+  // 시세·매크로·뉴스는 '참고 자료' 성격이라 넓은 화면에서 2단으로 접는다.
+  // 브리핑·자산·운세(위쪽)는 읽는 순서가 있어 1단을 유지 — 여기만 폭을 쓴다.
+  h += `<div class="cp-cols"><div class="cp-col">`;
+
   if (mktGroups.length) {
     const rows = mktGroups.map(([t, arr, mode]) =>
       mktGroupHead(t) + arr.map(i => mktRow(i, mode)).join("")).join("");
@@ -1518,6 +1660,8 @@ function renderCheckpoint(cp, finBlock) {
   if (cp.macro_dday) h += `<section class="card"><h2>매크로 캘린더</h2>
     <div style="font-size:var(--fs-body)">${esc(cp.macro_dday)}</div></section>`;
 
+  h += `</div><div class="cp-col">`;   // 좌열 닫고 우열 열기 — 뉴스는 오른쪽
+
   // 뉴스 — 30분마다 관심 주제(보유 ETF·미국증시·환율금리·FIRE)로 갱신되는 실시간 피드.
   if ((cp.news || []).length) h += `<section class="card">
     <div class="cp-mkt-head"><h2>관심 뉴스</h2>${cp.news_live ? badge : ""}</div>
@@ -1527,6 +1671,8 @@ function renderCheckpoint(cp, finBlock) {
       ${n.insight ? `<div class="news-insight">→ ${esc(n.insight)}</div>` : ""}
     </div>`).join("")}
     </section>`;
+
+  h += `</div></div>`;   // .cp-col · .cp-cols 닫기
 
   if ((cp.data_warnings || []).length)
     h += `<div class="goal-sub">⚠️ 데이터 점검: ${esc(cp.data_warnings.join(" · "))}</div>`;
@@ -3032,8 +3178,16 @@ async function render() {
   // 실시간 시세·뉴스·체크포인트 덮어쓰기 (30분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   const liveAt = applyLive(snap, await loadLive(localStorage.getItem("asset_pw")));
 
-  document.getElementById("updated").textContent =
-    liveAt ? `시세 ${liveAt} · 스냅샷 ${snap.updated_at}` : "갱신: " + snap.updated_at;
+  // 헤더 메타 — 종전엔 시세·스냅샷·환율이 같은 크기 회색 글씨로 나열돼, 무엇이 '지금'
+  // 값인지 판단이 안 됐다. 실시간 여부는 점 있는 배지로 올리고(가장 먼저 눈에 걸림),
+  // 스냅샷 시각은 보조로 내린다. 환율은 데이터라 시세 영역에서 따로 보여준다.
+  const hdr = document.getElementById("updated");
+  if (liveAt) {
+    hdr.innerHTML = `<span class="hdr-live"><span class="dot"></span>실시간 ${liveAt.replace(" KST", "")}</span>`
+                  + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
+  } else {
+    hdr.innerHTML = `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
+  }
   document.getElementById("fx").textContent = snap.fx_usdkrw
     ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$" + (liveAt ? "" : " (" + snap.fx_asof + ")")
     : "";
@@ -3047,6 +3201,8 @@ async function render() {
   const net = snap.net_krw ?? snap.total_krw;
   const gross = snap.gross_krw ?? snap.assets.reduce((s, a) => s + a.value_krw, 0);
   const debt = snap.debt_krw ?? 0;
+
+  renderHeroBand(snap, net);
 
   // history → 일별 순자산 (부채가 음수로 들어와 행 합계가 곧 순자산)
   const daily = new Map();
