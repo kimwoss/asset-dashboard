@@ -720,6 +720,7 @@
   <button class="tab" data-tab="cashflow">현금 흐름 계획</button>
   <button class="tab" data-tab="review">연간 리뷰</button>
   <button class="tab" data-tab="cities">후보 도시</button>
+  <button class="tab" data-tab="officetel">다음 후보집</button>
 </nav>
 
 <div id="tab-overview" style="display:none">
@@ -884,6 +885,22 @@
     <h2>실행 캘린더 — 언제, 누구 계좌에서, 무엇을</h2>
     <div id="cf-cal"></div>
     <div class="goal-sub" id="cf-cal-note" style="margin-top:12px"></div>
+  </section>
+</div>
+
+<!-- 다음 후보집 — ★아파트 투자_Master의 '(ing)2027년 오피스텔' 미러링.
+     시트가 원본이고 여기는 읽기 전용 표시. 매물 입력은 사람이 시트에 한다. -->
+<div id="tab-officetel" style="display:none">
+  <div class="cards" id="of-kpis"></div>
+  <section class="card">
+    <div class="cp-mkt-head"><h2>기준 통과 매물</h2><span class="u-mono" id="of-asof"></span></div>
+    <div style="overflow-x:auto"><table class="mkt" id="of-live"></table></div>
+    <div class="note" id="of-criteria"></div>
+  </section>
+  <section class="card">
+    <h2>타입 카탈로그</h2>
+    <div class="note">기준에 맞는 매물이 아직 없는 타입. 조건이 맞는 물건이 나오면 시트에 채운다.</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="mkt" id="of-wait"></table></div>
   </section>
 </div>
 
@@ -2721,6 +2738,52 @@ function renderCashflow(fin, fire) {
 const ctShort = n => String(n || "").split(",")[0].trim();          // "New York, NY, US" → "New York"
 const ctCountry = n => { const p = String(n || "").split(","); return p.slice(1).join(",").trim(); };
 
+/* ---- 다음 후보집 ((ing)2027년 오피스텔) ----
+   시트가 원본. 여기는 '기준을 통과한 매물'과 '아직 매물이 없는 타입'을 나눠 보여준다.
+   환산전세는 시트 수식과 같은 식(보증금 + 월세/40 × 1억)이라 두 화면 숫자가 어긋나지 않는다. */
+function renderOfficetel(of) {
+  const tabBtn = document.querySelector('.tab[data-tab="officetel"]');
+  if (!of || !of.items || !of.items.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+
+  const eok = v => v == null ? "—" : (v / 10000).toFixed(2) + "억";
+  const won = v => v == null ? "" : Number(v).toLocaleString();
+  const s = of.summary || {};
+  document.getElementById("of-kpis").innerHTML =
+      kpiCard("기준 통과", (s.ok ?? 0) + "건", `등록 매물 ${s.listed ?? 0}건 중`, true)
+    + kpiCard("최저 환산전세", eok(s.min_conv), `상한 ${eok(of.cap_man)} · 전용 ${of.area_min}평↑`)
+    + kpiCard("후보 오피스텔", (s.buildings ?? 0) + "곳", `타입 ${s.total ?? 0}종`);
+
+  const live = of.items.filter(x => x.ok).sort((a, b) => a.converted - b.converted);
+  const wait = of.items.filter(x => !x.ok);
+  const asof = live.map(x => x.asof).filter(Boolean).sort().pop();
+  document.getElementById("of-asof").textContent = asof ? `최근 확인 ${asof}` : "";
+  document.getElementById("of-criteria").textContent = of.criteria || "";
+
+  const cond = x => x.monthly ? `${won(x.deposit)} / ${won(x.monthly)}` : `전세 ${won(x.deposit)}`;
+  document.getElementById("of-live").innerHTML =
+    `<thead><tr><th>오피스텔</th><th>타입</th><th>전용</th><th>보증금/월세</th>`
+    + `<th>환산전세</th><th>층·향</th><th></th></tr></thead><tbody>`
+    + (live.length ? live.map(x => `<tr>
+        <td class="name">${esc(x.name)}<span class="mkt-asof">${esc(x.region || "")}</span></td>
+        <td>${esc(x.type)}</td><td>${x.area ? x.area.toFixed(2) + "평" : "—"}</td>
+        <td>${esc(cond(x))}</td>
+        <td class="mkt-px"><b>${eok(x.converted)}</b></td>
+        <td>${esc([x.floor, x.facing].filter(Boolean).join(" · "))}</td>
+        <td>${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">보기</a>` : ""}</td>
+      </tr>`).join("") : `<tr><td colspan="7" style="color:var(--ink-muted)">기준을 통과한 매물이 없습니다</td></tr>`)
+    + `</tbody>`;
+
+  document.getElementById("of-wait").innerHTML =
+    `<thead><tr><th>오피스텔</th><th>타입</th><th>전용</th><th>세대수</th><th>강남역</th><th>상태</th></tr></thead><tbody>`
+    + wait.map(x => `<tr>
+        <td class="name">${esc(x.name)}</td><td>${esc(x.type)}</td>
+        <td>${x.area ? x.area.toFixed(2) + "평" : "—"}</td>
+        <td>${x.units ? Math.round(x.units).toLocaleString() + "실" : "—"}</td>
+        <td>${esc(x.toGangnam || "")}</td>
+        <td style="color:var(--ink-muted)">${x.listed ? "기준 미달" : "매물 대기"}</td>
+      </tr>`).join("") + `</tbody>`;
+}
+
 function renderCities(ct, net) {
   const tabBtn = document.querySelector('.tab[data-tab="cities"]');
   if (!ct || !ct.cities || !ct.cities.length || !ct.seoul) { if (tabBtn) tabBtn.style.display = "none"; return; }
@@ -3451,6 +3514,7 @@ async function render() {
   renderSpending(snap.spending, snap.liabilities);
   renderCashflow(snap.financial, snap.fire);   // 건보료·목표구성은 은퇴 시점 세팅(CF_OWN_*)+FIRE 목표 기준
   renderCities(snap.cities, net);
+  renderOfficetel(snap.officetel);
   renderSim(snap.simulation, net);
   renderReview(snap.review);
   // 브리핑 맨 위 금융자산 — 현재값은 실시간, 전일은 history, 전월·전년은 asset_history
