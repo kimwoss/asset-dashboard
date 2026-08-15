@@ -3088,7 +3088,10 @@ function initTabs() {
     if (!b) return;
     if (b.classList.contains("on")) return;      // 같은 탭 다시 눌러 깜빡이지 않게
     for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
-    for (const id of ["checkpoint", "overview", "financial", "spending", "cashflow", "review", "cities"]) {
+    // 탭 목록을 여기 하드코딩하면 탭을 늘릴 때마다 이 배열을 같이 고쳐야 하고, 잊으면
+    // 버튼은 눌리는데 내용이 안 뜬다 ('다음 후보집'을 넣을 때 실제로 그랬다).
+    // 버튼에서 직접 읽어 두 곳이 어긋날 여지를 없앤다.
+    for (const id of [...nav.querySelectorAll(".tab")].map(t => t.dataset.tab)) {
       const el = document.getElementById("tab-" + id);
       if (!el) continue;
       const show = b.dataset.tab === id;
