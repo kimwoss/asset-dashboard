@@ -1,0 +1,124 @@
+# -*- coding: utf-8 -*-
+"""★아파트 투자_Master > '(ing)2027년 오피스텔' → '다음 후보집' 웹 탭.
+
+내년 이사 후보 오피스텔의 타입 카탈로그와, 기준(전세 9억 이하·전용 13평 이상)을
+통과한 매물을 시트에서 그대로 읽어 온다. 다른 탭들과 같은 원칙 — 시트가 원본,
+웹은 미러링. 매물을 더하거나 고치려면 시트에 쓰면 되고 다음 동기화 때 반영된다.
+
+매물 수집은 사람이 한다. 네이버·KB·직방·호갱노노·아실 전부 robots.txt로 자동수집을
+금지하고 있어(2026-08 확인) 긁어오지 않는다.
+
+파싱은 3행 헤더 라벨 기준 — 열이 밀리거나 항목이 늘어도 따라가도록.
+"""
+from typing import Any, Dict, List, Optional
+
+import sheets_fire  # 인증 재사용 (같은 서비스 계정)
+
+SPREADSHEET_ID = "15m6P8BWXeMfsxIKdT4lh-2agRf9nYyQ-cnfu1HIRRts"
+TAB = "(ing)2027년 오피스텔"
+BLOCK = "A1:BB40"
+
+HEADER_ROW_LABEL = "지역"       # 이 라벨이 있는 행이 헤더
+PRICE_CAP_MAN = 90_000          # 환산전세 9억 (만원)
+AREA_MIN_PY = 13.0              # 전용 13평
+
+
+def _num(v: Any) -> Optional[float]:
+    if v is None:
+        return None
+    s = str(v).replace(",", "").replace("₩", "").replace("원", "").strip()
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _col_map(header: List[str]) -> Dict[str, int]:
+    """헤더 라벨 → 열 인덱스. 시트에서 열이 이동해도 이름으로 찾는다."""
+    out: Dict[str, int] = {}
+    for i, h in enumerate(header):
+        k = str(h).strip()
+        if k and k not in out:
+            out[k] = i
+    return out
+
+
+def fetch_officetel() -> Dict[str, Any]:
+    """{criteria, updated_at, items[], summary} — 실패 시 빈 dict (탭 숨김)."""
+    try:
+        import gspread
+        gc = sheets_fire._authorize(gspread)
+        ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
+        grid = ws.get(BLOCK)
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 오피스텔 탭 읽기 실패 ({e})")
+        return {}
+
+    grid = [list(r) + [""] * (60 - len(r)) for r in grid]
+    criteria = ""
+    hdr_i = None
+    for i, row in enumerate(grid):
+        if str(row[0]).strip() == "검색기준":
+            criteria = str(row[1]).strip()
+        if str(row[0]).strip() == HEADER_ROW_LABEL:
+            hdr_i = i
+            break
+    if hdr_i is None:
+        print("WARN: 오피스텔 탭 헤더('지역') 없음")
+        return {}
+
+    c = _col_map(grid[hdr_i])
+    need = ("오피스텔명", "타입", "전용면적(평)", "보증금", "월세", "환산전세")
+    if any(k not in c for k in need):
+        print(f"WARN: 오피스텔 탭 헤더 불일치 — {sorted(c)[:12]}")
+        return {}
+
+    g = lambda row, key: row[c[key]] if key in c and c[key] < len(row) else ""
+    items: List[Dict[str, Any]] = []
+    for row in grid[hdr_i + 1:]:
+        name = str(g(row, "오피스텔명")).strip()
+        if not name:
+            continue
+        dep, mon = _num(g(row, "보증금")), _num(g(row, "월세"))
+        area = _num(g(row, "전용면적(평)"))
+        conv = None if dep is None else dep + (mon or 0) / 40 * 10_000
+        listed = dep is not None
+        ok = bool(listed and area and conv is not None
+                  and conv <= PRICE_CAP_MAN and area >= AREA_MIN_PY)
+        items.append({
+            "region":   str(g(row, "지역")).strip(),
+            "name":     name,
+            "type":     str(g(row, "타입")).strip(),
+            "units":    _num(g(row, "세대수")),
+            "supply":   _num(g(row, "공급면적(평)")),
+            "area":     area,
+            "age":      _num(g(row, "년차")),
+            "floor":    str(g(row, "층수")).strip(),
+            "facing":   str(g(row, "향")).strip(),
+            "toGangnam": str(g(row, "강남역")).strip(),
+            "asof":     str(g(row, "업데이트일자")).strip(),
+            "deposit":  dep,
+            "monthly":  mon,
+            "converted": conv,
+            "listed":   listed,
+            "ok":       ok,
+            "note":     str(g(row, "비고")).strip(),
+            "link":     str(g(row, "매물링크")).strip(),
+        })
+
+    live = [x for x in items if x["ok"]]
+    return {
+        "criteria": criteria,
+        "cap_man": PRICE_CAP_MAN,
+        "area_min": AREA_MIN_PY,
+        "items": items,
+        "summary": {
+            "total": len(items),
+            "listed": sum(1 for x in items if x["listed"]),
+            "ok": len(live),
+            "min_conv": min((x["converted"] for x in live), default=None),
+            "buildings": len({x["name"] for x in items}),
+        },
+    }

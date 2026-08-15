@@ -22,6 +22,7 @@ import sheets_monthly
 import sheets_checkpoint
 import sheets_spending
 import sheets_cities
+import sheets_officetel
 import sheets_sim
 import sheets_review
 import sheets_yearly
@@ -355,6 +356,10 @@ def main():
     # 살고싶은 도시 (🌍이주 대시보드) — Numbeo 기반 도시별 생활비. 실패 시 {} → 탭만 생략.
     cities = sheets_cities.fetch_cities(now.date())
 
+    # 다음 후보집 ((ing)2027년 오피스텔) — 이사 후보 타입 카탈로그 + 기준 통과 매물.
+    # 매물 입력은 사람이 한다 (부동산 사이트 전부 robots.txt로 자동수집 금지).
+    officetel = sheets_officetel.fetch_officetel()
+
     # 은퇴 100세 지도 (시뮬레이션) · 우리 부부 연간 리뷰 (연간리뷰). 실패 시 {} → 탭만 생략.
     simulation = sheets_sim.fetch_simulation()
     review = sheets_review.fetch_review()
@@ -392,6 +397,7 @@ def main():
         "spending": spending,
         "annual_flow": annual_flow,
         "cities": cities,
+        "officetel": officetel,
         "simulation": simulation,
         "review": review,
         "prev_day": prev_day,
