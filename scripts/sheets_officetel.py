@@ -10,13 +10,14 @@
 
 파싱은 3행 헤더 라벨 기준 — 열이 밀리거나 항목이 늘어도 따라가도록.
 """
+import re
 from typing import Any, Dict, List, Optional
 
 import sheets_fire  # 인증 재사용 (같은 서비스 계정)
 
 SPREADSHEET_ID = "15m6P8BWXeMfsxIKdT4lh-2agRf9nYyQ-cnfu1HIRRts"
 TAB = "(ing)2027년 오피스텔"
-BLOCK = "A1:BB40"
+BLOCK = "A1:BD40"
 
 HEADER_ROW_LABEL = "지역"       # 이 라벨이 있는 행이 헤더
 PRICE_CAP_MAN = 90_000          # 환산전세 9억 (만원)
@@ -52,11 +53,16 @@ def fetch_officetel() -> Dict[str, Any]:
         gc = sheets_fire._authorize(gspread)
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
         grid = ws.get(BLOCK)
+        # 매물링크는 =HYPERLINK("url","매물 보기") 수식이라 기본 조회로는 표시문구만 온다.
+        # 그대로 href에 넣으면 상대경로가 되어 대시보드에서 404가 났다. 수식을 따로 읽어
+        # URL을 뽑는다.
+        formulas = ws.get(BLOCK, value_render_option="FORMULA")
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 오피스텔 탭 읽기 실패 ({e})")
         return {}
 
     grid = [list(r) + [""] * (60 - len(r)) for r in grid]
+    formulas = [list(r) + [""] * (60 - len(r)) for r in formulas]
     criteria = ""
     hdr_i = None
     for i, row in enumerate(grid):
@@ -76,8 +82,19 @@ def fetch_officetel() -> Dict[str, Any]:
         return {}
 
     g = lambda row, key: row[c[key]] if key in c and c[key] < len(row) else ""
+
+    def link_of(i: int) -> str:
+        """HYPERLINK 수식에서 URL만 추출. 셀에 URL이 그대로 있으면 그대로 쓴다."""
+        j = c.get("매물링크")
+        if j is None or i >= len(formulas) or j >= len(formulas[i]):
+            return ""
+        raw = str(formulas[i][j]).strip()
+        m = re.search(r'HYPERLINK\(\s*"([^"]+)"', raw, re.I)
+        if m:
+            return m.group(1)
+        return raw if raw.startswith("http") else ""
     items: List[Dict[str, Any]] = []
-    for row in grid[hdr_i + 1:]:
+    for ri, row in enumerate(grid[hdr_i + 1:], start=hdr_i + 1):
         name = str(g(row, "오피스텔명")).strip()
         if not name:
             continue
@@ -105,7 +122,11 @@ def fetch_officetel() -> Dict[str, Any]:
             "listed":   listed,
             "ok":       ok,
             "note":     str(g(row, "비고")).strip(),
-            "link":     str(g(row, "매물링크")).strip(),
+            "link":     link_of(ri),
+            "rooms":    str(g(row, "구조")).strip(),
+            "bath":     str(g(row, "욕실")).strip(),
+            "recent":   str(g(row, "최근 시세")).strip(),
+            "count":    _num(g(row, "매물 수")) or 0,
         })
 
     live = [x for x in items if x["ok"]]
