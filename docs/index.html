@@ -401,6 +401,22 @@
   .cp-cols { display: grid; gap: 0 14px; align-items: start; }
   @media (min-width: 900px) { .cp-cols { grid-template-columns: 1.15fr 1fr; } }
 
+
+  /* 매물 링크 — 표 안에서 밑줄 없는 파란 글씨는 어두운 배경에서 잘 안 보인다.
+     배경을 준 칩으로 만들어 '누를 수 있는 것'이 형태로 드러나게 한다. */
+  .of-go { display:inline-flex; align-items:center; gap:4px; font-family:var(--mono);
+           font-size:var(--fs-micro); font-weight:700; padding:3px 9px; border-radius:var(--r-pill);
+           background:var(--accent-bg); color:var(--accent); text-decoration:none;
+           border:1px solid transparent; white-space:nowrap; }
+  .of-go:hover { border-color:var(--accent); }
+  .of-more { cursor:pointer; user-select:none; }
+  .of-more:hover { color:var(--accent); }
+  .of-sub td { background:var(--page); font-size:var(--fs-cap); }
+  .of-sub .of-line { display:flex; gap:12px; flex-wrap:wrap; padding:3px 0;
+                     font-variant-numeric:tabular-nums; }
+  .of-cnt { font-family:var(--mono); font-weight:700; }
+  .of-cnt.zero { color:var(--ink-muted); font-weight:400; }
+
   #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
              background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
              padding: 8px 11px; font-size: var(--fs-sm); box-shadow: 0 4px 16px rgba(0,0,0,.16); color: var(--ink-1); }
@@ -2745,43 +2761,80 @@ function renderOfficetel(of) {
   const tabBtn = document.querySelector('.tab[data-tab="officetel"]');
   if (!of || !of.items || !of.items.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
 
-  const eok = v => v == null ? "—" : (v / 10000).toFixed(2) + "억";
+  const eok = v => v == null ? "\u2014" : (v / 10000).toFixed(2) + "\uc5b5";
   const won = v => v == null ? "" : Number(v).toLocaleString();
+  const cond = x => x.monthly ? won(x.deposit) + " / " + won(x.monthly) : "\uc804\uc138 " + won(x.deposit);
   const s = of.summary || {};
   document.getElementById("of-kpis").innerHTML =
-      kpiCard("기준 통과", (s.ok ?? 0) + "건", `등록 매물 ${s.listed ?? 0}건 중`, true)
-    + kpiCard("최저 환산전세", eok(s.min_conv), `상한 ${eok(of.cap_man)} · 전용 ${of.area_min}평↑`)
-    + kpiCard("후보 오피스텔", (s.buildings ?? 0) + "곳", `타입 ${s.total ?? 0}종`);
+      kpiCard("\uae30\uc900 \ud1b5\uacfc", (s.ok ?? 0) + "\uac74", "\ub4f1\ub85d \ub9e4\ubb3c " + (s.listed ?? 0) + "\uac74 \uc911", true)
+    + kpiCard("\ucd5c\uc800 \ud658\uc0b0\uc804\uc138", eok(s.min_conv), "\uc0c1\ud55c " + eok(of.cap_man) + " \u00b7 \uc804\uc6a9 " + of.area_min + "\ud3c9\u2191")
+    + kpiCard("\ud6c4\ubcf4 \uc624\ud53c\uc2a4\ud154", (s.buildings ?? 0) + "\uacf3", "\ud0c0\uc785 " + (s.total ?? 0) + "\uc885");
 
-  const live = of.items.filter(x => x.ok).sort((a, b) => a.converted - b.converted);
-  const wait = of.items.filter(x => !x.ok);
+  const live = of.items.filter(x => x.ok).sort((p1, p2) => p1.converted - p2.converted);
   const asof = live.map(x => x.asof).filter(Boolean).sort().pop();
-  document.getElementById("of-asof").textContent = asof ? `최근 확인 ${asof}` : "";
+  document.getElementById("of-asof").textContent = asof ? "\ucd5c\uadfc \ud655\uc778 " + asof : "";
   document.getElementById("of-criteria").textContent = of.criteria || "";
 
-  const cond = x => x.monthly ? `${won(x.deposit)} / ${won(x.monthly)}` : `전세 ${won(x.deposit)}`;
-  document.getElementById("of-live").innerHTML =
-    `<thead><tr><th>오피스텔</th><th>타입</th><th>전용</th><th>보증금/월세</th>`
-    + `<th>환산전세</th><th>층·향</th><th></th></tr></thead><tbody>`
-    + (live.length ? live.map(x => `<tr>
-        <td class="name">${esc(x.name)}<span class="mkt-asof">${esc(x.region || "")}</span></td>
-        <td>${esc(x.type)}</td><td>${x.area ? x.area.toFixed(2) + "평" : "—"}</td>
-        <td>${esc(cond(x))}</td>
-        <td class="mkt-px"><b>${eok(x.converted)}</b></td>
-        <td>${esc([x.floor, x.facing].filter(Boolean).join(" · "))}</td>
-        <td>${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">보기</a>` : ""}</td>
-      </tr>`).join("") : `<tr><td colspan="7" style="color:var(--ink-muted)">기준을 통과한 매물이 없습니다</td></tr>`)
-    + `</tbody>`;
+  const goLink = u => u ? '<a class="of-go" href="' + esc(u) + '" target="_blank" rel="noopener">\ubcf4\uae30 \u2197</a>' : "";
 
-  document.getElementById("of-wait").innerHTML =
-    `<thead><tr><th>오피스텔</th><th>타입</th><th>전용</th><th>세대수</th><th>강남역</th><th>상태</th></tr></thead><tbody>`
-    + wait.map(x => `<tr>
-        <td class="name">${esc(x.name)}</td><td>${esc(x.type)}</td>
-        <td>${x.area ? x.area.toFixed(2) + "평" : "—"}</td>
-        <td>${x.units ? Math.round(x.units).toLocaleString() + "실" : "—"}</td>
-        <td>${esc(x.toGangnam || "")}</td>
-        <td style="color:var(--ink-muted)">${x.listed ? "기준 미달" : "매물 대기"}</td>
-      </tr>`).join("") + `</tbody>`;
+  document.getElementById("of-live").innerHTML =
+    "<thead><tr><th>\uc624\ud53c\uc2a4\ud154</th><th>\ud0c0\uc785</th><th>\uc804\uc6a9</th><th>\uad6c\uc870</th>"
+    + "<th>\ubcf4\uc99d\uae08/\uc6d4\uc138</th><th>\ud658\uc0b0\uc804\uc138</th><th>\uce35\u00b7\ud5a5</th><th></th></tr></thead><tbody>"
+    + (live.length ? live.map(x =>
+        '<tr><td class="name">' + esc(x.name) + '<span class="mkt-asof">' + esc(x.region || "") + "</span></td>"
+        + "<td>" + esc(x.type) + "</td><td>" + (x.area ? x.area.toFixed(2) + "\ud3c9" : "\u2014") + "</td>"
+        + "<td>" + esc(x.rooms || "") + "</td><td>" + esc(cond(x)) + "</td>"
+        + '<td class="mkt-px"><b>' + eok(x.converted) + "</b></td>"
+        + "<td>" + esc([x.floor, x.facing].filter(Boolean).join(" \u00b7 ")) + "</td>"
+        + "<td>" + goLink(x.link) + "</td></tr>").join("")
+      : '<tr><td colspan="8" style="color:var(--ink-muted)">\uae30\uc900\uc744 \ud1b5\uacfc\ud55c \ub9e4\ubb3c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4</td></tr>')
+    + "</tbody>";
+
+  // \ud0c0\uc785 \uce74\ud0c8\ub85c\uadf8 \u2014 \uc624\ud53c\uc2a4\ud154\u00b7\ud0c0\uc785 \ud55c \uc904\ub85c \uc811\uace0, \ub9e4\ubb3c \uc218\ub97c \ub20c\ub7ec \ud38c\uce5c\ub2e4.
+  const groups = new Map();
+  for (const x of of.items) {
+    const k = x.name + " " + x.type;
+    if (!groups.has(k)) groups.set(k, { spec: x, list: [] });
+    const g = groups.get(k);
+    if (x.listed) g.list.push(x);
+    if (!g.spec.area && x.area) g.spec = x;
+  }
+  const rows = [...groups.values()].sort((g1, g2) =>
+    (g1.spec.name || "").localeCompare(g2.spec.name || "") || (g1.spec.area || 0) - (g2.spec.area || 0));
+
+  const body = document.getElementById("of-wait");
+  body.innerHTML =
+    "<thead><tr><th>\uc624\ud53c\uc2a4\ud154</th><th>\ud0c0\uc785</th><th>\uc804\uc6a9</th><th>\uad6c\uc870</th>"
+    + "<th>\uc138\ub300\uc218</th><th>\uac15\ub0a8\uc5ed</th><th>\ucd5c\uadfc \uc2dc\uc138</th><th>\ub9e4\ubb3c \uc218</th></tr></thead><tbody>"
+    + rows.map((g, i) => {
+        const x = g.spec, n = g.list.length;
+        const cnt = n
+          ? '<span class="of-cnt of-more" data-g="' + i + '">' + n + "\uac74 \u25be</span>"
+          : '<span class="of-cnt zero">0</span>';
+        const head = '<tr><td class="name">' + esc(x.name) + "</td><td>" + esc(x.type) + "</td>"
+          + "<td>" + (x.area ? x.area.toFixed(2) + "\ud3c9" : "\u2014") + "</td>"
+          + "<td>" + esc(x.rooms || "") + "</td>"
+          + "<td>" + (x.units ? Math.round(x.units).toLocaleString() + "\uc2e4" : "\u2014") + "</td>"
+          + "<td>" + esc(x.toGangnam || "") + "</td>"
+          + "<td>" + esc(x.recent || "\u2014") + "</td><td>" + cnt + "</td></tr>";
+        const sub = '<tr class="of-sub" id="of-sub-' + i + '" style="display:none"><td colspan="8">'
+          + g.list.sort((v1, v2) => (v1.converted || 0) - (v2.converted || 0)).map(v =>
+              '<div class="of-line"><b>' + eok(v.converted) + "</b><span>" + esc(cond(v)) + "</span>"
+              + '<span style="color:var(--ink-muted)">' + esc([v.floor, v.facing].filter(Boolean).join(" \u00b7 ")) + "</span>"
+              + '<span style="color:var(--ink-muted)">' + esc(v.asof || "") + "</span>"
+              + goLink(v.link) + "</div>").join("")
+          + "</td></tr>";
+        return head + sub;
+      }).join("") + "</tbody>";
+
+  body.onclick = ev => {
+    const b = ev.target.closest(".of-more");
+    if (!b) return;
+    const sub = document.getElementById("of-sub-" + b.dataset.g);
+    const open = sub.style.display !== "none";
+    sub.style.display = open ? "none" : "";
+    b.textContent = b.textContent.replace(open ? "\u25b4" : "\u25be", open ? "\u25be" : "\u25b4");
+  };
 }
 
 function renderCities(ct, net) {
