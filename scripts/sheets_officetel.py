@@ -14,6 +14,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 import sheets_fire  # 인증 재사용 (같은 서비스 계정)
+import molit_deals   # 국토부 실거래 (호가와 나란히 보여주기 위함)
 
 SPREADSHEET_ID = "15m6P8BWXeMfsxIKdT4lh-2agRf9nYyQ-cnfu1HIRRts"
 TAB = "(ing)2027년 오피스텔"
@@ -129,12 +130,23 @@ def fetch_officetel() -> Dict[str, Any]:
             "count":    _num(g(row, "매물 수")) or 0,
         })
 
+    # 실거래 붙이기 — 각 타입 행에 '어느 버킷을 보면 되는지'만 달아 두고,
+    # 실제 거래 목록은 deals에 한 번만 담는다(같은 타입 행이 여러 개라 중복 방지).
+    deals = molit_deals.fetch_deals(months=12)
+    for x in items:
+        if x["area"]:
+            k = molit_deals.bucket_key(x["name"], x["area"])
+            x["bucket"] = k if k in deals else ""
+        else:
+            x["bucket"] = ""
+
     live = [x for x in items if x["ok"]]
     return {
         "criteria": criteria,
         "cap_man": PRICE_CAP_MAN,
         "area_min": AREA_MIN_PY,
         "items": items,
+        "deals": deals,
         "summary": {
             "total": len(items),
             "listed": sum(1 for x in items if x["listed"]),
