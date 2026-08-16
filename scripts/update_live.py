@@ -31,6 +31,7 @@ import sheets_fire
 import sheets_monthly
 import sheets_spending
 import sheets_cities
+import sheets_officetel
 import sheets_sim
 import sheets_review
 import sheets_yearly
@@ -62,9 +63,14 @@ TTL_MIN = {
     "liabilities":   180,
     "monthly":       180,
     "baselines":     180,   # 전일·전월·전년 기준 — 하루 한 번 바뀌지만 달 바뀜을 놓치지 않게
+    "officetel":     240,   # 다음 후보집 — 국토부 실거래 신고가 수시로 올라온다(아래 주석)
     "cities":        720,   # 🌍이주 대시보드 — 도시를 더할 때만 바뀐다
     "review":        720,   # 연간 리뷰 — 거의 안 바뀐다
 }
+# officetel만 수명이 4시간인 이유 — 다른 블록은 시트를 읽을 뿐이지만 이 블록은 국토부
+# 실거래 API를 24콜(2개 지역 × 12개월) 두드린다. 신고는 하루에도 몇 건씩 올라오니 일별
+# 잡 한 번으로는 늦고, 30분마다는 같은 값을 다시 받느라 쿼터만 태운다. 4시간이면 하루
+# 6회 · 144콜로, 개발계정 일 한도(10,000)의 1.5%다.
 
 
 def _load_prev():
@@ -134,8 +140,12 @@ def _code_fingerprint() -> str:
     틀린 값을 보여줬다. 스냅샷은 맞고 라이브만 틀리니 원인을 짚기도 어려웠다.
     """
     h = hashlib.sha1()
-    for f in sorted(Path(__file__).parent.glob("sheets_*.py")):
-        h.update(f.read_bytes())
+    here = Path(__file__).parent
+    # sheets_* 외에 molit_deals도 넣는다 — officetel 블록의 실거래 부분이 여기서 나오므로
+    # 이 파일만 고치면 지문이 그대로라 최대 4시간 동안 옛 결과가 계속 실려 나간다.
+    for f in sorted([*here.glob("sheets_*.py"), here / "molit_deals.py"]):
+        if f.exists():
+            h.update(f.read_bytes())
     return h.hexdigest()[:12]
 
 
@@ -323,6 +333,7 @@ def main():
     asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
     liabilities   = _block("liabilities", sheets_yearly.fetch_liabilities, now.date())
     cities        = _block("cities", sheets_cities.fetch_cities, now.date())
+    officetel     = _block("officetel", lambda _d: sheets_officetel.fetch_officetel(), now.date())
     annual_flow   = _block("annual_flow", lambda _d: sheets_annual.fetch_annual_flow(), now.date())
     simulation    = _block("simulation", sheets_sim.fetch_simulation)
     review        = _block("review", sheets_review.fetch_review)
@@ -360,6 +371,7 @@ def main():
         "spending": spending or None,
         "annual_flow": annual_flow or None,
         "cities": cities or None,
+        "officetel": officetel or None,
         "simulation": simulation or None,
         "review": review or None,
         # KPI 델타 기준 — 일별 스냅샷에만 있어 하루 한 번 바뀌던 것을 30분 잡으로 옮겼다
@@ -392,10 +404,10 @@ def main():
                              crypto_util.get_passphrase())
     cp_label = checkpoint.get("date_label", "없음") if checkpoint else "없음"
     sheet_ok = sum(1 for x in (financial, fire, monthly, asset_history, liabilities,
-                               spending, cities, simulation, review) if x)
+                               spending, cities, officetel, simulation, review) if x)
     print(f"OK: live.enc — 미국 {len(us)}건 · 국내 {len(kr)}건 · 환율 {len(fx)}건 · "
           f"계좌 {len(accounts)}개 {total/1e8:.2f}억 · 뉴스 {len(news)}건 · "
-          f"체크포인트 {cp_label} · 시트블록 {sheet_ok}/9 ({now:%H:%M} KST)")
+          f"체크포인트 {cp_label} · 시트블록 {sheet_ok}/10 ({now:%H:%M} KST)")
     print(f"    조회 {len(refetched)}건 {refetched} · 재사용 {len(reused)}건 {reused}")
 
 

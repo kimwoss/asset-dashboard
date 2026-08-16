@@ -426,6 +426,20 @@
   .of-dl .r b { font-weight:700; text-align:right; }
   .of-dl .hd { color:var(--ink-muted); border-bottom:1px solid var(--grid); }
   .of-dl .src { color:var(--ink-muted); font-size:var(--fs-micro); padding-top:6px; }
+  /* 타입 — 누르면 평면도와 제원을 편다 */
+  .of-type { cursor:pointer; user-select:none; font-weight:700;
+             border-bottom:1px dashed var(--baseline); }
+  .of-type:hover { color:var(--accent); border-bottom-color:var(--accent); }
+  .of-type.none { cursor:default; font-weight:inherit; border-bottom:none; }
+  .of-spec { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .of-spec dl { display:grid; grid-template-columns:auto auto; gap:4px 14px; margin:0;
+                font-size:var(--fs-cap); }
+  .of-spec dt { color:var(--ink-muted); }
+  .of-spec dd { margin:0; font-family:var(--mono); font-weight:700;
+                font-variant-numeric:tabular-nums; }
+  .of-plan img { max-width:min(320px,60vw); border:1px solid var(--grid);
+                 border-radius:var(--r-sm); background:#fff; display:block; }
+  .of-plan .fail { color:var(--ink-muted); font-size:var(--fs-micro); }
 
   #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
              background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
@@ -2787,6 +2801,13 @@ function renderOfficetel(of) {
 
   const goLink = u => u ? '<a class="of-go" href="' + esc(u) + '" target="_blank" rel="noopener">\ubcf4\uae30 \u2197</a>' : "";
 
+  // \ud0c0\uc785 \uce78 \u2014 \ubcf4\uc5ec\uc904 \uc81c\uc6d0(\ud3c9\uba74\ub3c4\u00b7\uba74\uc801\u00b7\uc804\uc6a9\ub960\u00b7\uc138\ub300\uc218)\uc774 \ud558\ub098\ub77c\ub3c4 \uc788\uc73c\uba74 \ub204\ub97c \uc218 \uc788\uac8c.
+  const M2 = 3.305785;
+  const hasSpec = x => !!(x.plan || x.ratio || x.supply || x.sale);
+  const typeCell = (x, i) =>
+    hasSpec(x) ? '<span class="of-type" data-g="' + i + '">' + esc(x.type) + " \u25be</span>"
+               : '<span class="of-type none">' + esc(x.type) + "</span>";
+
   // \ucd5c\uadfc \uc2dc\uc138 \uce78 \u2014 \uad6d\ud1a0\ubd80 \uc2e4\uac70\ub798\uac00 \uc788\uc73c\uba74 \ub204\ub97c \uc218 \uc788\uac8c, \uc5c6\uc73c\uba74 \uadf8\ub300\ub85c \ub454\ub2e4.
   const dealsOf = x => (of.deals || {})[x.bucket || ""] || [];
   const dealCell = (x, i) => {
@@ -2830,7 +2851,7 @@ function renderOfficetel(of) {
         const cnt = n
           ? '<span class="of-cnt of-more" data-g="' + i + '">' + n + "\uac74 \u25be</span>"
           : '<span class="of-cnt zero">0</span>';
-        const head = '<tr><td class="name">' + esc(x.name) + "</td><td>" + esc(x.type) + "</td>"
+        const head = '<tr><td class="name">' + esc(x.name) + "</td><td>" + typeCell(x, i) + "</td>"
           + "<td>" + (x.area ? x.area.toFixed(2) + "\ud3c9" : "\u2014") + "</td>"
           + "<td>" + esc(x.rooms || "") + "</td>"
           + "<td>" + (x.units ? Math.round(x.units).toLocaleString() + "\uc2e4" : "\u2014") + "</td>"
@@ -2858,15 +2879,36 @@ function renderOfficetel(of) {
               + "<b>" + eok(t.converted) + "</b></div>").join("")
           + '<div class="src">국토교통부 실거래가 · 최근 12개월 (동·호 정보는 공개되지 않습니다)</div>'
           + "</div></td></tr>";
-        return head + sub + deal;
+        // 타입 제원 + 평면도. 평면도는 네이버 CDN을 그대로 가리키므로 막힐 수 있다 —
+        // 막히면 onerror가 '네이버에서 보기' 링크로 물러난다.
+        const spec = !hasSpec(x) ? "" :
+          '<tr class="of-sub" id="of-spec-' + i + '" style="display:none"><td colspan="8">'
+          + '<div class="of-spec">'
+          + (x.plan ? '<div class="of-plan"><img src="' + esc(x.plan) + '" alt="'
+              + esc(x.name + " " + x.type) + ' 평면도" loading="lazy" referrerpolicy="no-referrer"'
+              + " onerror=\"this.style.display='none';this.nextElementSibling.style.display=''\">"
+              + '<a class="of-go fail" style="display:none" href="' + esc(x.plan)
+              + '" target="_blank" rel="noopener">평면도 열기 ↗</a></div>' : "")
+          + "<dl>"
+          + (x.supply ? "<dt>공급</dt><dd>" + x.supply.toFixed(2) + "평 · "
+              + (x.supply * M2).toFixed(2) + "㎡</dd>" : "")
+          + (x.area ? "<dt>전용</dt><dd>" + x.area.toFixed(2) + "평 · "
+              + (x.area * M2).toFixed(2) + "㎡</dd>" : "")
+          + (x.ratio ? "<dt>전용률</dt><dd>" + Math.round(x.ratio * 100) + "%</dd>" : "")
+          + (x.units ? "<dt>세대수</dt><dd>" + Math.round(x.units).toLocaleString() + "실</dd>" : "")
+          + (x.rooms ? "<dt>구조</dt><dd>" + esc(x.rooms) + "</dd>" : "")
+          + (x.sale ? "<dt>매매 호가</dt><dd>" + esc(x.sale) + "</dd>" : "")
+          + "</dl></div></td></tr>";
+        return head + spec + sub + deal;
       }).join("") + "</tbody>";
 
-  // 매물 수 → 호가 목록, 최근 시세 → 실거래 목록. 같은 방식으로 접고 편다.
+  // 세 칸이 각각 제 몫을 편다 — 타입 → 평면도·제원, 최근 시세 → 실거래, 매물 수 → 호가.
+  const OF_PANEL = { "of-type": "of-spec-", "of-deal": "of-deal-", "of-more": "of-sub-" };
   body.onclick = ev => {
-    const b = ev.target.closest(".of-more, .of-deal");
+    const b = ev.target.closest(".of-type, .of-deal, .of-more");
     if (!b || b.classList.contains("none")) return;
-    const sub = document.getElementById(
-      (b.classList.contains("of-deal") ? "of-deal-" : "of-sub-") + b.dataset.g);
+    const pre = Object.entries(OF_PANEL).find(([c]) => b.classList.contains(c));
+    const sub = pre && document.getElementById(pre[1] + b.dataset.g);
     if (!sub) return;
     const open = sub.style.display !== "none";
     sub.style.display = open ? "none" : "";
@@ -3303,7 +3345,7 @@ function applyLive(snap, live) {
   // prev_* (전일·전월·전년 기준)도 30분 잡이 싣는다 — 종전엔 일별 스냅샷에만 있어
   // 달이 바뀐 날 아침(일별 잡 전)에 '전월'이 지지난달을 가리켰다.
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
-                   "spending", "cities", "simulation", "review", "annual_flow",
+                   "spending", "cities", "officetel", "simulation", "review", "annual_flow",
                    "prev_day", "prev_month", "prev_year"])
     if (live[k]) snap[k] = live[k];
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
