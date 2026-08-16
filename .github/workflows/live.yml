@@ -47,6 +47,8 @@ jobs:
         env:
           ASSET_PASSPHRASE: ${{ secrets.ASSET_PASSPHRASE }}
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          # 다음 후보집의 국토부 실거래(4시간 수명). 없으면 실거래 칸만 비고 나머지는 정상 발행.
+          MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
         run: python scripts/update_live.py
 
       - name: Publish to live-data branch

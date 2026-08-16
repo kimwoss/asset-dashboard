@@ -18,7 +18,7 @@ import molit_deals   # 국토부 실거래 (호가와 나란히 보여주기 위
 
 SPREADSHEET_ID = "15m6P8BWXeMfsxIKdT4lh-2agRf9nYyQ-cnfu1HIRRts"
 TAB = "(ing)2027년 오피스텔"
-BLOCK = "A1:BD200"   # 매물이 늘어도 잘리지 않게 넉넉히
+BLOCK = "A1:BH200"   # 매물이 늘어도, 열을 더해도 잘리지 않게 넉넉히
 
 HEADER_ROW_LABEL = "지역"       # 이 라벨이 있는 행이 헤더
 PRICE_CAP_MAN = 90_000          # 환산전세 9억 (만원)
@@ -62,8 +62,8 @@ def fetch_officetel() -> Dict[str, Any]:
         print(f"WARN: 오피스텔 탭 읽기 실패 ({e})")
         return {}
 
-    grid = [list(r) + [""] * (60 - len(r)) for r in grid]
-    formulas = [list(r) + [""] * (60 - len(r)) for r in formulas]
+    grid = [list(r) + [""] * (64 - len(r)) for r in grid]
+    formulas = [list(r) + [""] * (64 - len(r)) for r in formulas]
     criteria = ""
     hdr_i = None
     for i, row in enumerate(grid):
@@ -84,9 +84,9 @@ def fetch_officetel() -> Dict[str, Any]:
 
     g = lambda row, key: row[c[key]] if key in c and c[key] < len(row) else ""
 
-    def link_of(i: int) -> str:
+    def link_of(i: int, key: str = "매물링크") -> str:
         """HYPERLINK 수식에서 URL만 추출. 셀에 URL이 그대로 있으면 그대로 쓴다."""
-        j = c.get("매물링크")
+        j = c.get(key)
         if j is None or i >= len(formulas) or j >= len(formulas[i]):
             return ""
         raw = str(formulas[i][j]).strip()
@@ -101,6 +101,11 @@ def fetch_officetel() -> Dict[str, Any]:
             continue
         dep, mon = _num(g(row, "보증금")), _num(g(row, "월세"))
         area = _num(g(row, "전용면적(평)"))
+        # 전용률은 시트가 % 서식이라 표시값('49%')으로 온다. 서식이 풀리면 0.49로 오므로
+        # 둘 다 0~1로 맞춘다 — 화면에서 4900%가 되는 사고를 막는다.
+        ratio = _num(str(g(row, "전용률")).replace("%", "").strip())
+        if ratio and ratio > 1:
+            ratio /= 100
         conv = None if dep is None else dep + (mon or 0) / 40 * 10_000
         listed = dep is not None
         ok = bool(listed and area and conv is not None
@@ -128,6 +133,10 @@ def fetch_officetel() -> Dict[str, Any]:
             "bath":     str(g(row, "욕실")).strip(),
             "recent":   str(g(row, "최근 시세")).strip(),
             "count":    _num(g(row, "매물 수")) or 0,
+            # 타입 제원 — 네이버 '면적 정보' 패널에서 온다. 매물이 없는 타입도 채워진다.
+            "ratio":    ratio,
+            "plan":     link_of(ri, "평면도"),
+            "sale":     str(g(row, "매매시세")).strip(),
         })
 
     # 실거래 붙이기 — 각 타입 행에 '어느 버킷을 보면 되는지'만 달아 두고,
