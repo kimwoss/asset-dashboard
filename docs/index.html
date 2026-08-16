@@ -440,6 +440,12 @@
   .of-plan img { max-width:min(320px,60vw); border:1px solid var(--grid);
                  border-radius:var(--r-sm); background:#fff; display:block; }
   .of-plan .fail { color:var(--ink-muted); font-size:var(--fs-micro); }
+  /* 베스트 매물 별 — 개수가 곧 등급이라 색으로 한 번 더 나눈다 */
+  .of-star { display:inline-block; margin-right:5px; letter-spacing:-1px; cursor:help;
+             font-size:var(--fs-micro); vertical-align:1px; }
+  .of-star.s1 { color:var(--ink-muted); }
+  .of-star.s2 { color:var(--accent); }
+  .of-star.s3 { color:var(--pos); }
 
   #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
              background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
@@ -2794,12 +2800,20 @@ function renderOfficetel(of) {
     + kpiCard("\ucd5c\uc800 \ud658\uc0b0\uc804\uc138", eok(s.min_conv), "\uc0c1\ud55c " + eok(of.cap_man) + " \u00b7 \uc804\uc6a9 " + of.area_min + "\ud3c9\u2191")
     + kpiCard("\ud6c4\ubcf4 \uc624\ud53c\uc2a4\ud154", (s.buildings ?? 0) + "\uacf3", "\ud0c0\uc785 " + (s.total ?? 0) + "\uc885");
 
-  const live = of.items.filter(x => x.ok).sort((p1, p2) => p1.converted - p2.converted);
+  // 별점이 높은 순 → 같으면 싼 순. 중개사가 훑는 순서와 같게.
+  const live = of.items.filter(x => x.ok).sort((p1, p2) =>
+    (p2.stars || "").length - (p1.stars || "").length || p1.converted - p2.converted);
   const asof = live.map(x => x.asof).filter(Boolean).sort().pop();
   document.getElementById("of-asof").textContent = asof ? "\ucd5c\uadfc \ud655\uc778 " + asof : "";
   document.getElementById("of-criteria").textContent = of.criteria || "";
 
   const goLink = u => u ? '<a class="of-go" href="' + esc(u) + '" target="_blank" rel="noopener">\ubcf4\uae30 \u2197</a>' : "";
+
+  // \ubcc4\uc810 \u2014 4\uc2dc\uac04 \uc7a1\uc774 \ub9e4\uae34 \uac12\uc744 \uadf8\ub300\ub85c \ubcf4\uc5ec\uc900\ub2e4. \uadfc\uac70\ub294 title\ub85c \ubd99\uc5ec \uc65c \ubcc4\uc774 \ubd99\uc5c8\ub294\uc9c0
+  // \ubc14\ub85c \ud655\uc778\ud560 \uc218 \uc788\uac8c \ud55c\ub2e4(\ubcc4\ub9cc \ubcf4\uace0 \ubbff\uc744 \uac12\uc774 \uc544\ub2c8\ub2e4).
+  const starTag = x => x.stars
+    ? '<span class="of-star s' + x.stars.length + '" title="' + esc(x.why || "") + '">'
+      + x.stars + "</span>" : "";
 
   // \ud0c0\uc785 \uce78 \u2014 \ubcf4\uc5ec\uc904 \uc81c\uc6d0(\ud3c9\uba74\ub3c4\u00b7\uba74\uc801\u00b7\uc804\uc6a9\ub960\u00b7\uc138\ub300\uc218)\uc774 \ud558\ub098\ub77c\ub3c4 \uc788\uc73c\uba74 \ub204\ub97c \uc218 \uc788\uac8c.
   const M2 = 3.305785;
@@ -2821,7 +2835,8 @@ function renderOfficetel(of) {
     "<thead><tr><th>\uc624\ud53c\uc2a4\ud154</th><th>\ud0c0\uc785</th><th>\uc804\uc6a9</th><th>\uad6c\uc870</th>"
     + "<th>\ubcf4\uc99d\uae08/\uc6d4\uc138</th><th>\ud658\uc0b0\uc804\uc138</th><th>\uce35\u00b7\ud5a5</th><th></th></tr></thead><tbody>"
     + (live.length ? live.map(x =>
-        '<tr><td class="name">' + esc(x.name) + '<span class="mkt-asof">' + esc(x.region || "") + "</span></td>"
+        '<tr><td class="name">' + starTag(x) + esc(x.name)
+        + '<span class="mkt-asof">' + esc(x.region || "") + "</span></td>"
         + "<td>" + esc(x.type) + "</td><td>" + (x.area ? x.area.toFixed(2) + "\ud3c9" : "\u2014") + "</td>"
         + "<td>" + esc(x.rooms || "") + "</td><td>" + esc(cond(x)) + "</td>"
         + '<td class="mkt-px"><b>' + eok(x.converted) + "</b></td>"
@@ -2859,7 +2874,7 @@ function renderOfficetel(of) {
           + "<td>" + dealCell(x, i) + "</td><td>" + cnt + "</td></tr>";
         const sub = '<tr class="of-sub" id="of-sub-' + i + '" style="display:none"><td colspan="8">'
           + g.list.sort((v1, v2) => (v1.converted || 0) - (v2.converted || 0)).map(v =>
-              '<div class="of-line"><b>' + eok(v.converted) + "</b><span>" + esc(cond(v)) + "</span>"
+              '<div class="of-line">' + starTag(v) + "<b>" + eok(v.converted) + "</b><span>" + esc(cond(v)) + "</span>"
               + '<span style="color:var(--ink-muted)">' + esc([v.floor, v.facing].filter(Boolean).join(" \u00b7 ")) + "</span>"
               + '<span style="color:var(--ink-muted)">' + esc(v.asof || "") + "</span>"
               + goLink(v.link) + "</div>").join("")
