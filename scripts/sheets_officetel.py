@@ -18,7 +18,8 @@ import molit_deals   # 국토부 실거래 (호가와 나란히 보여주기 위
 
 SPREADSHEET_ID = "15m6P8BWXeMfsxIKdT4lh-2agRf9nYyQ-cnfu1HIRRts"
 TAB = "(ing)2027년 오피스텔"
-BLOCK = "A1:BH200"   # 매물이 늘어도, 열을 더해도 잘리지 않게 넉넉히
+BLOCK = "A1:BZ200"   # 매물이 늘어도, 열을 더해도 잘리지 않게 넉넉히.
+                     # BD→BH→BI로 세 번 잘렸다. 시트 끝까지 잡는 편이 낫다.
 
 HEADER_ROW_LABEL = "지역"       # 이 라벨이 있는 행이 헤더
 PRICE_CAP_MAN = 90_000          # 환산전세 9억 (만원)
@@ -62,8 +63,8 @@ def fetch_officetel() -> Dict[str, Any]:
         print(f"WARN: 오피스텔 탭 읽기 실패 ({e})")
         return {}
 
-    grid = [list(r) + [""] * (64 - len(r)) for r in grid]
-    formulas = [list(r) + [""] * (64 - len(r)) for r in formulas]
+    grid = [list(r) + [""] * (78 - len(r)) for r in grid]
+    formulas = [list(r) + [""] * (78 - len(r)) for r in formulas]
     criteria = ""
     hdr_i = None
     for i, row in enumerate(grid):
@@ -137,6 +138,9 @@ def fetch_officetel() -> Dict[str, Any]:
             "ratio":    ratio,
             "plan":     link_of(ri, "평면도"),
             "sale":     str(g(row, "매매시세")).strip(),
+            # 베스트 매물 별점 — 시세 대비·층·향·실거주 적합을 4시간 잡이 매겨 둔 값
+            "stars":    str(g(row, "추천")).strip(),
+            "why":      str(g(row, "추천근거")).strip(),
         })
 
     # 실거래 붙이기 — 각 타입 행에 '어느 버킷을 보면 되는지'만 달아 두고,
