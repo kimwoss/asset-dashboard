@@ -17,7 +17,7 @@ import sheets_fire  # 인증 재사용 (같은 서비스 계정)
 
 SPREADSHEET_ID = "15m6P8BWXeMfsxIKdT4lh-2agRf9nYyQ-cnfu1HIRRts"
 TAB = "(ing)2027년 오피스텔"
-BLOCK = "A1:BD40"
+BLOCK = "A1:BD200"   # 매물이 늘어도 잘리지 않게 넉넉히
 
 HEADER_ROW_LABEL = "지역"       # 이 라벨이 있는 행이 헤더
 PRICE_CAP_MAN = 90_000          # 환산전세 9억 (만원)
