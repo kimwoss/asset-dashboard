@@ -15,11 +15,13 @@ import sheets_fire
 
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "시뮬레이션"
-BLOCK = "A1:N90"
+BLOCK = "A1:O90"
 HEADER_LABEL = "나이"          # 이 행부터 연도별 데이터
-# 데이터 열 (0-indexed): A나이 B연도 C단계 D순자산 E투자수익 F연지출 G의료 H연금 I은퇴후소득 J저축 M실질순자산
+# 데이터 열 (0-indexed): A나이 B연도 C단계 D순자산 E투자수익 F연지출 G의료 H연금 I은퇴후소득
+#                        J저축 M실질순자산 N국면(경기순환) O적용수익률
 COL = {"age": 0, "year": 1, "phase": 2, "net": 3, "invest": 4, "spend": 5,
-       "medical": 6, "pension": 7, "retire_income": 8, "saving": 9, "real_net": 12}
+       "medical": 6, "pension": 7, "retire_income": 8, "saving": 9, "real_net": 12,
+       "cycle": 13, "rate": 14}
 
 
 def _num(v: Any) -> float:
@@ -86,6 +88,10 @@ def fetch_simulation() -> Dict[str, Any]:
                 "net": g("net"), "real_net": g("real_net"),
                 "invest": g("invest"), "spend": g("spend"),
                 "medical": g("medical"), "pension": g("pension"), "saving": g("saving"),
+                # 경기순환 — '평상/폭락/회복'과 그 해 실제로 적용된 수익률.
+                # 순환을 끄면 전부 '평상'이라 화면은 종전과 똑같이 보인다.
+                "cycle": str(row[COL["cycle"]]).strip() if len(row) > COL["cycle"] else "",
+                "rate": (_num(row[COL["rate"]]) if len(row) > COL["rate"] else 0.0),
             })
         if not series:
             print("WARN: 시뮬레이션 데이터 없음")
@@ -100,7 +106,10 @@ def fetch_simulation() -> Dict[str, Any]:
         if m:
             depletion_age = int(m.group(1))
 
+        cyc = [x for x in series if x["cycle"] in ("폭락", "회복")]
         summary = {
+            "cycle_on": bool(cyc),
+            "crash_ages": [x["age"] for x in series if x["cycle"] == "폭락"],
             "retire_asset": round(_num(_right(grid, "은퇴시점 자산"))),
             "target_basic": round(_num(_right(grid, "은퇴필요 기본자금"))),
             "target_rich": round(_num(_right(grid, "은퇴 부자자금"))),
@@ -108,8 +117,10 @@ def fetch_simulation() -> Dict[str, Any]:
             "end_age": series[-1]["age"],
             "real_net_end": series[-1]["real_net"],
         }
+        cyc_txt = (f" · 순환 ON, 폭락 {summary['crash_ages'][:4]}…"
+                   if summary["cycle_on"] else " · 순환 OFF")
         print(f"OK: 은퇴 지도 {len(series)}개년({series[0]['age']}~{series[-1]['age']}세) · "
-              f"은퇴 {retire_age}세 · 소진 {depletion_age}세")
+              f"은퇴 {retire_age}세 · 소진 {depletion_age}세{cyc_txt}")
         return {"summary": summary, "retire_age": retire_age,
                 "depletion_age": depletion_age, "series": series}
     except Exception as e:  # noqa: BLE001
