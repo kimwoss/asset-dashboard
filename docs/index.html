@@ -3114,7 +3114,10 @@ function simChart(container, series, mode, retireAge, depAge) {
     showTip(ev, `<b>${p.age}세</b> (${esc(p.phase)})<br>${mode === "nominal" ? "순자산" : "실질 순자산"} ${fmtEok(p[key])}` +
       (p.cycle && p.cycle !== "평상"
         ? `<br><b style="color:${p.cycle === "폭락" ? "var(--neg)" : "var(--pos)"}">${p.cycle}</b>`
-          + ` <span style="color:var(--ink-muted)">수익률 ${(p.rate * 100).toFixed(1)}%</span>` : "") +
+          + ` <span style="color:var(--ink-muted)">수익률 ${(p.rate * 100).toFixed(1)}%</span>`
+          + (p.spend_mult < 1
+              ? ` <span style="color:var(--pos)">생활비 −${Math.round((1 - p.spend_mult) * 100)}%</span>` : "")
+        : "") +
       (p.spend ? `<br><span style="color:var(--ink-muted)">연지출 ${fmtEok(p.spend)}${p.pension ? " · 연금 " + fmtEok(p.pension) : ""}</span>` : ""));
   });
   svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); });
@@ -3149,7 +3152,9 @@ function renderSim(sim, net) {
     stat("자산 소진", sim.depletion_age ? `${sim.depletion_age}세` : "없음") +
     stat("108세 실질", `<span class="${s.real_net_end < 0 ? "delta-down" : ""}">${fmtEok(s.real_net_end)}</span>`)
     + (s.cycle_on
-        ? stat("경기순환", `<span class="delta-down">폭락 ${(s.crash_ages || []).slice(0, 4).join("·")}세…</span>`)
+        ? stat("경기순환", `<span class="delta-down">폭락 ${(s.crash_ages || []).slice(0, 4).join("·")}세…</span>`
+            + (s.spend_cut > 0
+                ? ` <span style="color:var(--pos)">생활비 −${s.spend_cut}%</span>` : ""))
         : "");
 
   // ── 연도별 표 헬퍼 — draw()가 paintTable을 부르므로 반드시 그보다 먼저 선언한다 ──
