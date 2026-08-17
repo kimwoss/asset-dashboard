@@ -15,13 +15,13 @@ import sheets_fire
 
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "시뮬레이션"
-BLOCK = "A1:O90"
+BLOCK = "A1:P90"
 HEADER_LABEL = "나이"          # 이 행부터 연도별 데이터
 # 데이터 열 (0-indexed): A나이 B연도 C단계 D순자산 E투자수익 F연지출 G의료 H연금 I은퇴후소득
-#                        J저축 M실질순자산 N국면(경기순환) O적용수익률
+#                        J저축 M실질순자산 N국면(경기순환) O적용수익률 P생활비배수
 COL = {"age": 0, "year": 1, "phase": 2, "net": 3, "invest": 4, "spend": 5,
        "medical": 6, "pension": 7, "retire_income": 8, "saving": 9, "real_net": 12,
-       "cycle": 13, "rate": 14}
+       "cycle": 13, "rate": 14, "spend_mult": 15}
 
 
 def _num(v: Any) -> float:
@@ -92,6 +92,9 @@ def fetch_simulation() -> Dict[str, Any]:
                 # 순환을 끄면 전부 '평상'이라 화면은 종전과 똑같이 보인다.
                 "cycle": str(row[COL["cycle"]]).strip() if len(row) > COL["cycle"] else "",
                 "rate": (_num(row[COL["rate"]]) if len(row) > COL["rate"] else 0.0),
+                # 폭락기 생활비 절감 배수 (1이면 평소대로). 시트에서 절감률을 0으로 두면 늘 1.
+                "spend_mult": (_num(row[COL["spend_mult"]])
+                               if len(row) > COL["spend_mult"] else 1.0) or 1.0,
             })
         if not series:
             print("WARN: 시뮬레이션 데이터 없음")
@@ -110,6 +113,8 @@ def fetch_simulation() -> Dict[str, Any]:
         summary = {
             "cycle_on": bool(cyc),
             "crash_ages": [x["age"] for x in series if x["cycle"] == "폭락"],
+            # 절감을 실제로 쓰고 있는지 + 몇 %인지 (행마다 같으므로 첫 값으로 대표)
+            "spend_cut": round((1 - min((x["spend_mult"] for x in series), default=1)) * 100),
             "retire_asset": round(_num(_right(grid, "은퇴시점 자산"))),
             "target_basic": round(_num(_right(grid, "은퇴필요 기본자금"))),
             "target_rich": round(_num(_right(grid, "은퇴 부자자금"))),
