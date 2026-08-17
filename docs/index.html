@@ -360,6 +360,9 @@
   #sim-table tr.sim-after td { color: var(--ink-muted); }
   .sim-tag { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 999px;
     background: var(--grid); color: var(--ink-2); margin-left: 6px; }
+  /* 경기순환 국면 — 폭락은 눈에 띄게, 회복은 조용하게 */
+  .sim-tag.crash { background: var(--neg-bg); color: var(--neg); font-weight: 700; }
+  .sim-tag.rec { background: var(--pos-bg); color: var(--pos); }
 
   .note, .goal-sub, .cp-mkt-note { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 10px; line-height: 1.5; }
   /* 설명글 안에 섞이는 되돌리기 버튼 — 링크처럼 보이되 버튼이라 키보드로도 닿는다 */
@@ -3072,6 +3075,16 @@ function simChart(container, series, mode, retireAge, depAge) {
     el("text", { x: xs(a), y: H - 22, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg)
       .textContent = a + "세";
 
+  // 폭락·회복 구간 띠 — 라인보다 먼저 깔아야 선이 띠 위로 온다.
+  // 순환을 꺼 두면 전부 '평상'이라 아무것도 그려지지 않는다(종전 화면과 동일).
+  const half = (W - m.l - m.r) / Math.max(aMax - aMin, 1) / 2;
+  for (const p of pts) {
+    if (p.cycle !== "폭락" && p.cycle !== "회복") continue;
+    el("rect", { x: xs(p.age) - half, y: m.t, width: half * 2, height: H - m.t - m.b,
+                 fill: p.cycle === "폭락" ? "var(--neg)" : "var(--pos)",
+                 "fill-opacity": p.cycle === "폭락" ? 0.16 : 0.07 }, svg);
+  }
+
   // 은퇴·소진 마커
   const marker = (age, label, color) => {
     if (!age || age < aMin || age > aMax) return;
@@ -3099,6 +3112,9 @@ function simChart(container, series, mode, retireAge, depAge) {
     cross.setAttribute("x1", xs(a)); cross.setAttribute("x2", xs(a)); cross.setAttribute("visibility", "visible");
     dot.setAttribute("cx", xs(a)); dot.setAttribute("cy", ys(p[key])); dot.setAttribute("visibility", "visible");
     showTip(ev, `<b>${p.age}세</b> (${esc(p.phase)})<br>${mode === "nominal" ? "순자산" : "실질 순자산"} ${fmtEok(p[key])}` +
+      (p.cycle && p.cycle !== "평상"
+        ? `<br><b style="color:${p.cycle === "폭락" ? "var(--neg)" : "var(--pos)"}">${p.cycle}</b>`
+          + ` <span style="color:var(--ink-muted)">수익률 ${(p.rate * 100).toFixed(1)}%</span>` : "") +
       (p.spend ? `<br><span style="color:var(--ink-muted)">연지출 ${fmtEok(p.spend)}${p.pension ? " · 연금 " + fmtEok(p.pension) : ""}</span>` : ""));
   });
   svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); hideTip(); });
@@ -3107,7 +3123,10 @@ function simChart(container, series, mode, retireAge, depAge) {
   const lg = document.createElement("div"); lg.className = "sim-legend";
   lg.innerHTML = `<span><i style="background:var(--c-us)"></i>${mode === "nominal" ? "명목 순자산" : "실질 순자산(오늘 가치)"}</span>`
     + `<span><i style="background:var(--c-vi)"></i>은퇴 ${retireAge}세</span>`
-    + (depAge ? `<span><i style="background:var(--neg)"></i>자산 소진 ${depAge}세</span>` : "");
+    + (depAge ? `<span><i style="background:var(--neg)"></i>자산 소진 ${depAge}세</span>` : "")
+    + (pts.some(p => p.cycle === "폭락")
+        ? `<span><i style="background:var(--neg);opacity:.45"></i>폭락</span>`
+          + `<span><i style="background:var(--pos);opacity:.35"></i>회복</span>` : "");
   container.appendChild(lg);
 }
 
@@ -3128,7 +3147,10 @@ function renderSim(sim, net) {
   document.getElementById("sim-stats").innerHTML =
     stat("은퇴 시점 자산", `${fmtEok(s.retire_asset)} · ${sim.retire_age}세`) +
     stat("자산 소진", sim.depletion_age ? `${sim.depletion_age}세` : "없음") +
-    stat("108세 실질", `<span class="${s.real_net_end < 0 ? "delta-down" : ""}">${fmtEok(s.real_net_end)}</span>`);
+    stat("108세 실질", `<span class="${s.real_net_end < 0 ? "delta-down" : ""}">${fmtEok(s.real_net_end)}</span>`)
+    + (s.cycle_on
+        ? stat("경기순환", `<span class="delta-down">폭락 ${(s.crash_ages || []).slice(0, 4).join("·")}세…</span>`)
+        : "");
 
   // ── 연도별 표 헬퍼 — draw()가 paintTable을 부르므로 반드시 그보다 먼저 선언한다 ──
   const eok = v => (v / 1e8).toFixed(2) + "억";
@@ -3145,7 +3167,10 @@ function renderSim(sim, net) {
     mode = b.dataset.mode; draw();
   });
   document.getElementById("sim-note").textContent =
-    "소진 이후 구간은 표시에서 제외 · 실질 = 물가 반영 후 오늘 돈 가치";
+    "소진 이후 구간은 표시에서 제외 · 실질 = 물가 반영 후 오늘 돈 가치"
+    + (s.cycle_on
+        ? " · 경기순환 반영 중 — 폭락·회복 주기는 ★종합 시트에서 직접 정합니다"
+        : " · 경기순환 미반영 (★종합 시트에서 켤 수 있습니다)");
 
   // ── 연도별 표 (접힘) — 차트와 완전히 같은 series를 쓴다 ──────────────────
 
@@ -3165,7 +3190,9 @@ function renderSim(sim, net) {
                   : (sim.depletion_age && r.age > sim.depletion_age) ? "sim-after" : "";
         const tag = isNow ? `<span class="sim-tag">지금</span>`
                   : isRetire ? `<span class="sim-tag">은퇴</span>`
-                  : isDep ? `<span class="sim-tag">소진</span>` : "";
+                  : isDep ? `<span class="sim-tag">소진</span>`
+                  : r.cycle === "폭락" ? `<span class="sim-tag crash">폭락</span>`
+                  : r.cycle === "회복" ? `<span class="sim-tag rec">회복</span>` : "";
         const neg = v => v < 0 ? ` class="delta-down"` : "";
         return `<tr class="${cls}"><td>${r.age}세${tag}</td><td>${esc(r.year)}</td><td>${esc(r.phase)}</td>`
           + `<td${neg(r[primary])}>${eok(r[primary])}</td>`
