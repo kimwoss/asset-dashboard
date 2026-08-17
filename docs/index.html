@@ -137,12 +137,19 @@
            font-size: var(--fs-h3); cursor: pointer; background: var(--surface-1); border: 1px solid var(--border);
            border-radius: var(--r-sm); transition: border-color .15s; padding: 0; }
   #theme:hover { border-color: var(--accent); }
-  #theme + #refresh { margin-left: 0; }
-  #refresh { margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  /* 🌙 오른쪽에 붙는 것들은 저마다 auto를 갖지 않게 한다 — 하나라도 auto면 그 앞에서
+     간격이 벌어져 버튼들이 흩어진다. 밀어내는 역할은 #theme 하나가 맡는다. */
+  #theme ~ #granny, #theme ~ #refresh { margin-left: 0; }
+  /* 높이를 못 박는다 — a는 content-box, button은 border-box라 같은 padding으로도
+     2px 어긋나 나란히 두면 눈에 띈다. */
+  #granny, #refresh { box-sizing: border-box; height: 34px;
+             display: inline-flex; align-items: center; gap: 6px;
              font-family: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); cursor: pointer;
-             background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 13px;
+             background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 13px;
              transition: color .15s, border-color .15s; }
-  #refresh:hover { border-color: var(--accent); color: var(--accent); }
+  #refresh { margin-left: auto; }
+  #granny { text-decoration: none; }
+  #granny:hover, #refresh:hover { border-color: var(--accent); color: var(--accent); }
   #refresh:disabled { cursor: default; opacity: .6; }
   #refresh .ic { font-size: var(--fs-body); line-height: 1; }
   #refresh.spin .ic { animation: spin .8s linear infinite; }
@@ -727,6 +734,9 @@
   <span class="meta" id="updated"></span>
   <span class="meta" id="fx"></span>
   <button id="theme" title="라이트/다크 전환" aria-label="테마 전환">🌙</button>
+  <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
+     target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
+    <span class="ic">👵</span><span class="lb">마음돌봄할머니</span></a>
   <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다">
     <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
