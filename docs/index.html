@@ -627,6 +627,9 @@
   .news-insight { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 5px; line-height: 1.55; }
 
   /* 운세 */
+  /* 일터 조언 — 평일에만 온다. 본문과 붙여 두되 한 톤 낮춰 구분한다. */
+  .fortune-work { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--accent);
+                  font-size: var(--fs-cap); color: var(--ink-2); line-height: 1.65; }
   .luck { display: inline-block; background: var(--page); border-radius: var(--r-sm); padding: 4px 10px;
           font-size: var(--fs-cap); color: var(--ink-2); margin-top: 8px; }
   .fortune-person { padding: 14px 0; border-bottom: 1px solid var(--grid); }
@@ -1629,6 +1632,7 @@ function fortuneHtml(f) {
     <div class="fortune-head"><span class="fortune-name">${emoji} ${name}</span>
       <span class="fortune-stars">${esc(p.stars || "")}</span></div>
     <div class="fortune-body">${esc(fortuneTalk([p.body, p.money].filter(Boolean).join(" ")))}</div>
+    ${p.work ? `<div class="fortune-work">💼 ${esc(fortuneTalk(p.work))}</div>` : ""}
     ${(p.lucky_hour || p.lucky_number) ? `<div class="luck">🍀 ${[p.lucky_hour, p.lucky_color, p.lucky_number ? "숫자 " + p.lucky_number : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
   </div>`;
   // 일진·음력·오행은 표가 아니라 할머니가 먼저 꺼내는 말이다. 도입부와 한 문단으로 잇는다.
