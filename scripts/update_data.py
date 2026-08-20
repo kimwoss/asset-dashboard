@@ -9,6 +9,7 @@ import csv
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -138,6 +139,56 @@ def prev_day_baseline(today, hist_path):
             "net_krw": round(last["gross"] - last["debt"])}
 
 
+def wait_for_kb_friday(pf, now, probe_every_s: int = 60, until_hour: int = 9,
+                       clock=None, sleep=None) -> None:
+    """금요일 아침, KB가 이번 주 시세를 올릴 때까지 기다렸다가 진행한다.
+
+    왜 '기다리기'인가 — KB는 매주 금요일 08:00 KST에 갱신하고, 그 전에는 지난주 값을
+    그대로 준다(2026-08-20 목 10:52 확인: 여전히 8/14 기준일). 그러니 08:00 이후에
+    받아야 하는데, 발화 시각을 우리가 정할 수가 없다:
+      · GitHub schedule은 이 저장소에서 35~120분 지각하고 통째로 유실되기도 한다.
+      · Apps Script 시간 트리거도 ±15분 흔들린다(형제 저장소 실측).
+    즉 '08:01에 정확히 실행'은 어떤 방법으로도 보장이 안 된다. 대신 일찍 시작해서
+    KB가 올리는 순간을 잡으면, 발화가 07:30이든 07:50이든 결과는 08:0x 확보가 된다.
+
+    clock·sleep은 테스트 주입용이다 — 주 1회, 그것도 금요일 아침 한 창에서만 도는 경로라
+    실행을 눈으로 볼 기회가 거의 없다. 주입 없이 두면 영영 검증 못 한 채로 남는다.
+
+    아무것도 안 기다리는 경우 — 금요일이 아니거나, 이미 이번 주 기준일이 잡히거나,
+    아침이 지나 뒤늦게 도는 실행(그땐 기다려 봐야 이미 올라와 있다).
+    공개 저장소라 Actions 시간은 무료이고, 주 1회 최대 수십 분이라 비용도 무해하다.
+    """
+    if now.weekday() != 4 or now.hour >= until_hour:
+        return
+    target = now.date().isoformat()
+    first = next(iter(pf.get("real_estate") or []), None)
+    if not first:
+        return
+
+    def kb_asof():
+        try:
+            _, base = kb_api.latest_price(first["complex_id"], first["area_id"],
+                                          first.get("price_field", "매매일반거래가"))
+            return base or ""
+        except Exception as e:  # noqa: BLE001 — 조회가 막히면 기다리지 말고 그냥 진행
+            print(f"WARN: KB 신선도 확인 실패 ({type(e).__name__}: {e}) — 대기 없이 진행")
+            return target        # 기다리지 않게 target을 돌려준다
+
+    while True:
+        base = kb_asof()
+        if base >= target:
+            print(f"OK: KB 이번 주 시세 확인 (기준일 {base})")
+            return
+        now2 = (clock or (lambda: datetime.now(KST)))()
+        if now2.hour >= until_hour:
+            print(f"WARN: {until_hour:02d}시까지 KB 이번 주 시세가 안 올라왔습니다 "
+                  f"(기준일 {base}) — 지난주 값으로 진행합니다")
+            return
+        print(f"INFO: KB 기준일 {base} — 이번 주({target}) 시세 대기 중, "
+              f"{probe_every_s}초 뒤 재확인 (현재 {now2.strftime('%H:%M')} KST)")
+        (sleep or time.sleep)(probe_every_s)
+
+
 def main():
     pf = load_portfolio()
     now = datetime.now(KST)
@@ -200,6 +251,8 @@ def main():
     #    순자산 −3.24억짜리 스냅샷이 'success'로 발행됐다. 그래서
     #      ① 실패하면 직전 스냅샷의 마지막 시세를 그대로 들고 가고(기준일도 그때 값 유지)
     #      ② 폴백조차 없으면 발행하지 않고 잡을 실패시킨다.
+    wait_for_kb_friday(pf, now)
+
     for r in pf.get("real_estate") or []:
         field = r.get("price_field", "매매일반거래가")
         try:
