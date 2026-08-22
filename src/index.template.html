@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>분당부부 대시보드</title>
+<meta name="description" content="분당부부의 자산·FIRE 진척과 이사 후보를 한 화면에서 봅니다. 비밀번호로 잠긴 개인 대시보드입니다.">
+<meta name="color-scheme" content="light dark">
+<!-- 주소창·상태바 색을 페이지 배경과 맞춘다. 안 맞으면 모바일에서 위아래가 따로 논다. -->
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0e12" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<!-- 홈 화면에 추가했을 때 브라우저 크롬 없이 앱처럼 뜬다 -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="분당부부">
+<!-- 파비콘은 외부 파일 없이 SVG 데이터 URI로. 요청 하나를 아끼고 다크에서도 또렷하다. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5fd0'/%3E%3Cpath d='M14 42 L26 28 L36 36 L50 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5fd0'/%3E%3Cpath d='M14 42 L26 28 L36 36 L50 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- 히어로 이미지에 <link rel=preload>를 걸지 않는다. 크롬의 preload 스캐너는 뷰포트가
+     정해지기 전에 돌아 media 조건을 무시하고 양쪽 파일을 다 받아버린다(실측 확인).
+     이 페이지는 CSS가 통째로 인라인이라 스타일시트 왕복이 없어 preload 이득도 거의 없다. -->
+<style>@@STYLES@@</style>
+<script>
+  /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
+  (function () { var t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; })();
+</script>
+</head>
+<body>
+<noscript>
+  <div style="max-width:640px;margin:14vh auto;padding:26px;font-family:system-ui,sans-serif;
+              line-height:1.7;color:#11151b">
+    <h1 style="font-size:22px;margin-bottom:10px">분당부부 대시보드</h1>
+    <p>이 대시보드는 자바스크립트로 암호화된 데이터를 풀어 그립니다.
+       브라우저에서 자바스크립트를 켜 주세요.</p>
+  </div>
+</noscript>
+<header>
+  <h1>분당부부 대시보드</h1>
+  <span class="meta" id="updated" role="status" aria-live="polite" aria-label="데이터 갱신 시각"></span>
+  <span class="meta" id="fx" aria-label="환율"></span>
+  <button id="theme" title="라이트/다크 전환" aria-label="테마 전환">🌙</button>
+  <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
+     target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
+    <span class="ic">👵</span><span class="lb">마음돌봄할머니</span></a>
+  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다">
+    <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
+</header>
+
+<div id="intro">
+  <div class="bg" aria-hidden="true"></div>
+  <div class="scrim" aria-hidden="true"></div>
+  <div class="vig" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="cap"><i></i>Porto · Douro 2022</div>
+    <div class="title">분당부부 대시보드</div>
+    <div class="sub">우현과 규리의 경제적 자립기</div>
+    <div class="cta">
+      <div class="pwrow" id="introPw" style="display:none">
+        <label for="pw" class="sr-only">비밀번호</label>
+        <input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"
+               aria-describedby="pwmsg" enterkeyhint="go">
+        <button id="pwbtn">들어가기</button>
+      </div>
+      <div class="enter" id="introAuto" style="display:none"><span>들어가는 중</span><span class="load"><i></i></span></div>
+      <div class="msg" id="pwmsg" role="alert" aria-live="assertive"></div>
+    </div>
+  </div>
+</div>
+
+<div id="err"></div>
+<div id="toast"></div>
+
+<!-- 히어로 밴드 — 탭 위에 두어 어느 탭에 있든 '지금 얼마인가'가 보인다.
+     대시보드의 첫 원칙은 요약을 먼저, 상세는 나중. 종전엔 순자산이 '자산 현황' 탭
+     안에만 있어서, 첫 화면(브리핑)에서는 정작 가장 중요한 숫자가 보이지 않았다. -->
+<section id="heroband" style="display:none"></section>
+
+<nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
+  <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint">오늘의 브리핑</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="overview">자산 현황</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="financial">투자 포트폴리오</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="spending">월간 생활비</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cashflow">현금 흐름 계획</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="review">연간 리뷰</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cities">후보 도시</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="officetel">다음 후보집</button>
+</nav>
+
+<div id="tab-overview" style="display:none">
+  <div class="cards" id="kpis"></div>
+  <div class="goal-sub" id="kpi-note" style="margin:-4px 0 14px"></div>
+
+  <section class="card" id="fire-section" style="display:none">
+    <h2>FIRE 목표 달성</h2>
+    <div id="fire-body"></div>
+  </section>
+
+  <section class="card" id="sim-section" style="display:none">
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
+      <div class="seg" id="sim-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+        <button class="seg-btn" data-mode="nominal">명목</button>
+      </div>
+    </div>
+    <div class="sim-stats" id="sim-stats"></div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
+    <details class="sim-fold" id="sim-fold">
+      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
+      <div style="overflow-x:auto"><table id="sim-table"></table></div>
+      <div class="note" id="sim-table-note"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>자산 구성</h2>
+    <div class="donut-row" id="donuts"></div>
+    <div class="goal-sub" id="donut-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>순자산 추이</h2>
+    <div id="trend"></div>
+    <div class="note" id="trend-note"></div>
+  </section>
+
+  <section class="card">
+    <h2>자산 상세</h2>
+    <div style="overflow-x:auto"><table id="detail"></table></div>
+  </section>
+</div>
+
+<div id="tab-financial" style="display:none">
+  <div class="cards" id="fin-kpis"></div>
+
+  <!-- 같은 돈을 두 기준으로 본다 — 카드를 나누면 세로로 길어지고 총액만 두 번 읽힌다.
+       은퇴 자산 궤적의 실질/명목처럼 토글로 갈아끼운다. -->
+  <section class="card">
+    <div class="cp-mkt-head"><h2>포트폴리오 구성</h2>
+      <div class="seg" id="fin-donut-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="holding">실제 종목</button>
+        <button class="seg-btn" data-mode="index">지수별</button>
+      </div>
+    </div>
+    <div class="donut-row" id="fin-donuts"></div>
+    <div class="goal-sub" id="fin-idx-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>계좌 성격 — 연금성 vs 유동성</h2>
+    <div id="fin-groups"></div>
+  </section>
+
+  <section class="card">
+    <h2 id="fin-div-h2">올해 예상 배당금</h2>
+    <div class="div-row" id="fin-div"></div>
+    <div class="goal-sub">현재 보유수량 기준 · 지난 달은 확정, 남은 달은 작년 실적으로 추정</div>
+  </section>
+
+  <section class="card" id="fin-divmo-card" style="display:none">
+    <h2>월별 배당금</h2>
+    <div class="seg" id="fin-divmo-seg">
+      <button class="seg-btn on" data-mode="net">세후</button>
+      <button class="seg-btn" data-mode="gross">세전</button>
+    </div>
+    <div id="fin-divmo"></div>
+    <div style="overflow-x:auto; margin-top:14px"><table id="fin-divmo-tbl"></table></div>
+    <div class="goal-sub" id="fin-divmo-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card" id="fin-trend-card" style="display:none">
+    <h2>월별 흐름</h2>
+    <div class="seg" id="fin-trend-seg">
+      <button class="seg-btn on" data-mode="owner">소유자별</button>
+      <button class="seg-btn" data-mode="group">연금성·유동성</button>
+    </div>
+    <div id="fin-trend"></div>
+  </section>
+
+  <section class="card">
+    <h2>계좌별 상세</h2>
+    <div style="overflow-x:auto"><table id="fin-detail"></table></div>
+  </section>
+</div>
+
+<div id="tab-spending" style="display:none">
+  <div class="cards" id="sp-kpis"></div>
+
+  <section class="card">
+    <h2>월별 카테고리 소비</h2>
+    <div id="sp-bars"></div>
+  </section>
+
+  <section class="card">
+    <h2>카테고리 비중</h2>
+    <div class="donut-row" id="sp-donuts"></div>
+    <div class="goal-sub" id="sp-donut-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card" id="flow-section" style="display:none">
+    <h2>연도별 소득 및 지출 현황</h2>
+    <div style="overflow-x:auto"><table id="flow-table"></table></div>
+    <div class="goal-sub" id="flow-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card" id="sp-bridge-card">
+    <h2>은퇴까지의 거리 — 왜 늘어나나</h2>
+    <div id="sp-bridge"></div>
+    <div class="goal-sub" id="sp-bridge-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card" id="sp-retire-card">
+    <h2>같은 잣대로 본 비교 — 지금 vs 은퇴</h2>
+    <div class="cmp-head" id="sp-retire-head"></div>
+    <div id="sp-retire"></div>
+    <div class="goal-sub" id="sp-retire-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>카테고리별 상세</h2>
+    <div style="overflow-x:auto"><table id="sp-table"></table></div>
+    <div class="goal-sub" id="sp-note" style="margin-top:10px"></div>
+  </section>
+</div>
+
+<div id="tab-cashflow" style="display:none">
+  <div class="cards" id="cf-kpis"></div>
+
+  <section class="card">
+    <h2>파이프라인 — 세금·건보료 없이 만드는 현금</h2>
+    <div id="cf-pipes"></div>
+    <div class="goal-sub" id="cf-pipes-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>계획대로 세팅했을 때 예상 건강보험료 <span class="cf-tag">2026년 기준</span></h2>
+    <div id="cf-hi"></div>
+    <div class="goal-sub" id="cf-hi-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>지향하는 자산 구성 — 은퇴 시점</h2>
+    <div class="donut-row" id="cf-target"></div>
+    <div class="goal-sub" id="cf-target-note" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <h2>실행 캘린더 — 언제, 누구 계좌에서, 무엇을</h2>
+    <div id="cf-cal"></div>
+    <div class="goal-sub" id="cf-cal-note" style="margin-top:12px"></div>
+  </section>
+</div>
+
+<!-- 다음 후보집 — ★아파트 투자_Master의 '(ing)2027년 오피스텔' 미러링.
+     시트가 원본이고 여기는 읽기 전용 표시. 매물 입력은 사람이 시트에 한다. -->
+<div id="tab-officetel" style="display:none">
+  <div class="cards" id="of-kpis"></div>
+  <section class="card">
+    <div class="cp-mkt-head"><h2>기준 통과 매물</h2><span class="u-mono" id="of-asof"></span></div>
+    <div style="overflow-x:auto"><table class="mkt" id="of-live"></table></div>
+    <div class="note" id="of-criteria"></div>
+  </section>
+  <section class="card">
+    <h2>타입 카탈로그</h2>
+    <div class="note">기준에 맞는 매물이 아직 없는 타입. 조건이 맞는 물건이 나오면 시트에 채운다.</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="mkt" id="of-wait"></table></div>
+  </section>
+</div>
+
+<div id="tab-cities" style="display:none">
+  <div class="cards" id="ct-kpis"></div>
+
+  <section class="card">
+    <h2>도시별 월 생활비 — 서울 대비</h2>
+    <div id="ct-bars"></div>
+    <div class="goal-sub" id="ct-bars-note" style="margin-top:10px"></div>
+  </section>
+
+  <section class="card">
+    <h2>도시 상세 비교</h2>
+    <div class="seg" id="ct-pick" style="flex-wrap:wrap"></div>
+    <div id="ct-detail"></div>
+  </section>
+
+  <section class="card">
+    <h2>전체 도시 한눈에</h2>
+    <div style="overflow-x:auto"><table id="ct-table"></table></div>
+    <div class="goal-sub" id="ct-note" style="margin-top:10px"></div>
+  </section>
+</div>
+
+<div id="tab-review" style="display:none">
+  <div class="seg" id="review-years" style="flex-wrap:wrap"></div>
+  <section class="card" id="review-best-card">
+    <h2 id="review-best-h2">올해의 베스트</h2>
+    <div class="rv-grid" id="review-best"></div>
+  </section>
+  <section class="card" id="review-months-card">
+    <h2>월별 추억</h2>
+    <div id="review-months"></div>
+  </section>
+</div>
+
+<div id="tab-checkpoint">
+  <div id="cp-body"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>@@APP@@</script>
+</body>
+</html>

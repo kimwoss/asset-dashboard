@@ -36,6 +36,16 @@ def main() -> int:
     finally:
         tmp.unlink(missing_ok=True)
 
+    # ── 1-b. 소스와 배포본이 어긋나지 않았는가 ─────────────────────────────
+    # docs/index.html은 build.py의 산출물이다. 직접 고치면 다음 빌드에 조용히
+    # 덮여 사라진다. 여기서 잡지 않으면 그 사실을 아무도 모른다.
+    if (ROOT / "build.py").exists():
+        r = subprocess.run([sys.executable, "-X", "utf8", "build.py", "--check"],
+                           cwd=ROOT, capture_output=True, text=True)
+        (ok if r.returncode == 0 else bad)(
+            "빌드 산출물 일치" if r.returncode == 0
+            else "docs/index.html이 src/와 어긋남 — 직접 고쳤다면 src/로 옮길 것")
+
     # ── 2. 평문 금융데이터가 추적되는가 (가장 위험) ────────────────────────
     try:
         tracked = subprocess.run(["git", "ls-files"], cwd=ROOT,

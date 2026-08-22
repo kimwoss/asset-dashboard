@@ -64,7 +64,8 @@
 
 ### 성능 예산
 - 첫 화면 이미지 **1회 다운로드 ≤ 650KB** (현재: 큰화면 603 / 노트북 310 / 폰 155KB)
-- 외부 요청 0개 — CSS·JS 전부 인라인, 파비콘은 SVG 데이터 URI
+- 본문 폰트 **≤ 480KB** (현재 441KB — Pretendard 가변 자체 서브셋)
+- 외부 요청 0개 — CSS·JS 전부 인라인, 폰트·파비콘도 자체 호스팅
 - 데이터는 `raw.githubusercontent.com` 직접 수신 (CORS 허용 + 5분 캐시)
 
 ### 디자인
@@ -133,6 +134,22 @@
   (2026-08 재확인). 긁지 않는다. 사람이 복사해 온 것을 받아쓰기만 한다.
 - 공공데이터(국토부 실거래, 청약홈)는 공개 API가 있다. 이쪽만 자동화한다.
 - data.go.kr은 **서비스별로 활용신청이 따로**다. 같은 키인데 한쪽만 될 수 있다.
+
+## 5-1. 소스 구조 — docs/index.html은 산출물이다
+
+`docs/index.html`을 직접 고치지 마라. `build.py`가 `src/`에서 굽는다.
+직접 고치면 다음 빌드에 조용히 덮인다 (`dashboard-ship` 점검이 이걸 잡는다).
+
+```
+src/index.template.html  →  @@STYLES@@ · @@APP@@ 자리에 끼워 넣는다
+src/styles.css
+src/js/00-util · 10-charts · 20-hero-fire · 30-assets
+       40-spending · 50-tabs · 90-runtime      ← 이름 순 = 실행 순
+```
+
+`python build.py` 로 굽고, `python build.py --check` 로 어긋났는지만 볼 수 있다.
+모듈을 더할 때 번호를 붙이는 이유는 최상위 `const`가 호이스팅되지 않기 때문이다 —
+순서가 바뀌면 에러 없이 조용히 깨진다.
 
 ## 6. 자주 하는 작업
 
