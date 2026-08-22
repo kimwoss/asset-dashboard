@@ -1,0 +1,773 @@
+
+  /* Pretendard 가변 — KS X 1001 한글 2,350자 + 라틴 + 명리 한자로 직접 서브셋(441KB).
+     CDN을 쓰지 않는다: 외부 요청 0개 원칙을 지키고, 서드파티가 죽어도 글자가 안 깨진다.
+     원본 2,057KB에서 줄인 것이고, 가변 1종(441KB)이 정적 3종(559KB)보다 가벼우면서
+     이 페이지가 쓰는 400~800 굵기를 전부 커버한다.
+     tnum을 살려 뒀다 — 숫자 자리 맞춤이 여기 달려 있어 본문·숫자를 한 폰트로 통일했다.
+     swap: 폰트가 오기 전에도 시스템 글꼴로 먼저 읽힌다(빈 화면 없음). */
+  @font-face {
+    font-family: "Pretendard Subset";
+    src: url("assets/font/pretendard-subset.woff2") format("woff2");
+    font-weight: 45 930;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    /* 색 — 표면/잉크
+       중립을 액센트(파랑) 쪽으로 살짝 기울인 냉색으로. 따뜻한 회색은 문서 느낌이 강했고,
+       금융 계기판은 차가운 중립이 '정밀하다'는 인상을 준다. 액센트 계열은 그대로 잇는다. */
+    --surface-1: #ffffff; --page: #f6f7f9;
+    --ink-1: #11151b; --ink-2: #4a525e; --ink-muted: #87909c;
+    --grid: #e0e4ea; --baseline: #c8cfd8; --border: rgba(17,21,27,0.10);
+    /* 색 — 의미 */
+    --pos: #0a7a3d; --neg: #c14340; --accent: #1f5fd0; --warn: #a9741a;
+
+    /* 테마를 따르지 않는 색 — 아래 둘은 의도적으로 고정이다.
+       ① 인트로: 항상 어두운 사진 위에 얹히므로 라이트/다크와 무관하다.
+          테마 블록에 넣으면 라이트 모드에서 히어로가 깨진다.
+       ② 스티키 메모: 종이 메모의 파스텔이라 테마가 바뀌어도 종이는 노랗다. */
+    --intro-bg: #0a1826;
+    --intro-sky-1: #2f6f9c; --intro-sky-2: #235c85;
+    --intro-deep-1: #16466f; --intro-deep-2: #1e5680; --intro-deep-3: #17496a;
+    --intro-deep-4: #103a54; --intro-deep-5: #0b2b3d;
+    --intro-btn-ink: #123049;
+    --intro-msg: #ffd6d1;
+    --sticky-paper: #FFE08A; --sticky-cat: #7a5c00; --sticky-ink: #37322b;
+    /* 의미색 배경 틴트 — 등락을 '색'만이 아니라 '형태(칩)'로도 읽히게 한다.
+       색각 특성과 무관하게 훑을 때 시선에 걸리는 것이 목적. */
+    --pos-bg: rgba(10,122,61,.10); --neg-bg: rgba(193,67,64,.10); --warn-bg: rgba(169,116,26,.12);
+    --accent-bg: rgba(31,95,208,.08);
+    /* 색 — 자산 카테고리 (차트·칩 공용) */
+    --c-re: #2a78d6; --c-us: #17a074; --c-kr: #e0961a; --c-cash: #0a9668;
+    --c-vi: #6d5cd6; --c-debt: #c0645f;
+    /* '지금 vs 은퇴' 비교 막대 전용 — 항목 색을 쓰지 않고 두 계열만 구분한다 */
+    --cmp-now: #b9b7ae; --cmp-ret: #2a78d6;
+    /* 하위호환 별칭 */
+    --up: var(--pos); --down: var(--neg);
+    /* ── 타이포 — 크기가 아니라 '역할'로 쓴다 ──────────────────────────────
+       종전 스케일은 아래쪽에 뭉쳐 있었다. 13/12.5/11.5는 1.5px 안에 세 단계가
+       겹쳐 사실상 구분이 안 되는데 전체 사용의 84%가 거기 몰렸고, 정작 h2(카드 제목)가
+       본문과 같은 13px이라 위계가 없었다. 그래서 중간을 열고 아래를 정리한다.
+         대제목 h1 › 중제목 h2 › 소제목 h3 › 본문 › 설명글 › 보조
+       숫자는 제목과 다른 리듬이 필요해 별도 축(num-*)으로 뗀다. */
+    --fs-display: clamp(32px, 5.2vw, 44px);  /* 인트로 히어로 */
+    --fs-h1: 26px;      /* 대제목 — 사이트 타이틀 */
+    --fs-h2: 19px;      /* 중제목 — 카드 제목 */
+    --fs-h3: 16.5px;      /* 소제목 — 카드 안 구획·강조 라벨 */
+    --fs-nav: 17px;     /* 탭 — 전역 길잡이라 본문보다 확실히 크게 */
+    --fs-body: 14.5px;  /* 본문 · 표 셀 */
+    --fs-cap: 13.5px;   /* 설명글 · 캡션 */
+    --fs-micro: 12.5px; /* 배지 · 단위 — 최소한만 */
+    --fs-num-xl: 32px;  /* 대표 KPI */
+    --fs-num-lg: 25px;  /* 일반 KPI */
+    --fs-num-md: 19.5px;  /* 보조 수치 */
+    /* 하위호환 별칭 — 옛 이름을 새 역할로 잇는다 */
+    --fs-hero: var(--fs-display); --fs-1: var(--fs-num-xl); --fs-2: var(--fs-num-lg);
+    --fs-3: var(--fs-num-md); --fs-4: var(--fs-h3);
+    --fs-sm: var(--fs-cap); --fs-xs: var(--fs-micro);
+    /* 서체 축 — 본문(sans)과 데이터(mono)를 역할로 가른다.
+       라벨·단위·시각·표 헤더를 모노+대문자+자간으로 쓰면 본문과 층이 갈리면서
+       '계기판'의 인상이 생긴다. 웹폰트를 링크하면 CSP/오프라인에서 조용히 깨지므로
+       설치 폰트 스택만 쓴다. */
+    --sans: "Pretendard Subset", "Pretendard Variable", Pretendard,
+            system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    /* 숫자도 같은 글꼴로. Pretendard에 tnum이 있어 자리가 맞고, OS마다 다른
+       모노 스택을 쓰지 않아 화면이 어디서나 같아진다. */
+    --mono: "Pretendard Subset", "Pretendard Variable", Pretendard,
+            ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    /* 형태 */
+    --r: 12px; --r-sm: 8px; --r-pill: 999px;
+    --shadow: 0 1px 2px rgba(11,11,11,.04);
+    --shadow-lift: 0 6px 18px rgba(11,11,11,.07);
+    --flow-hi: rgba(42,120,214,.07);
+    /* 움직임 — 한 곳에서 관리해 화면 전체가 같은 호흡으로 움직이게 */
+    --ease: cubic-bezier(.22, .61, .36, 1);      /* 부드럽게 감속 */
+    --ease-out: cubic-bezier(.16, 1, .3, 1);     /* 크게 튀어나오듯 */
+    --dur-1: .16s; --dur-2: .28s; --dur-3: .45s;
+  }
+  /* 다크 팔레트 — OS 설정(수동 미지정 시) 또는 수동 토글(data-theme=dark) */
+  @media (prefers-color-scheme: dark) { :root:not([data-theme]) {
+      --surface-1: #141920; --page: #0b0e12;
+      --ink-1: #eef1f5; --ink-2: #b3bcc8; --ink-muted: #7d8794;
+      --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
+      --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
+      --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --accent-bg: rgba(91,149,238,.13);
+      --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
+      --c-vi: #9689ec; --c-debt: #d68a86;
+      --cmp-now: #55544f; --cmp-ret: #4a92ea;
+      --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
+      --flow-hi: rgba(74,146,234,.12);
+  } }
+  :root[data-theme="dark"] {
+      --surface-1: #141920; --page: #0b0e12;
+      --ink-1: #eef1f5; --ink-2: #b3bcc8; --ink-muted: #7d8794;
+      --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
+      --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
+      --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --accent-bg: rgba(91,149,238,.13);
+      --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
+      --c-vi: #9689ec; --c-debt: #d68a86;
+      --cmp-now: #55544f; --cmp-ret: #4a92ea;
+      --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
+      --flow-hi: rgba(74,146,234,.12);
+  }
+  /* data-theme="light"는 별도 변수 불필요 — :root 기본(라이트)이 그대로 적용되고
+     위 OS-다크 규칙은 :not([data-theme])라 무효화된다 */
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--page); color: var(--ink-1);
+    font-family: var(--sans);
+    /* tnum·kern을 폰트 차원에서 켠다. tabular-nums만으로는 폰트가 지원해도
+       브라우저가 늘 적용하지는 않는다. */
+    font-feature-settings: "tnum" 1, "kern" 1;
+    font-size: var(--fs-body); line-height: 1.5;
+    padding: 22px 20px 60px; max-width: 1200px; margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── 데이터 표기 유틸 ──────────────────────────────────────────────────
+     .u-mono  : 라벨·단위·시각 등 '기계가 읽어준 값'에 붙이는 축
+     .chip    : 등락을 형태로 감싼다 (색만으로 의미를 지지 않게)
+     .live-dot: 실시간 여부를 점 하나로 — 문구보다 먼저 눈에 걸린다 */
+  .u-mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .u-label { font-family: var(--mono); font-size: var(--fs-micro); font-weight: 700;
+             letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); }
+  /* 이름 주의: 표 안 `td .chip`은 이미 8×8 범례 점으로 쓰이고 있다.
+     같은 이름을 쓰면 표에서 짓눌리므로 등락 칩은 .delta-chip으로 분리한다. */
+  .delta-chip { display: inline-flex; align-items: center; gap: 4px; font-weight: 700;
+          font-size: var(--fs-cap); padding: 2px 8px; border-radius: var(--r-sm);
+          font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .delta-chip.up { background: var(--pos-bg); color: var(--pos); }
+  .delta-chip.dn { background: var(--neg-bg); color: var(--neg); }
+  .delta-chip.flat { background: var(--accent-bg); color: var(--ink-2); }
+  /* 표 안에서도 배경 틴트가 유지되도록 크기 규칙을 명시적으로 되돌린다 */
+  td .delta-chip { width: auto; height: auto; border-radius: var(--r-sm); margin-right: 0; vertical-align: baseline; }
+
+  /* 헤더 */
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
+  h1 { font-size: var(--fs-h1); font-weight: 750; letter-spacing: -0.02em; }
+  /* 화면에는 없고 스크린리더만 읽는 라벨 */
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+             overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+  .meta { color: var(--ink-muted); font-size: var(--fs-cap); font-variant-numeric: tabular-nums; }
+  /* 헤더 상태 — '지금 값인가'를 점 하나로 먼저 말한다 */
+  #updated { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .hdr-live { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
+              font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
+              color: var(--pos); background: var(--pos-bg); padding: 3px 9px; border-radius: var(--r-pill); }
+  .hdr-live .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  /* 두 시각이 붙어 읽히지 않게 — '실시간 10:00스냅샷 07:51'로 뭉쳐 보였다 */
+  .hdr-snap { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+    margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--border); }
+  #theme { margin-left: auto; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+           font-size: var(--fs-h3); cursor: pointer; background: var(--surface-1); border: 1px solid var(--border);
+           border-radius: var(--r-sm); transition: border-color .15s; padding: 0; }
+  #theme:hover { border-color: var(--accent); }
+  /* 🌙 오른쪽에 붙는 것들은 저마다 auto를 갖지 않게 한다 — 하나라도 auto면 그 앞에서
+     간격이 벌어져 버튼들이 흩어진다. 밀어내는 역할은 #theme 하나가 맡는다. */
+  #theme ~ #granny, #theme ~ #refresh { margin-left: 0; }
+  /* 높이를 못 박는다 — a는 content-box, button은 border-box라 같은 padding으로도
+     2px 어긋나 나란히 두면 눈에 띈다. */
+  #granny, #refresh { box-sizing: border-box; height: 34px;
+             display: inline-flex; align-items: center; gap: 6px;
+             font-family: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); cursor: pointer;
+             background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0 13px;
+             transition: color .15s, border-color .15s; }
+  #refresh { margin-left: auto; }
+  #granny { text-decoration: none; }
+  #granny:hover, #refresh:hover { border-color: var(--accent); color: var(--accent); }
+  #refresh:disabled { cursor: default; opacity: .6; }
+  #refresh .ic { font-size: var(--fs-body); line-height: 1; }
+  #refresh.spin .ic { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+           background: var(--ink-1); color: var(--page); font-size: var(--fs-body); font-weight: 500;
+           padding: 10px 18px; border-radius: var(--r-pill); opacity: 0; pointer-events: none;
+           transition: opacity .25s, transform .25s; z-index: 30; }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* 업데이트 직후 짧은 하이라이트 */
+  .flash-in { animation: flashIn .7s ease; }
+  #updated.flash-in { animation: flashText .9s ease; }
+  @keyframes flashIn { 0% { opacity: .35; } 100% { opacity: 1; } }
+  @keyframes flashText { 0%,100% { color: var(--ink-muted); } 30% { color: var(--pos); font-weight: 700; } }
+
+  /* ── 히어로 밴드 ────────────────────────────────────────────────────────
+     표면 3단계 중 최상위. 좌측 액센트 레일 + 옅은 그라데이션으로 '여기가 제일 중요'를
+     형태로 말한다 (일반 카드는 테두리만, 하위 블록은 여백만). */
+  .heroband { background: var(--surface-1); border: 1px solid var(--border);
+              border-left: 3px solid var(--accent); border-radius: var(--r);
+              padding: 15px 18px; margin-bottom: 16px; box-shadow: var(--shadow);
+              background-image: linear-gradient(180deg, var(--accent-bg), transparent 62%);
+              display: grid; gap: 14px 26px; grid-template-columns: 1fr; align-items: center; }
+  @media (min-width: 720px) { .heroband { grid-template-columns: minmax(210px, auto) 1fr; } }
+  .hb-main .u-label { display: block; margin-bottom: 3px; }
+  .hb-val { font-size: var(--fs-num-xl); font-weight: 800; letter-spacing: -.03em;
+            line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .hb-deltas { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 7px; }
+  .hb-sub { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+            display: flex; gap: 11px; flex-wrap: wrap; }
+  .hb-sub b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* FIRE 게이지 — '얼마나 왔나'를 막대로. 숫자만 있을 때보다 진척이 즉시 읽힌다. */
+  .hb-gauges { display: grid; gap: 9px; }
+  .hb-g-head { display: flex; justify-content: space-between; align-items: baseline;
+               font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+               letter-spacing: .06em; margin-bottom: 4px; }
+  .hb-g-head b { color: var(--ink-1); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hb-track { height: 6px; border-radius: var(--r-pill); background: var(--grid); overflow: hidden; }
+  .hb-fill { height: 100%; border-radius: var(--r-pill); }
+  @media (prefers-reduced-motion: no-preference) {
+    .hb-fill { transition: width var(--dur-3) var(--ease); }
+  }
+
+  /* 탭 */
+  /* overflow-x:auto 는 CSS 규칙상 overflow-y 도 auto 로 만든다 — 탭 높이가 살짝 넘치면
+     세로 스크롤바(▲▼)가 생긴다. y는 hidden으로 막고, 좁은 화면용 가로 스크롤은 남기되 막대는 숨긴다. */
+  .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  /* 좁은 화면에서 탭이 넘칠 때, 잘린 쪽 가장자리를 흐리게 해 '더 있다'를 알린다.
+     스크롤바를 숨겼으니 이 신호마저 없으면 나머지 탭의 존재를 모른다.
+     한 규칙 + 변수 두 개로 좌/우를 따로 켠다 (JS가 스크롤 위치를 보고 토글). */
+  .tabs { --fade-l: 0px; --fade-r: 0px;
+          -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l),
+                              #000 calc(100% - var(--fade-r)), transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-l),
+                      #000 calc(100% - var(--fade-r)), transparent 100%); }
+  .tabs.fade-l { --fade-l: 30px; }
+  .tabs.fade-r { --fade-r: 30px; }
+  .tab { position: relative; background: none; border: none; cursor: pointer; font-family: inherit;
+         white-space: nowrap; font-size: var(--fs-nav); font-weight: 600; color: var(--ink-muted);
+         padding: 13px 18px; margin-bottom: -1px; letter-spacing: -0.015em;
+         transition: color var(--dur-1) var(--ease); }
+  /* 밑줄을 border가 아니라 의사요소로 그린다 — 좌우로 자라나는 연출이 가능해지고,
+     hover 때 옅게 미리 비쳐 '여기를 누르면 여기가 켜진다'가 손끝에서 먼저 읽힌다. */
+  .tab::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 2.5px;
+                background: var(--accent); border-radius: 2px;
+                transform: scaleX(0); transform-origin: 50% 50%; opacity: 0;
+                transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-1) var(--ease); }
+  .tab:hover { color: var(--ink-2); }
+  .tab:hover::after { transform: scaleX(.55); opacity: .35; }
+  .tab.on { color: var(--accent); font-weight: 700; }   /* 굵기까지 올려 한눈에 잡히게 */
+  .tab.on::after { transform: scaleX(1); opacity: 1; }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
+  /* 키보드 포커스 기본값 — 탭에만 있던 링을 나머지 조작 요소로 넓힌다.
+     :focus-visible이라 마우스 클릭에는 링이 뜨지 않고 키보드 이동에만 보인다. */
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+
+  /* 탭 전환 — 내용이 아래에서 살짝 떠오르며 들어온다. 갈아끼운 티가 나야 방금 바뀐 걸 안다. */
+  @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .tab-panel-in { animation: tabIn var(--dur-3) var(--ease-out) both; }
+
+  /* 카드 */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r);
+          padding: 16px 18px; box-shadow: var(--shadow);
+          transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease),
+                      border-color var(--dur-2) var(--ease); }
+  /* KPI 카드만 살짝 떠오른다 — 섹션 카드(section.card)는 문서라 들썩이면 산만하다.
+     그림자 색은 테마 변수(--shadow-lift)로 빼서 라이트·다크가 각자 맞는 농도를 갖는다. */
+  .cards > .card:hover { transform: translateY(-2px); border-color: var(--baseline);
+                         box-shadow: var(--shadow-lift); }
+  section.card { margin-bottom: 14px; }
+
+  /* 스크롤 진입 — 화면에 들어올 때 한 번만 떠오른다. 아래로 내려갈수록 카드가
+     차례로 나타나 페이지에 리듬이 생긴다. 이미 본 것은 다시 움직이지 않는다. */
+  .reveal { opacity: 0; transform: translateY(14px);
+            transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out); }
+  .reveal.seen { opacity: 1; transform: none; }
+
+  /* 움직임을 줄여달라고 한 사용자에겐 전부 끈다 — 접근성 기본값 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important;
+                             transition-duration: .001ms !important; scroll-behavior: auto !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+  .card .label { font-size: var(--fs-cap); color: var(--ink-2); margin-bottom: 7px; font-weight: 500; }
+  /* KPI 숫자는 한 축(num-lg)으로 고정한다 — 종전엔 개요 탭만 23px, 나머지 탭은 26px이라
+     탭을 옮길 때마다 같은 성격의 숫자가 커졌다 작아졌다 했다. hero도 같은 행에 서므로 같은 크기. */
+  .card .value { font-size: var(--fs-num-lg); font-weight: 700; line-height: 1.12;
+                 letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .card .sub { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .delta-up { color: var(--pos); } .delta-down { color: var(--neg); }
+  .delta-none { color: var(--ink-muted); }
+  /* 순자산·총자산·부채 카드 — 전일·전월·전년 델타 정돈 (값 크기는 .card .value로 통일) */
+  .kpi-deltas { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .kpi-deltas .kd { white-space: nowrap; }
+  .kpi-deltas .kd i { color: var(--ink-muted); font-style: normal; margin-right: 2px; }
+  .kpi-deltas .kd b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* 예상 건강보험료 상세 */
+  .hi-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; }
+  .hi-big { font-size: var(--fs-1); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.015em; }
+  .hi-big small { font-size: var(--fs-4); font-weight: 600; color: var(--ink-muted); margin-left: 2px; }
+  .hi-sub { font-size: var(--fs-sm); color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .hi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .hi-panel { background: var(--page); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 15px; }
+  .hi-h { font-size: var(--fs-body); font-weight: 600; color: var(--ink-2); margin-bottom: 9px; }
+  .hi-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+  .hi-tbl td { padding: 7px 4px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  #flow-table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
+  /* --line은 어디에도 정의된 적이 없어 이 테두리가 통째로 무효였다(선이 안 그려짐).
+     다른 표와 같은 토큰(--grid)으로 맞춘다. */
+  #flow-table th, #flow-table td { padding: 9px 10px; border-bottom: 1px solid var(--grid); }
+  #flow-table thead th { color: var(--ink-muted); font-weight: 600; text-align: left; white-space: nowrap; }
+  #flow-table td.num, #flow-table th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #flow-table tbody tr:last-child td { border-bottom: 0; }
+  #flow-table .th-sub { display: block; font-size: var(--fs-micro); color: var(--ink-muted); font-weight: 400; }
+  /* 순잉여는 굵게, 저축률은 열 전체를 옅게 깔아 눈이 먼저 가게 한다 */
+  #flow-table td.flow-surplus { font-weight: 700; }
+  #flow-table td.flow-rate { font-weight: 700; color: var(--accent); background: var(--flow-hi); }
+  .hi-tbl td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 1%; padding-left: 12px; }
+  .hi-name { word-break: keep-all; }
+  .hi-why { color: var(--ink-muted); font-size: var(--fs-cap); line-height: 1.45; margin-top: 3px; word-break: keep-all; }
+  .hi-tbl tr.hi-tot td { border-top: 2px solid var(--border); border-bottom: none; color: var(--ink-1); }
+  .hi-tbl tr:last-child td { border-bottom: none; }
+  #detail td small { font-size: var(--fs-xs); font-weight: 500; opacity: 0.85; }
+  /* 지금 vs 은퇴 비교 (표준 카테고리) */
+  .cmp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; font-size: var(--fs-body); }
+  .cmp-head b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .kind-dot { font-size: 10px; margin-left: 4px; vertical-align: 1px; cursor: help; }
+  /* 브릿지(폭포) — 지금 월평균에서 은퇴 월평균까지 요인별 누적 */
+  .brg-row { display: grid; grid-template-columns: 116px 1fr 74px; gap: 10px; align-items: center; padding: 5px 0; }
+  .brg-name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brg-track { position: relative; height: 19px; background: var(--grid); border-radius: 4px; }
+  .brg-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; min-width: 2px; transition: width .5s ease, left .5s ease; }
+  .brg-up { background: var(--neg); }
+  .brg-down { background: var(--pos); }
+  .brg-base { background: var(--accent); opacity: .55; }
+  .brg-end { opacity: 1; }
+  .brg-v { font-size: var(--fs-sm); text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .brg-strong { font-weight: 700; color: var(--ink-1); }
+  .cmp-row { display: grid; grid-template-columns: 92px 1fr 60px; gap: 10px; align-items: center; padding: 6px 0; }
+  .cmp-name { font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmp-track { display: flex; flex-direction: column; gap: 3px; }
+  .cmp-line { display: flex; align-items: center; gap: 6px; height: 15px; }
+  .cmp-fill { height: 100%; border-radius: 3px; min-width: 2px; transition: width .5s ease; }
+  .cmp-v { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+  .cmp-diff { font-size: var(--fs-sm); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  #detail .sum-row td { background: var(--page); border-top: 1.5px solid var(--baseline);
+                        padding-top: 11px; padding-bottom: 11px; }
+  #detail .sum-row td:first-child { font-size: var(--fs-body); }
+  #detail .sum-row .sum-net { color: var(--ink-1); }
+  #detail .sum-row:last-child td { border-top: 2px solid var(--baseline); border-bottom: none; }
+  /* 순자산 → FIRE 목표 게이지 (hero 카드) */
+
+  /* 섹션 타이틀 */
+  /* 카드 제목 — 종전엔 본문과 같은 크기·흐린 색이라 구획이 안 보였다.
+     크기·굵기·색을 함께 올려 '여기서 새 이야기가 시작된다'를 분명히 한다. */
+  h2 { font-size: var(--fs-h2); font-weight: 700; color: var(--ink-1);
+       margin-bottom: 16px; letter-spacing: -0.015em; line-height: 1.35; }
+  /* 소제목 — 카드 안에서 한 번 더 나누는 자리 */
+  h3 { font-size: var(--fs-h3); font-weight: 700; color: var(--ink-1);
+       letter-spacing: -0.01em; line-height: 1.4; }
+
+  /* 설명 문구 (통일) */
+  /* 접히는 상세표 — 평소엔 한 줄, 누르면 아래로 펼쳐진다 */
+  .sim-fold { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .sim-fold > summary { cursor: pointer; font-size: var(--fs-body); font-weight: 650;
+    color: var(--ink-2); list-style: none; display: flex; align-items: center; gap: 8px; }
+  .sim-fold > summary::-webkit-details-marker { display: none; }
+  .sim-fold > summary::before { content: "▸"; color: var(--ink-muted); transition: transform .18s; }
+  .sim-fold[open] > summary::before { transform: rotate(90deg); }
+  .sim-fold > summary:hover { color: var(--ink-1); }
+  .sim-fold-hint { font-weight: 400; font-size: var(--fs-cap); color: var(--ink-muted); }
+  #sim-table { width: 100%; border-collapse: collapse; font-size: var(--fs-cap);
+    font-variant-numeric: tabular-nums; margin-top: 12px; }
+  #sim-table th, #sim-table td { padding: 5px 8px; white-space: nowrap; }
+  #sim-table thead th { position: sticky; top: 0; background: var(--surface-1);
+    border-bottom: 1px solid var(--border); text-align: right; color: var(--ink-muted); font-weight: 600; }
+  #sim-table thead th:first-child, #sim-table thead th:nth-child(2),
+  #sim-table thead th:nth-child(3) { text-align: left; }
+  #sim-table td { text-align: right; border-bottom: 1px solid var(--grid); }
+  #sim-table td:first-child, #sim-table td:nth-child(2), #sim-table td:nth-child(3) { text-align: left; }
+  #sim-table tr.sim-now td { background: var(--flow-hi); font-weight: 700; }
+  #sim-table tr.sim-mark td { font-weight: 700; }
+  #sim-table tr.sim-after td { color: var(--ink-muted); }
+  .sim-tag { font-size: var(--fs-micro); padding: 1px 6px; border-radius: 999px;
+    background: var(--grid); color: var(--ink-2); margin-left: 6px; }
+  /* 경기순환 국면 — 폭락은 눈에 띄게, 회복은 조용하게 */
+  .sim-tag.crash { background: var(--neg-bg); color: var(--neg); font-weight: 700; }
+  .sim-tag.rec { background: var(--pos-bg); color: var(--pos); }
+
+  .note, .goal-sub, .cp-mkt-note { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 10px; line-height: 1.5; }
+  /* 설명글 안에 섞이는 되돌리기 버튼 — 링크처럼 보이되 버튼이라 키보드로도 닿는다 */
+  /* KPI 라벨 옆 기준시점 배지 — '이 숫자는 언제 것인가'를 숫자 바로 옆에 둔다 */
+  .asof { font-size: var(--fs-micro); font-weight: 500; color: var(--ink-muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 6px;
+    vertical-align: middle; letter-spacing: 0; }
+
+  .linkish { font: inherit; color: var(--c-re); background: none; border: none; padding: 0;
+    cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .linkish:hover { opacity: .75; }
+  .goal-sub { margin-top: 5px; }
+
+  /* 범례 */
+  .legend { display: flex; flex-wrap: wrap; gap: 7px 14px; font-size: var(--fs-sm); color: var(--ink-2); margin-top: 14px; justify-content: center; }
+  .legend span { white-space: nowrap; }
+  .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+                         margin-right: 5px; background: var(--sw); vertical-align: 0; }
+
+  /* 도넛 */
+  .donut-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+  .donut-cell { display: flex; flex-direction: column; align-items: center; padding: 6px 4px 2px; }
+  .donut-cell h3 { font-size: var(--fs-body); font-weight: 600; color: var(--ink-1); margin-bottom: 2px; text-align: center; }
+  .donut-cell .cap { font-size: var(--fs-cap); color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
+  svg text { font-family: inherit; }
+
+  /* 표 (전 화면 공통 규격) */
+  table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* 표 헤더는 '데이터 축' — 모노+대문자+자간으로 본문과 층을 가른다 */
+  th { color: var(--ink-muted); font-family: var(--mono); font-weight: 700; font-size: var(--fs-micro);
+       letter-spacing: .08em; border-bottom: 1px solid var(--baseline); }
+  th:first-child, td:first-child { text-align: left; white-space: normal; }
+  td.name { font-weight: 600; }
+  tbody tr:last-child td { border-bottom: none; }
+  td .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+  .mkt-px { color: var(--ink-1); font-weight: 600; }
+  .mkt-asof { font-size: var(--fs-xs); color: var(--ink-muted); font-weight: 400; margin-left: 6px; }
+  table.mkt td:first-child { font-weight: 600; }
+  /* 통합 시세표 — 그룹 소제목 행 (미국 지수 / 국내 지수·ETF / 환율) */
+  table.mkt-unified { table-layout: auto; }
+  /* 그룹 소제목은 눌러서 종목명이 주인공이 되게 — 배경 블록 대신 얇은 라벨 + 하단 선 */
+  .mkt-grp td { text-align: left; padding: 14px 10px 5px; font-family: var(--mono);
+    font-size: var(--fs-micro); font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--ink-muted); background: transparent;
+    border-bottom: 1px solid var(--baseline); }
+  .mkt-grp + tr td { border-top: none; }
+
+  /* 브리핑 탭 하단 2단 — 시세·매크로·뉴스. 좁은 화면은 그대로 1단으로 쌓인다.
+     align-items:start 가 없으면 두 열이 서로의 높이에 끌려 늘어난다. */
+  .cp-cols { display: grid; gap: 0 14px; align-items: start; }
+  @media (min-width: 900px) { .cp-cols { grid-template-columns: 1.15fr 1fr; } }
+
+
+  /* 매물 링크 — 표 안에서 밑줄 없는 파란 글씨는 어두운 배경에서 잘 안 보인다.
+     배경을 준 칩으로 만들어 '누를 수 있는 것'이 형태로 드러나게 한다. */
+  .of-go { display:inline-flex; align-items:center; gap:4px; font-family:var(--mono);
+           font-size:var(--fs-micro); font-weight:700; padding:3px 9px; border-radius:var(--r-pill);
+           background:var(--accent-bg); color:var(--accent); text-decoration:none;
+           border:1px solid transparent; white-space:nowrap; }
+  .of-go:hover { border-color:var(--accent); }
+  .of-more { cursor:pointer; user-select:none; }
+  .of-more:hover { color:var(--accent); }
+  .of-sub td { background:var(--page); font-size:var(--fs-cap); }
+  .of-sub .of-line { display:flex; gap:12px; flex-wrap:wrap; padding:3px 0;
+                     font-variant-numeric:tabular-nums; }
+  .of-cnt { font-family:var(--mono); font-weight:700; }
+  .of-cnt.zero { color:var(--ink-muted); font-weight:400; }
+  /* 최근 시세 — 눌러서 실거래 내역을 펼친다. 실거래가 없는 행은 점선 없이 조용하게. */
+  .of-deal { cursor:pointer; user-select:none; border-bottom:1px dashed var(--baseline); }
+  .of-deal:hover { color:var(--accent); border-bottom-color:var(--accent); }
+  .of-deal.none { cursor:default; color:var(--ink-muted); border-bottom:none; }
+  .of-dl .r { display:grid; grid-template-columns:88px 62px 46px minmax(120px,1fr) 78px;
+              gap:10px; padding:3px 0; font-family:var(--mono); font-size:var(--fs-micro);
+              font-variant-numeric:tabular-nums; }
+  .of-dl .r b { font-weight:700; text-align:right; }
+  .of-dl .hd { color:var(--ink-muted); border-bottom:1px solid var(--grid); }
+  .of-dl .src { color:var(--ink-muted); font-size:var(--fs-micro); padding-top:6px; }
+  /* 타입 — 누르면 평면도와 제원을 편다 */
+  .of-type { cursor:pointer; user-select:none; font-weight:700;
+             border-bottom:1px dashed var(--baseline); }
+  .of-type:hover { color:var(--accent); border-bottom-color:var(--accent); }
+  .of-type.none { cursor:default; font-weight:inherit; border-bottom:none; }
+  .of-spec { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+  .of-spec dl { display:grid; grid-template-columns:auto auto; gap:4px 14px; margin:0;
+                font-size:var(--fs-cap); }
+  .of-spec dt { color:var(--ink-muted); }
+  .of-spec dd { margin:0; font-family:var(--mono); font-weight:700;
+                font-variant-numeric:tabular-nums; }
+  .of-plan img { max-width:min(320px,60vw); border:1px solid var(--grid);
+                 border-radius:var(--r-sm); background:#fff; display:block; }
+  .of-plan .fail { color:var(--ink-muted); font-size:var(--fs-micro); }
+  /* 베스트 매물 별 — 개수가 곧 등급이라 색으로 한 번 더 나눈다 */
+  .of-star { display:inline-block; margin-right:5px; letter-spacing:-1px; cursor:help;
+             font-size:var(--fs-micro); vertical-align:1px; }
+  .of-star.s1 { color:var(--ink-muted); }
+  .of-star.s2 { color:var(--accent); }
+  .of-star.s3 { color:var(--pos); }
+  .of-asof { font-family:var(--mono); font-size:var(--fs-micro); white-space:nowrap; }
+  .of-asof .ago { display:block; color:var(--ink-muted); transform:scale(.9);
+                  transform-origin:left; }
+  .of-asof.stale, .of-asof.stale .ago { color:var(--warn); }
+
+  #tooltip { position: fixed; pointer-events: none; z-index: 10; display: none;
+             background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-sm);
+             padding: 8px 11px; font-size: var(--fs-sm); box-shadow: 0 4px 16px rgba(0,0,0,.16); color: var(--ink-1); }
+
+  /* 시세 카드 헤더 (제목 + 실시간 배지) */
+  .cp-mkt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cp-mkt-head h2 { margin: 0; }
+  .live-badge { font-size: var(--fs-xs); font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill);
+                white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
+  .live-badge.on  { color: var(--pos); background: color-mix(in srgb, var(--pos) 13%, transparent); }
+  .live-badge.off { color: var(--ink-muted); background: var(--grid); }
+  .live-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .live-badge.on .dot { animation: livepulse 1.8s ease-in-out infinite; }
+  @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  /* 배당 카드 */
+  .div-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .div-card { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 16px; }
+  .div-card .who { font-size: var(--fs-sm); color: var(--ink-2); margin-bottom: 6px; }
+  .div-card .amt { font-size: var(--fs-2); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .div-card .mo { font-size: var(--fs-xs); color: var(--ink-muted); margin-top: 4px; }
+
+  /* 스택 바 (연금성/유동성) */
+  .sb { margin-bottom: 14px; }
+  .sb:last-child { margin-bottom: 0; }
+  .sb-head { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--fs-body); margin-bottom: 6px; }
+  .sb-head b { font-weight: 600; }
+  .sb-track { display: flex; height: 22px; border-radius: var(--r-sm); overflow: hidden; background: var(--grid); }
+  .sb-seg { display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); font-weight: 700; color: #fff; }
+
+  /* FIRE 목표 */
+  .fire-goals { display: grid; gap: 15px; }
+  .goal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: var(--fs-body); margin-bottom: 6px; }
+  .goal-head .gl { color: var(--ink-1); }
+  .goal-head .gl small { color: var(--ink-muted); font-weight: 400; }
+  .goal-head .pct { font-weight: 700; font-size: var(--fs-4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .goal-track { height: 9px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; }
+  .goal-fill { height: 100%; border-radius: var(--r-pill); transition: width .5s ease; }
+  .fire-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-top: 18px; }
+  .fact { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px 14px; }
+  .fact .l { font-size: var(--fs-cap); color: var(--ink-2); margin-bottom: 5px; }
+  .fact .v { font-size: var(--fs-4); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .fact .v.dual { font-size: var(--fs-body); letter-spacing: -0.02em; white-space: nowrap; }
+  .fact .s { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 3px; }
+
+  /* 세그먼트 토글 */
+  .seg { display: inline-flex; background: var(--grid); border-radius: var(--r-sm); padding: 2px; gap: 2px; margin-bottom: 14px; }
+  .seg-btn { border: none; background: transparent; color: var(--ink-2); cursor: pointer;
+             font-size: var(--fs-sm); font-family: inherit; padding: 6px 13px; border-radius: 6px; transition: background .15s; }
+  .seg-btn.on { background: var(--surface-1); color: var(--ink-1); font-weight: 600; }
+
+  /* 살고싶은 도시 */
+  .ct-bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .ct-bar-name { width: 92px; flex-shrink: 0; font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ct-bar-track { position: relative; flex: 1; height: 24px; background: var(--grid); border-radius: 6px; }
+  .ct-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
+  .ct-bar-val { position: absolute; top: 0; left: 9px; height: 24px; display: flex; align-items: center;
+                font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink-1); white-space: nowrap; }
+  .ct-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+                    padding-bottom: 14px; border-bottom: 1px solid var(--grid); margin-bottom: 14px; }
+  .ct-detail-city { font-size: var(--fs-2); font-weight: 700; letter-spacing: -0.01em; }
+  .ct-detail-sub { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 3px; }
+  .ct-detail-fire { text-align: right; }
+  .ct-detail-fire-pct { font-size: var(--fs-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ct-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .ct-gtag { font-size: var(--fs-xs); color: var(--ink-muted); background: var(--grid); border-radius: 4px;
+             padding: 1px 6px; margin-left: 5px; font-weight: 500; white-space: nowrap; }
+
+  /* 은퇴 지도 */
+  .sim-stats { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 2px 0 14px; }
+  .sim-stats span { font-size: var(--fs-body); color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .sim-stats em { font-style: normal; color: var(--ink-muted); font-size: var(--fs-sm); margin-right: 4px; }
+  .sim-stats b { font-weight: 700; }
+  .sim-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-cap); color: var(--ink-2); margin-top: 10px; }
+  .sim-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; }
+
+  /* 연간 리뷰 */
+  /* 베스트 카드 — 파스텔 스티키 노트 (라이트·다크 배경 모두에서 뜨도록 항상 파스텔+진한 잉크) */
+  .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 22px 16px; padding: 8px 4px 4px; }
+  .rv-card { --rot: 0deg; position: relative; background: var(--sticky-paper); border-radius: 3px; padding: 16px 16px 18px;
+             box-shadow: 0 4px 10px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
+             transform: rotate(var(--rot)); transition: transform .18s ease, box-shadow .18s ease; }
+  .rv-card:hover { transform: rotate(0deg) translateY(-4px) scale(1.03);
+                   box-shadow: 0 14px 26px rgba(0,0,0,.30); z-index: 3; }
+  .rv-card::before { content: ""; position: absolute; top: -9px; left: 50%; width: 54px; height: 17px;
+                     transform: translateX(-50%) rotate(-2.5deg); background: rgba(255,255,255,.5);
+                     box-shadow: 0 1px 2px rgba(0,0,0,.10); }
+  .rv-card .rv-cat { font-size: var(--fs-sm); font-weight: 800; color: var(--note-ink, var(--sticky-cat));
+                     margin-bottom: 8px; letter-spacing: -0.01em; }
+  .rv-card .rv-txt { font-size: var(--fs-body); color: var(--sticky-ink); line-height: 1.55; white-space: pre-line; }
+  .rv-month { display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--grid); }
+  .rv-month:last-child { border-bottom: none; padding-bottom: 0; }
+  .rv-month:first-child { padding-top: 0; }
+  .rv-month .rv-m { font-size: var(--fs-body); font-weight: 700; color: var(--accent); }
+  .rv-month .rv-mtxt { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.65; white-space: pre-line; }
+
+  /* 오늘의 체크포인트 */
+  /* 인사말은 한 문장이 길다 — 자간·행간을 넉넉히 주고 폭을 제한해 눈이 줄을 잃지 않게 한다 */
+  .cp-hero { font-size: var(--fs-h3); line-height: 1.75; color: var(--ink-1); font-weight: 500;
+             letter-spacing: -.01em; max-width: 62ch; margin-bottom: 14px; word-break: keep-all; }
+  .cp-sub { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 8px; white-space: pre-line; line-height: 1.6; }
+  /* 날짜 — 인사말 바로 위 작은 머리표. 카드 제목(h2)을 대신한다 */
+  .cp-date { font-size: var(--fs-cap); font-weight: 700; color: var(--ink-muted);
+             letter-spacing: .02em; margin: 18px 0 6px; }
+  /* 날씨 — 오늘 기온·미세먼지는 한 줄로 크게, 시간대별은 칩으로 흩어 스캔되게 */
+  .cp-wx { margin-top: 2px; }
+  .cp-wx-main { font-size: var(--fs-4); font-weight: 600; color: var(--ink-1); letter-spacing: -.01em; }
+  .cp-wx-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .wx-chip { background: var(--page); border: 1px solid var(--border); border-radius: var(--r-pill);
+             padding: 3px 11px; font-size: var(--fs-sm); color: var(--ink-2); white-space: nowrap; }
+  .cp-quote { background: var(--page); border-left: 3px solid var(--accent); padding: 10px 14px;
+              font-size: var(--fs-body); color: var(--ink-1); line-height: 1.6; margin-top: 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+  /* 오늘 브리핑이 아직 안 온 상태 — 고장이 아니라 '기다리는 중'이라 경고색을 쓰지 않는다 */
+  .cp-pending { background: color-mix(in srgb, var(--accent) 8%, transparent);
+                border-left: 3px solid var(--accent); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+                padding: 9px 13px; margin: 10px 0 4px; font-size: var(--fs-cap);
+                color: var(--ink-2); line-height: 1.6; }
+  .cp-pending b { color: var(--ink-1); font-weight: 700; }
+  .cp-stale { background: color-mix(in srgb, var(--neg) 10%, transparent); color: var(--neg);
+              border-radius: var(--r-sm); padding: 10px 14px; font-size: var(--fs-body); margin-bottom: 12px; }
+
+  /* 현금 흐름 계획 */
+  .cf-pipe { display: grid; grid-template-columns: 200px 1fr 132px; gap: 12px; align-items: center; padding: 9px 0; }
+  .cf-pipe-name { font-size: var(--fs-body); font-weight: 600; }
+  .cf-pipe-name small { display: block; font-weight: 400; font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 2px; white-space: normal; }
+  .cf-pipe-track { height: 20px; background: var(--grid); border-radius: 4px; position: relative; overflow: hidden; }
+  .cf-pipe-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+  .cf-pipe-v { text-align: right; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+  .cf-pipe-v b { font-weight: 700; }
+  .cf-tag { display: inline-block; font-size: var(--fs-xs); font-weight: 600; border-radius: 4px;
+            padding: 1px 7px; background: color-mix(in srgb, var(--pos) 15%, transparent); color: var(--pos); }
+  /* 신호등 */
+  .cf-signal-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .cf-signal { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 14px 16px; background: var(--page); }
+  .cf-signal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .cf-signal-who { font-size: var(--fs-4); font-weight: 700; }
+  .cf-signal-pct { font-size: var(--fs-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cf-signal-track { height: 10px; background: var(--grid); border-radius: var(--r-pill); overflow: hidden; margin-top: 10px; }
+  .cf-signal-fill { height: 100%; border-radius: var(--r-pill); transition: width .6s ease; }
+  .cf-signal-lb { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
+  .cf-lv-ok  { color: var(--pos); } .cf-bg-ok  { background: var(--pos); }
+  .cf-lv-warn{ color: var(--warn); } .cf-bg-warn{ background: var(--warn); }
+  .cf-lv-bad { color: var(--neg); } .cf-bg-bad { background: var(--neg); }
+  /* 실행 캘린더 */
+  .cf-task { display: grid; grid-template-columns: 26px 104px 1fr; gap: 12px; align-items: start;
+             padding: 13px 0; border-bottom: 1px solid var(--grid); }
+  .cf-task:last-child { border-bottom: none; }
+  .cf-task.next { background: color-mix(in srgb, var(--accent) 6%, transparent);
+                  border-radius: var(--r-sm); padding-left: 10px; padding-right: 10px; margin: 0 -10px; }
+  .cf-chk { width: 19px; height: 19px; margin-top: 1px; cursor: pointer; accent-color: var(--accent); }
+  .cf-when { font-size: var(--fs-sm); font-weight: 700; color: var(--accent); padding-top: 1px; }
+  .cf-task.done .cf-title, .cf-task.done .cf-todo { opacity: .45; text-decoration: line-through; }
+  .cf-title { font-size: var(--fs-body); font-weight: 600; }
+  .cf-todo { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 4px; line-height: 1.6; }
+  .cf-next-badge { display: inline-block; font-size: var(--fs-xs); font-weight: 700; color: var(--accent);
+                   border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 7px; margin-left: 6px; }
+
+  /* 뉴스 */
+  .news-item { padding: 12px 0; border-bottom: 1px solid var(--grid); }
+  .news-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .news-item:first-child { padding-top: 0; }
+  .news-title { font-size: var(--fs-body); font-weight: 600; color: var(--ink-1); line-height: 1.5; }
+  .news-title a { color: inherit; text-decoration: none; }
+  .news-title a:hover { color: var(--accent); }
+  .news-meta { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 4px; }
+  .news-tag { display: inline-block; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
+              background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 4px; padding: 1px 7px; margin-right: 7px; }
+  .news-insight { font-size: var(--fs-sm); color: var(--ink-2); margin-top: 5px; line-height: 1.55; }
+
+  /* 운세 */
+  /* 일터 조언 — 평일에만 온다. 본문과 붙여 두되 한 톤 낮춰 구분한다. */
+  .fortune-work { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--accent);
+                  font-size: var(--fs-cap); color: var(--ink-2); line-height: 1.65; }
+  .luck { display: inline-block; background: var(--page); border-radius: var(--r-sm); padding: 4px 10px;
+          font-size: var(--fs-cap); color: var(--ink-2); margin-top: 8px; }
+  .fortune-person { padding: 14px 0; border-bottom: 1px solid var(--grid); }
+  .fortune-person:last-child { border-bottom: none; padding-bottom: 0; }
+  .fortune-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+  .fortune-name { font-size: var(--fs-4); font-weight: 700; }
+  .fortune-stars { font-size: var(--fs-body); color: var(--c-kr); letter-spacing: 1px; }
+  .fortune-body { font-size: var(--fs-body); color: var(--ink-1); line-height: 1.7; white-space: pre-line; }
+  /* 도입·맺음 — 할머니가 먼저 꺼내는 말과 손 모아 비는 말. 본문보다 살짝 크고 따뜻하게 */
+  .fortune-open { font-size: var(--fs-h3); line-height: 1.75; color: var(--ink-1);
+                  font-weight: 500; letter-spacing: -.01em; max-width: 62ch; word-break: keep-all; }
+  .fortune-close { font-size: var(--fs-body); line-height: 1.8; color: var(--ink-2);
+                   max-width: 62ch; word-break: keep-all; margin-top: 16px; padding-top: 14px;
+                   border-top: 1px solid var(--grid); }
+  /* 오류 · 게이트 */
+  #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
+
+  /* ── 진입 인트로 · 시네마틱 랜딩 (포르투 도오루 강변, 2022) ─────────────── */
+  #intro { position: fixed; inset: 0; z-index: 100; overflow: hidden; background: var(--intro-bg);
+           display: flex; flex-direction: column; justify-content: flex-end;
+           opacity: 1; transition: opacity 1.05s cubic-bezier(.4,0,.2,1); }
+  #intro.out { opacity: 0; pointer-events: none; }
+  /* 사진이 없을 때 보이는 포르투 톤 폴백 — 아래 규칙들이 공유한다. */
+  #intro .bg {
+    --hero-tone:
+      radial-gradient(92% 26% at 50% 56%, rgba(214,126,66,.20), transparent 62%),
+      radial-gradient(120% 82% at 50% 15%, var(--intro-sky-1) 0%, var(--intro-sky-2) 42%, transparent 72%),
+      linear-gradient(180deg, var(--intro-deep-1) 0%, var(--intro-deep-2) 40%, var(--intro-deep-3) 62%, var(--intro-deep-4) 82%, var(--intro-deep-5) 100%); }
+  #intro .bg { position: absolute; inset: 0;
+    /* 초점 60% — 하늘(위)보다 도시·강(아래)이 더 보이도록 아래쪽으로 내렸다.
+       ⚠️ 해상도: 인트로는 화면을 꽉 채우고(cover) 시작할 때 1.045배로 확대돼 있어,
+       레티나(DPR 2)에서는 뷰포트 폭의 2배가 넘는 원본이 필요하다. 한때 전 화면에
+       2000px짜리를 물린 적이 있는데(0a2a975) 큰 화면에서 1.4배 이상 늘어나 뭉갰다.
+       그래서 하나로 줄이지 말고 화면 폭으로 나눈다 —
+         2880px(603KB) 큰 화면 · 2000px(310KB) 노트북 · 1400px(155KB) 폰.
+       종전엔 큰 화면이 1170KB를 받았다. WebP 미지원만 1920px JPEG로 내려간다. */
+    background: url("assets/hero.jpg") center 60%/cover no-repeat, var(--hero-tone);
+    opacity: 0; transform: scale(1.045); transform-origin: 50% 62%;
+    animation: introBg 1.6s ease forwards, introZoom 22s ease-out forwards; }
+  @supports (background-image: image-set(url("assets/hero.webp") type("image/webp"))) {
+    #intro .bg { background-image:
+      image-set(url("assets/hero.webp") type("image/webp"),
+                url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
+    /* 노트북 — 2880px을 받아 봐야 다 못 쓴다. 2000px이면 충분하고 절반 무게다. */
+    @media (max-width: 1400px) {
+      #intro .bg { background-image:
+        image-set(url("assets/hero-md.webp") type("image/webp"),
+                  url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
+    }
+    @media (max-width: 760px) {
+      #intro .bg { background-image:
+        image-set(url("assets/hero-sm.webp") type("image/webp"),
+                  url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
+    }
+  }
+  #intro .scrim { position: absolute; inset: 0; pointer-events: none;
+    /* 글자 영역만 은은하게 — 하단을 너무 어둡게 덮지 않아 강·수변이 드러난다 */
+    background:
+      linear-gradient(180deg, rgba(8,18,28,.22) 0%, rgba(8,18,28,0) 34%, rgba(8,18,28,.30) 72%, rgba(8,18,28,.72) 100%),
+      radial-gradient(140% 80% at 22% 128%, rgba(8,18,28,.55), transparent 52%); }
+  #intro .vig { position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 200px 40px rgba(5,12,20,.42); }
+  #intro .wrap { position: relative; z-index: 3; width: 100%; max-width: 760px;
+    padding: clamp(30px,7vw,78px); }
+  #intro .cap { display: flex; align-items: center; gap: 11px; margin-bottom: 17px;
+    font-size: var(--fs-micro); letter-spacing: .22em; text-transform: uppercase; font-weight: 600;
+    color: rgba(255,255,255,.76); opacity: 0; animation: introUp .95s cubic-bezier(.2,.7,.2,1) .55s both; }
+  #intro .cap i { display: inline-block; width: 28px; height: 1px; background: rgba(255,255,255,.55); }
+  #intro .title { font-size: clamp(31px,6.2vw,56px); font-weight: 760; line-height: 1.05; color: #fff;
+    letter-spacing: -.023em; text-shadow: 0 2px 42px rgba(0,0,0,.32);
+    opacity: 0; animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) .82s both; }
+  #intro .sub { margin-top: 16px; max-width: 30em; font-size: clamp(14px,2.4vw,18px); font-weight: 400;
+    line-height: 1.5; color: rgba(255,255,255,.87); text-shadow: 0 1px 20px rgba(0,0,0,.3);
+    opacity: 0; animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) 1.15s both; }
+  #intro .cta { margin-top: clamp(24px,4vw,38px); opacity: 0;
+    animation: introUp 1.05s cubic-bezier(.2,.7,.2,1) 1.55s both; }
+  #intro .pwrow { display: flex; gap: 10px; max-width: 410px; }
+  #intro .pwrow input { flex: 1; min-width: 0; font-size: var(--fs-h3); padding: 13px 16px; border-radius: 12px;
+    color: #fff; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.30);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color .2s, background .2s; }
+  #intro .pwrow input:focus { outline: none; border-color: rgba(255,255,255,.72); background: rgba(255,255,255,.19); }
+  #intro .pwrow input::placeholder { color: rgba(255,255,255,.6); }
+  #intro .pwrow button { flex: none; padding: 0 24px; font-size: var(--fs-h3); font-weight: 700; border: none;
+    border-radius: 12px; color: var(--intro-btn-ink); background: #fff; cursor: pointer; white-space: nowrap;
+    transition: transform .12s, box-shadow .25s; }
+  #intro .pwrow button:hover { box-shadow: 0 10px 34px rgba(255,255,255,.22); }
+  #intro .pwrow button:active { transform: translateY(1px); }
+  #intro .pwrow button:disabled { opacity: .6; cursor: default; }
+  #intro .msg { margin-top: 11px; min-height: 17px; font-size: var(--fs-cap); color: var(--intro-msg);
+    text-shadow: 0 1px 8px rgba(0,0,0,.45); }
+  #intro .enter { display: inline-flex; align-items: center; gap: 12px; font-size: var(--fs-body); letter-spacing: .01em;
+    color: rgba(255,255,255,.9); text-shadow: 0 1px 12px rgba(0,0,0,.35); }
+  #intro .enter .load { position: relative; width: 40px; height: 3px; border-radius: 3px; overflow: hidden;
+    background: rgba(255,255,255,.24); }
+  #intro .enter .load i { position: absolute; inset: 0; width: 42%; border-radius: 3px; background: #fff;
+    animation: introLoad 1.15s ease-in-out infinite; }
+  @keyframes introBg { to { opacity: 1; } }
+  @keyframes introZoom { from { transform: scale(1.05); } to { transform: scale(1); } }
+  @keyframes introUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes introLoad { 0% { transform: translateX(-110%); } 100% { transform: translateX(280%); } }
+  @media (prefers-reduced-motion: reduce) {
+    #intro .bg { animation: introBg .4s ease forwards; transform: none; }
+    #intro .cap, #intro .title, #intro .sub, #intro .cta { animation: introUp .4s ease both; }
+  }
+
