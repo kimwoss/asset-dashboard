@@ -1,0 +1,20 @@
+{
+  "name": "분당부부 대시보드",
+  "short_name": "분당부부",
+  "description": "자산·FIRE 진척과 이사 후보를 한 화면에서",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b0e12",
+  "theme_color": "#1f5fd0",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

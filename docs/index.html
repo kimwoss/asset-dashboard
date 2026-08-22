@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>분당부부 대시보드</title>
+<meta name="description" content="분당부부의 자산·FIRE 진척과 이사 후보를 한 화면에서 봅니다. 비밀번호로 잠긴 개인 대시보드입니다.">
+<meta name="color-scheme" content="light dark">
+<!-- 주소창·상태바 색을 페이지 배경과 맞춘다. 안 맞으면 모바일에서 위아래가 따로 논다. -->
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0e12" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<!-- 홈 화면에 추가했을 때 브라우저 크롬 없이 앱처럼 뜬다 -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="분당부부">
+<!-- 파비콘은 외부 파일 없이 SVG 데이터 URI로. 요청 하나를 아끼고 다크에서도 또렷하다. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5fd0'/%3E%3Cpath d='M14 42 L26 28 L36 36 L50 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f5fd0'/%3E%3Cpath d='M14 42 L26 28 L36 36 L50 20' fill='none' stroke='white' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <!-- 히어로 이미지에 <link rel=preload>를 걸지 않는다. 크롬의 preload 스캐너는 뷰포트가
      정해지기 전에 돌아 media 조건을 무시하고 양쪽 파일을 다 받아버린다(실측 확인).
      이 페이지는 CSS가 통째로 인라인이라 스타일시트 왕복이 없어 preload 이득도 거의 없다. -->
@@ -125,6 +139,9 @@
   /* 헤더 */
   header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 20px; }
   h1 { font-size: var(--fs-h1); font-weight: 750; letter-spacing: -0.02em; }
+  /* 화면에는 없고 스크린리더만 읽는 라벨 */
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+             overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
   .meta { color: var(--ink-muted); font-size: var(--fs-cap); font-variant-numeric: tabular-nums; }
   /* 헤더 상태 — '지금 값인가'를 점 하나로 먼저 말한다 */
   #updated { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -672,9 +689,11 @@
   #intro .bg { position: absolute; inset: 0;
     /* 초점 60% — 하늘(위)보다 도시·강(아래)이 더 보이도록 아래쪽으로 내렸다.
        ⚠️ 해상도: 인트로는 화면을 꽉 채우고(cover) 시작할 때 1.045배로 확대돼 있어,
-       레티나(DPR 2)에서는 뷰포트 폭의 2배가 넘는 원본이 필요하다. 한때 2000px짜리로
-       줄여 둔 적이 있는데(0a2a975) 1.4배 이상 늘어나 눈에 띄게 뭉갰다.
-       지금은 3456px WebP가 기본, WebP를 못 읽는 브라우저만 2400px JPEG로 내려간다. */
+       레티나(DPR 2)에서는 뷰포트 폭의 2배가 넘는 원본이 필요하다. 한때 전 화면에
+       2000px짜리를 물린 적이 있는데(0a2a975) 큰 화면에서 1.4배 이상 늘어나 뭉갰다.
+       그래서 하나로 줄이지 말고 화면 폭으로 나눈다 —
+         2880px(603KB) 큰 화면 · 2000px(310KB) 노트북 · 1400px(155KB) 폰.
+       종전엔 큰 화면이 1170KB를 받았다. WebP 미지원만 1920px JPEG로 내려간다. */
     background: url("assets/hero.jpg") center 60%/cover no-repeat, var(--hero-tone);
     opacity: 0; transform: scale(1.045); transform-origin: 50% 62%;
     animation: introBg 1.6s ease forwards, introZoom 22s ease-out forwards; }
@@ -682,7 +701,12 @@
     #intro .bg { background-image:
       image-set(url("assets/hero.webp") type("image/webp"),
                 url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
-    /* 좁은 화면은 3456px을 받아 봐야 다 못 쓴다 — 1600px로 충분히 선명하고 4배 가볍다. */
+    /* 노트북 — 2880px을 받아 봐야 다 못 쓴다. 2000px이면 충분하고 절반 무게다. */
+    @media (max-width: 1400px) {
+      #intro .bg { background-image:
+        image-set(url("assets/hero-md.webp") type("image/webp"),
+                  url("assets/hero.jpg") type("image/jpeg")), var(--hero-tone); }
+    }
     @media (max-width: 760px) {
       #intro .bg { background-image:
         image-set(url("assets/hero-sm.webp") type("image/webp"),
@@ -746,10 +770,18 @@
 </script>
 </head>
 <body>
+<noscript>
+  <div style="max-width:640px;margin:14vh auto;padding:26px;font-family:system-ui,sans-serif;
+              line-height:1.7;color:#11151b">
+    <h1 style="font-size:22px;margin-bottom:10px">분당부부 대시보드</h1>
+    <p>이 대시보드는 자바스크립트로 암호화된 데이터를 풀어 그립니다.
+       브라우저에서 자바스크립트를 켜 주세요.</p>
+  </div>
+</noscript>
 <header>
   <h1>분당부부 대시보드</h1>
-  <span class="meta" id="updated"></span>
-  <span class="meta" id="fx"></span>
+  <span class="meta" id="updated" role="status" aria-live="polite" aria-label="데이터 갱신 시각"></span>
+  <span class="meta" id="fx" aria-label="환율"></span>
   <button id="theme" title="라이트/다크 전환" aria-label="테마 전환">🌙</button>
   <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
      target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
@@ -759,20 +791,22 @@
 </header>
 
 <div id="intro">
-  <div class="bg"></div>
-  <div class="scrim"></div>
-  <div class="vig"></div>
+  <div class="bg" aria-hidden="true"></div>
+  <div class="scrim" aria-hidden="true"></div>
+  <div class="vig" aria-hidden="true"></div>
   <div class="wrap">
     <div class="cap"><i></i>Porto · Douro 2022</div>
     <div class="title">분당부부 대시보드</div>
     <div class="sub">우현과 규리의 경제적 자립기</div>
     <div class="cta">
       <div class="pwrow" id="introPw" style="display:none">
-        <input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password">
+        <label for="pw" class="sr-only">비밀번호</label>
+        <input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"
+               aria-describedby="pwmsg" enterkeyhint="go">
         <button id="pwbtn">들어가기</button>
       </div>
       <div class="enter" id="introAuto" style="display:none"><span>들어가는 중</span><span class="load"><i></i></span></div>
-      <div class="msg" id="pwmsg"></div>
+      <div class="msg" id="pwmsg" role="alert" aria-live="assertive"></div>
     </div>
   </div>
 </div>
@@ -785,15 +819,15 @@
      안에만 있어서, 첫 화면(브리핑)에서는 정작 가장 중요한 숫자가 보이지 않았다. -->
 <section id="heroband" style="display:none"></section>
 
-<nav class="tabs" id="tabs" style="display:none">
-  <button class="tab on" data-tab="checkpoint">오늘의 브리핑</button>
-  <button class="tab" data-tab="overview">자산 현황</button>
-  <button class="tab" data-tab="financial">투자 포트폴리오</button>
-  <button class="tab" data-tab="spending">월간 생활비</button>
-  <button class="tab" data-tab="cashflow">현금 흐름 계획</button>
-  <button class="tab" data-tab="review">연간 리뷰</button>
-  <button class="tab" data-tab="cities">후보 도시</button>
-  <button class="tab" data-tab="officetel">다음 후보집</button>
+<nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
+  <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint">오늘의 브리핑</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="overview">자산 현황</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="financial">투자 포트폴리오</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="spending">월간 생활비</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cashflow">현금 흐름 계획</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="review">연간 리뷰</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cities">후보 도시</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="officetel">다음 후보집</button>
 </nav>
 
 <div id="tab-overview" style="display:none">
@@ -3313,7 +3347,12 @@ function initTabs() {
     const b = ev.target.closest(".tab");
     if (!b) return;
     if (b.classList.contains("on")) return;      // 같은 탭 다시 눌러 깜빡이지 않게
-    for (const t of nav.querySelectorAll(".tab")) t.classList.toggle("on", t === b);
+    for (const t of nav.querySelectorAll(".tab")) {
+      const on = t === b;
+      t.classList.toggle("on", on);
+      // 시각 상태만 바꾸면 스크린리더는 어느 탭이 열렸는지 알 수 없다
+      t.setAttribute("aria-selected", on ? "true" : "false");
+    }
     // 탭 목록을 여기 하드코딩하면 탭을 늘릴 때마다 이 배열을 같이 고쳐야 하고, 잊으면
     // 버튼은 눌리는데 내용이 안 뜬다 ('다음 후보집'을 넣을 때 실제로 그랬다).
     // 버튼에서 직접 읽어 두 곳이 어긋날 여지를 없앤다.
@@ -3321,6 +3360,8 @@ function initTabs() {
       const el = document.getElementById("tab-" + id);
       if (!el) continue;
       const show = b.dataset.tab === id;
+      el.setAttribute("role", "tabpanel");
+      el.setAttribute("aria-hidden", show ? "false" : "true");
       el.style.display = show ? "" : "none";
       if (show) {
         // 애니메이션을 매번 다시 태우려면 클래스를 뗐다가 리플로우 후 붙여야 한다
