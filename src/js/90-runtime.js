@@ -226,12 +226,48 @@ async function render() {
   // 실시간 시세·뉴스·체크포인트 덮어쓰기 (30분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   const liveAt = applyLive(snap, await loadLive(localStorage.getItem("asset_pw")));
 
+  // 등급별로 무엇이 언제 값인지 한 번에 알려 준다. 대시보드에서 가장 자주 나오는
+  // 물음이 "이거 지금 값이야?"인데, 지금까지는 답할 방법이 없었다.
+  function freshnessTip(live) {
+    const t = (iso) => {
+      if (!iso) return "—";
+      const d = new Date(iso);
+      if (isNaN(d)) return "—";
+      const m = Math.max(0, Math.round((Date.now() - d) / 60000));
+      return m < 1 ? "방금" : m < 60 ? m + "분 전" : Math.round(m / 60) + "시간 전";
+    };
+    const f = (live && live._fetched) || {};
+    const q = (live && live.financial && live.financial.quotes_asof) || null;
+    return [
+      "T1 실시간 (10분 목표)",
+      `  주식·환율  ${t(q)}` + (q ? "  ← 가격을 직접 조회" : ""),
+      `  계좌 평가액 ${t(f.financial)}`,
+      "T2 반나절 (3시간)",
+      `  가계부·목표·시뮬  ${t(f.spending)}`,
+      "T3·T4",
+      `  다음 후보집 ${t(f.officetel)} · 도시 ${t(f.cities)}`,
+      "부동산 KB시세는 주 1회(금) 일별 잡이 맡습니다.",
+    ].join("\n");
+  }
+
   // 헤더 메타 — 종전엔 시세·스냅샷·환율이 같은 크기 회색 글씨로 나열돼, 무엇이 '지금'
   // 값인지 판단이 안 됐다. 실시간 여부는 점 있는 배지로 올리고(가장 먼저 눈에 걸림),
   // 스냅샷 시각은 보조로 내린다. 환율은 데이터라 시세 영역에서 따로 보여준다.
   const hdr = document.getElementById("updated");
   if (liveAt) {
-    hdr.innerHTML = `<span class="hdr-live"><span class="dot"></span>실시간 ${liveAt.replace(" KST", "")}</span>`
+    // 몇 분 전인지까지 적는다. 시각만 있으면 '지금 값인가'를 사람이 매번 계산해야 한다.
+    // 배지 색은 나이로 바꾼다 — 10분 이내가 목표이고, 넘어가면 눈에 걸려야 한다.
+    const mins = (() => {
+      const m = liveAt.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+      if (!m) return null;
+      return Math.max(0, Math.round(
+        (Date.now() - new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])) / 60000));
+    })();
+    const stale = mins != null && mins > 20;   // 10분 주기 + 한 번 걸러도 20분 안에는 온다
+    const ago = mins == null ? "" : mins < 1 ? " · 방금" : ` · ${mins}분 전`;
+    hdr.innerHTML = `<span class="hdr-live${stale ? " stale" : ""}" title="${
+        esc(freshnessTip(live))}"><span class="dot"></span>실시간 ${
+        liveAt.replace(" KST", "")}${ago}</span>`
                   + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
   } else {
     hdr.innerHTML = `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;

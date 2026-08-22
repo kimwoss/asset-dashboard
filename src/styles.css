@@ -156,6 +156,9 @@
   .hdr-live { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
               font-size: var(--fs-micro); font-weight: 700; letter-spacing: .04em;
               color: var(--pos); background: var(--pos-bg); padding: 3px 9px; border-radius: var(--r-pill); }
+  /* 20분이 넘으면 초록을 거둔다 — 10분 주기가 멈췄다는 신호다 */
+  .hdr-live.stale { color: var(--warn); background: var(--warn-bg, transparent); }
+  .hdr-live { cursor: help; }
   .hdr-live .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   /* 두 시각이 붙어 읽히지 않게 — '실시간 10:00스냅샷 07:51'로 뭉쳐 보였다 */
   .hdr-snap { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);

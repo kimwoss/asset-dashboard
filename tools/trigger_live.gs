@@ -1,11 +1,14 @@
 /**
- * 분당부부 대시보드 — live.yml 30분 트리거 (Google Apps Script)
+ * 분당부부 대시보드 — live.yml 10분 트리거 (Google Apps Script)
  *
  * 왜 필요한가
- *   워크플로에 30분 간격 크론을 걸어 두었지만 GitHub의 schedule 이벤트는 공개 레포에서
+ *   워크플로에 크론을 걸어 두었지만 GitHub의 schedule 이벤트는 공개 레포에서
  *   best-effort다. 실측(2026-07-28) 48시간 26회 = 기대 96회의 27%, 간격 중앙값 100분,
  *   최대 공백 251분. 크론을 아무리 촘촘히 걸어도 GitHub이 주는 만큼만 돈다.
- *   그래서 밖에서 정확히 30분마다 workflow_dispatch로 깨운다.
+ *   그래서 밖에서 정확히 10분마다 workflow_dispatch로 깨운다.
+ *   10분인 이유 — 주식 시세가 10분 넘게 어긋나면 '지금 값'이라 부를 수 없다.
+ *   Apps Script 시간 트리거는 1·5·10·15·30분만 되고, 실행당 1초 남짓이라
+ *   하루 144회를 써도 소비자 계정 한도(트리거 총 90분/일)의 3%다.
  *
  * 왜 Apps Script인가
  *   이미 쓰는 구글 계정이라 새 서비스 가입이 없고, 시간 기반 트리거가 무료다.
@@ -24,7 +27,9 @@
  *      ※ 스크립트 속성에 두면 코드·공유 링크에 토큰이 노출되지 않는다.
  *   4) 함수 목록에서 triggerLive 실행 → 권한 승인 → GitHub Actions 탭에
  *      "update-live-quotes" 실행이 workflow_dispatch로 뜨는지 확인
- *   5) 함수 목록에서 setUpTrigger 실행 → 30분 트리거 등록 완료
+ *   5) 함수 목록에서 setUpTrigger 실행 → 10분 트리거 등록 완료
+ *      ※ 주기를 바꿨으면 반드시 setUpTrigger를 다시 실행해야 한다.
+ *        기존 트리거는 지워지고 새 주기로 다시 걸린다.
  *
  * 해제
  *   removeTrigger 실행. (워크플로의 schedule 크론은 그대로 남아 폴백으로 동작)
@@ -68,11 +73,11 @@ function triggerLive() {
   console.error(`실패 ${code}${hint ? " — " + hint : ""}: ${res.getContentText()}`);
 }
 
-/** 30분 주기 트리거 등록 (기존 것은 지우고 새로 만든다 — 중복 등록 방지). */
+/** 10분 주기 트리거 등록 (기존 것은 지우고 새로 만든다 — 중복 등록 방지). */
 function setUpTrigger() {
   removeTrigger();
-  ScriptApp.newTrigger("triggerLive").timeBased().everyMinutes(30).create();
-  console.log("30분 트리거 등록 완료 — 이제 자동으로 깨웁니다.");
+  ScriptApp.newTrigger("triggerLive").timeBased().everyMinutes(10).create();
+  console.log("10분 트리거 등록 완료 — 이제 자동으로 깨웁니다.");
 }
 
 /** 트리거 해제. 워크플로의 schedule 크론은 그대로라 100분마다는 계속 돈다. */

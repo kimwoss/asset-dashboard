@@ -1,25 +1,27 @@
 name: update-live-quotes
 
 # 시세·시트 블록을 자주 갱신 — 07:00 스냅샷을 온종일 보는 문제 해결용.
+# 주기 10분: 주식이 10분 넘게 어긋나면 '지금 값'이라 부를 수 없다. 블록마다 수명(TTL)이
+# 달라 매 실행 시트 왕복은 T1 두 블록뿐이라, 주기를 당겨도 쿼터는 거의 늘지 않는다.
 # 무거운 잡(update.yml: AI·KB시세·배당·이력)과 분리했다. 미국장이 밤이라 24시간 돌린다.
 # public 레포라 Actions 무료·무제한.
 #
 # 트리거가 둘인 이유 — GitHub의 schedule은 공개 레포에서 best-effort라 크론을 지키지 않는다.
 # 실측(2026-07-28) 48시간 26회 = 30분 크론 기대치 96회의 27%, 간격 중앙값 100분, 최대 251분.
 #   · schedule       : 폴백. GitHub이 주는 만큼(≈100분) 돈다.
-#   · workflow_dispatch: 주력. tools/trigger_live.gs(Apps Script)가 정확히 30분마다 깨운다.
+#   · workflow_dispatch: 주력. tools/trigger_live.gs(Apps Script)가 정확히 10분마다 깨운다.
 # 둘이 겹쳐도 아래 concurrency가 최신 것만 남기고, 실행당 시트 읽기는 TTL 캐시
 # (update_live.py TTL_MIN)가 눌러 준다 — 캐시 적중 시 9블록 중 2블록만 읽는다.
 on:
   schedule:
-    # 폴백 전용 — 정시 30분 간격은 tools/trigger_live.gs(Apps Script)가 담당한다.
+    # 폴백 전용 — 정시 10분 간격은 tools/trigger_live.gs(Apps Script)가 담당한다.
     # 종전엔 여기도 */30이라 dispatch와 계속 겹쳤다. 러너 배정이 밀리는 시간대에는
     # 그 겹침이 곧 '취소된 실행'이 되어 실패 알림 메일로 돌아왔다(2026-08-07 새벽).
     # 트리거가 죽었을 때만 받쳐 주면 되므로 시간당 1회로 낮춘다.
     - cron: "17 * * * *"
   workflow_dispatch:
 
-# main을 30분마다 더럽히지 않도록 live-data 고아 브랜치에 단일 커밋으로 굴린다.
+# main을 10분마다 더럽히지 않도록 live-data 고아 브랜치에 단일 커밋으로 굴린다.
 permissions:
   contents: write
 
