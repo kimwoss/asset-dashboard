@@ -23,6 +23,19 @@
      정해지기 전에 돌아 media 조건을 무시하고 양쪽 파일을 다 받아버린다(실측 확인).
      이 페이지는 CSS가 통째로 인라인이라 스타일시트 왕복이 없어 preload 이득도 거의 없다. -->
 <style>
+  /* Pretendard 가변 — KS X 1001 한글 2,350자 + 라틴 + 명리 한자로 직접 서브셋(441KB).
+     CDN을 쓰지 않는다: 외부 요청 0개 원칙을 지키고, 서드파티가 죽어도 글자가 안 깨진다.
+     원본 2,057KB에서 줄인 것이고, 가변 1종(441KB)이 정적 3종(559KB)보다 가벼우면서
+     이 페이지가 쓰는 400~800 굵기를 전부 커버한다.
+     tnum을 살려 뒀다 — 숫자 자리 맞춤이 여기 달려 있어 본문·숫자를 한 폰트로 통일했다.
+     swap: 폰트가 오기 전에도 시스템 글꼴로 먼저 읽힌다(빈 화면 없음). */
+  @font-face {
+    font-family: "Pretendard Subset";
+    src: url("assets/font/pretendard-subset.woff2") format("woff2");
+    font-weight: 45 930;
+    font-style: normal;
+    font-display: swap;
+  }
   :root {
     /* 색 — 표면/잉크
        중립을 액센트(파랑) 쪽으로 살짝 기울인 냉색으로. 따뜻한 회색은 문서 느낌이 강했고,
@@ -32,6 +45,18 @@
     --grid: #e0e4ea; --baseline: #c8cfd8; --border: rgba(17,21,27,0.10);
     /* 색 — 의미 */
     --pos: #0a7a3d; --neg: #c14340; --accent: #1f5fd0; --warn: #a9741a;
+
+    /* 테마를 따르지 않는 색 — 아래 둘은 의도적으로 고정이다.
+       ① 인트로: 항상 어두운 사진 위에 얹히므로 라이트/다크와 무관하다.
+          테마 블록에 넣으면 라이트 모드에서 히어로가 깨진다.
+       ② 스티키 메모: 종이 메모의 파스텔이라 테마가 바뀌어도 종이는 노랗다. */
+    --intro-bg: #0a1826;
+    --intro-sky-1: #2f6f9c; --intro-sky-2: #235c85;
+    --intro-deep-1: #16466f; --intro-deep-2: #1e5680; --intro-deep-3: #17496a;
+    --intro-deep-4: #103a54; --intro-deep-5: #0b2b3d;
+    --intro-btn-ink: #123049;
+    --intro-msg: #ffd6d1;
+    --sticky-paper: #FFE08A; --sticky-cat: #7a5c00; --sticky-ink: #37322b;
     /* 의미색 배경 틴트 — 등락을 '색'만이 아니라 '형태(칩)'로도 읽히게 한다.
        색각 특성과 무관하게 훑을 때 시선에 걸리는 것이 목적. */
     --pos-bg: rgba(10,122,61,.10); --neg-bg: rgba(193,67,64,.10); --warn-bg: rgba(169,116,26,.12);
@@ -68,8 +93,12 @@
        라벨·단위·시각·표 헤더를 모노+대문자+자간으로 쓰면 본문과 층이 갈리면서
        '계기판'의 인상이 생긴다. 웹폰트를 링크하면 CSP/오프라인에서 조용히 깨지므로
        설치 폰트 스택만 쓴다. */
-    --sans: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
-    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Segoe UI Mono", monospace;
+    --sans: "Pretendard Subset", "Pretendard Variable", Pretendard,
+            system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    /* 숫자도 같은 글꼴로. Pretendard에 tnum이 있어 자리가 맞고, OS마다 다른
+       모노 스택을 쓰지 않아 화면이 어디서나 같아진다. */
+    --mono: "Pretendard Subset", "Pretendard Variable", Pretendard,
+            ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
     /* 형태 */
     --r: 12px; --r-sm: 8px; --r-pill: 999px;
     --shadow: 0 1px 2px rgba(11,11,11,.04);
@@ -113,6 +142,9 @@
   body {
     background: var(--page); color: var(--ink-1);
     font-family: var(--sans);
+    /* tnum·kern을 폰트 차원에서 켠다. tabular-nums만으로는 폰트가 지원해도
+       브라우저가 늘 적용하지는 않는다. */
+    font-feature-settings: "tnum" 1, "kern" 1;
     font-size: var(--fs-body); line-height: 1.5;
     padding: 22px 20px 60px; max-width: 1200px; margin: 0 auto;
     -webkit-font-smoothing: antialiased;
@@ -564,7 +596,7 @@
   /* 연간 리뷰 */
   /* 베스트 카드 — 파스텔 스티키 노트 (라이트·다크 배경 모두에서 뜨도록 항상 파스텔+진한 잉크) */
   .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 22px 16px; padding: 8px 4px 4px; }
-  .rv-card { --rot: 0deg; position: relative; background: #FFE08A; border-radius: 3px; padding: 16px 16px 18px;
+  .rv-card { --rot: 0deg; position: relative; background: var(--sticky-paper); border-radius: 3px; padding: 16px 16px 18px;
              box-shadow: 0 4px 10px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
              transform: rotate(var(--rot)); transition: transform .18s ease, box-shadow .18s ease; }
   .rv-card:hover { transform: rotate(0deg) translateY(-4px) scale(1.03);
@@ -572,9 +604,9 @@
   .rv-card::before { content: ""; position: absolute; top: -9px; left: 50%; width: 54px; height: 17px;
                      transform: translateX(-50%) rotate(-2.5deg); background: rgba(255,255,255,.5);
                      box-shadow: 0 1px 2px rgba(0,0,0,.10); }
-  .rv-card .rv-cat { font-size: var(--fs-sm); font-weight: 800; color: var(--note-ink, #7a5c00);
+  .rv-card .rv-cat { font-size: var(--fs-sm); font-weight: 800; color: var(--note-ink, var(--sticky-cat));
                      margin-bottom: 8px; letter-spacing: -0.01em; }
-  .rv-card .rv-txt { font-size: var(--fs-body); color: #37322b; line-height: 1.55; white-space: pre-line; }
+  .rv-card .rv-txt { font-size: var(--fs-body); color: var(--sticky-ink); line-height: 1.55; white-space: pre-line; }
   .rv-month { display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--grid); }
   .rv-month:last-child { border-bottom: none; padding-bottom: 0; }
   .rv-month:first-child { padding-top: 0; }
@@ -626,7 +658,7 @@
   .cf-signal-fill { height: 100%; border-radius: var(--r-pill); transition: width .6s ease; }
   .cf-signal-lb { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 7px; font-variant-numeric: tabular-nums; }
   .cf-lv-ok  { color: var(--pos); } .cf-bg-ok  { background: var(--pos); }
-  .cf-lv-warn{ color: #F59F00; }    .cf-bg-warn{ background: #F59F00; }
+  .cf-lv-warn{ color: var(--warn); } .cf-bg-warn{ background: var(--warn); }
   .cf-lv-bad { color: var(--neg); } .cf-bg-bad { background: var(--neg); }
   /* 실행 캘린더 */
   .cf-task { display: grid; grid-template-columns: 26px 104px 1fr; gap: 12px; align-items: start;
@@ -676,7 +708,7 @@
   #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
 
   /* ── 진입 인트로 · 시네마틱 랜딩 (포르투 도오루 강변, 2022) ─────────────── */
-  #intro { position: fixed; inset: 0; z-index: 100; overflow: hidden; background: #0a1826;
+  #intro { position: fixed; inset: 0; z-index: 100; overflow: hidden; background: var(--intro-bg);
            display: flex; flex-direction: column; justify-content: flex-end;
            opacity: 1; transition: opacity 1.05s cubic-bezier(.4,0,.2,1); }
   #intro.out { opacity: 0; pointer-events: none; }
@@ -684,8 +716,8 @@
   #intro .bg {
     --hero-tone:
       radial-gradient(92% 26% at 50% 56%, rgba(214,126,66,.20), transparent 62%),
-      radial-gradient(120% 82% at 50% 15%, #2f6f9c 0%, #235c85 42%, transparent 72%),
-      linear-gradient(180deg, #16466f 0%, #1e5680 40%, #17496a 62%, #103a54 82%, #0b2b3d 100%); }
+      radial-gradient(120% 82% at 50% 15%, var(--intro-sky-1) 0%, var(--intro-sky-2) 42%, transparent 72%),
+      linear-gradient(180deg, var(--intro-deep-1) 0%, var(--intro-deep-2) 40%, var(--intro-deep-3) 62%, var(--intro-deep-4) 82%, var(--intro-deep-5) 100%); }
   #intro .bg { position: absolute; inset: 0;
     /* 초점 60% — 하늘(위)보다 도시·강(아래)이 더 보이도록 아래쪽으로 내렸다.
        ⚠️ 해상도: 인트로는 화면을 꽉 채우고(cover) 시작할 때 1.045배로 확대돼 있어,
@@ -741,12 +773,12 @@
   #intro .pwrow input:focus { outline: none; border-color: rgba(255,255,255,.72); background: rgba(255,255,255,.19); }
   #intro .pwrow input::placeholder { color: rgba(255,255,255,.6); }
   #intro .pwrow button { flex: none; padding: 0 24px; font-size: var(--fs-h3); font-weight: 700; border: none;
-    border-radius: 12px; color: #123049; background: #fff; cursor: pointer; white-space: nowrap;
+    border-radius: 12px; color: var(--intro-btn-ink); background: #fff; cursor: pointer; white-space: nowrap;
     transition: transform .12s, box-shadow .25s; }
   #intro .pwrow button:hover { box-shadow: 0 10px 34px rgba(255,255,255,.22); }
   #intro .pwrow button:active { transform: translateY(1px); }
   #intro .pwrow button:disabled { opacity: .6; cursor: default; }
-  #intro .msg { margin-top: 11px; min-height: 17px; font-size: var(--fs-cap); color: #ffd6d1;
+  #intro .msg { margin-top: 11px; min-height: 17px; font-size: var(--fs-cap); color: var(--intro-msg);
     text-shadow: 0 1px 8px rgba(0,0,0,.45); }
   #intro .enter { display: inline-flex; align-items: center; gap: 12px; font-size: var(--fs-body); letter-spacing: .01em;
     color: rgba(255,255,255,.9); text-shadow: 0 1px 12px rgba(0,0,0,.35); }
