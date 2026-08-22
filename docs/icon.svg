@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="분당부부 대시보드">
+  <rect width="64" height="64" rx="14" fill="#1f5fd0"/>
+  <path d="M14 42 L26 28 L36 36 L50 20" fill="none" stroke="#ffffff"
+        stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
