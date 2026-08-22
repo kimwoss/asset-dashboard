@@ -223,8 +223,10 @@ function showToast(msg) {
 async function render() {
   const snap = structuredClone(baseSnap);
 
-  // 실시간 시세·뉴스·체크포인트 덮어쓰기 (30분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
-  const liveAt = applyLive(snap, await loadLive(localStorage.getItem("asset_pw")));
+  // 실시간 시세·뉴스·체크포인트 덮어쓰기 (10분 갱신). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
+  // live를 이름 있는 변수로 받는다 — 아래 신선도 배지가 _fetched를 들여다봐야 한다.
+  const live = await loadLive(localStorage.getItem("asset_pw"));
+  const liveAt = applyLive(snap, live);
 
   // 등급별로 무엇이 언제 값인지 한 번에 알려 준다. 대시보드에서 가장 자주 나오는
   // 물음이 "이거 지금 값이야?"인데, 지금까지는 답할 방법이 없었다.
@@ -561,8 +563,22 @@ async function main() {
     err.textContent = "데이터를 불러오지 못했습니다. 로컬에서 열었다면 `python -m http.server`로 docs 폴더를 서빙해서 보세요. (" + e + ")";
     return;
   }
-  await render();
-  dismissIntro();  // 렌더 완료 후 인트로 걷어내기 — 완성된 화면이 바로 드러난다
+  // 렌더가 던져도 인트로는 반드시 걷는다. 종전에는 render()가 예외를 내면
+  // dismissIntro()에 닿지도 못해 화면이 영원히 인트로에 갇혔다 — 위젯 하나가
+  // 죽었을 뿐인데 대시보드 전체를 못 보는 건 너무 비싼 대가다.
+  // (2026-08-23 신선도 배지가 없는 변수를 참조해 실제로 이렇게 갇혔다)
+  try {
+    await render();
+  } catch (e) {
+    console.error("render 실패", e);
+    const err = document.getElementById("err");
+    if (err) {
+      err.style.display = "block";
+      err.textContent = "일부 화면을 그리지 못했습니다 — 나머지는 아래에 그대로 있습니다. (" + e + ")";
+    }
+  } finally {
+    dismissIntro();  // 렌더 완료(또는 실패) 후 인트로 걷어내기
+  }
 
   // 업데이트하기 — 브라우저가 할 수 있는 최대: 발행된 최신본을 모두 다시 받아 재렌더.
   //   · latest.enc + history (일별 자산·부동산·FIRE·생활비·이력) ← loadData
