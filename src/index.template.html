@@ -77,6 +77,14 @@
      대시보드의 첫 원칙은 요약을 먼저, 상세는 나중. 종전엔 순자산이 '자산 현황' 탭
      안에만 있어서, 첫 화면(브리핑)에서는 정작 가장 중요한 숫자가 보이지 않았다. -->
 <section id="heroband" style="display:none"></section>
+<script>
+  /* 순자산 가리기를 렌더 전에 미리 건다. 렌더 후에 걸면 숫자가 한 프레임
+     번쩍이는데, 회사에서 열 때 그 한 순간이 곧 이 기능이 막으려던 것이다. */
+  (function () {
+    if (localStorage.getItem("hb_hidden") === "1")
+      document.getElementById("heroband").classList.add("hb-off");
+  })();
+</script>
 
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
   <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint">오늘의 브리핑</button>
