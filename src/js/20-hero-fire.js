@@ -2,10 +2,15 @@
    '지금 순자산 + 오늘 변화 + FIRE 진척' 세 가지만. 여기서 더 늘리면 요약이 아니라
    또 하나의 표가 된다. 전일은 칩으로 승격하고 전월·전년은 보조행으로 내린다 —
    종전엔 셋이 같은 크기라 '오늘 어땠나'가 묻혔다. */
+// 접힘 상태는 localStorage에 남긴다. 회사에서 열 때 매번 다시 접어야 한다면
+// 가리개 구실을 못 한다 — 한 번 접으면 다음에도 접힌 채로 열린다.
+const HB_HIDE_KEY = "hb_hidden";
+const hbHidden = () => localStorage.getItem(HB_HIDE_KEY) === "1";
+
 function renderHeroBand(snap, net) {
   const el = document.getElementById("heroband");
   if (!el || !net) return;
-  el.className = "heroband";
+  el.className = "heroband" + (hbHidden() ? " hb-off" : "");
   el.style.display = "";
 
   const d = snap.prev_day && snap.prev_day.net_krw ? net - snap.prev_day.net_krw : null;
@@ -38,8 +43,35 @@ function renderHeroBand(snap, net) {
       <div class="hb-val">${eokMan(net)}</div>
       <div class="hb-deltas">${chip}${subs ? `<span class="hb-sub">${subs}</span>` : ""}</div>
     </div>
-    ${gauges ? `<div class="hb-gauges">${gauges}</div>` : ""}`;
+    ${gauges ? `<div class="hb-gauges">${gauges}</div>` : ""}
+    <button class="hb-toggle" type="button" aria-expanded="${!hbHidden()}"
+            aria-controls="heroband" title="순자산 카드 접기/펴기">
+      <span class="hb-eye"></span><span class="hb-lb"></span></button>`;
+  syncHeroBand(el);
 }
+
+/* 접힘 상태를 화면에 반영. 값 자체를 지우지 않고 가리기만 한다 —
+   다시 펼 때 새로 그릴 필요가 없고, 접힌 동안에도 높이가 흔들리지 않는다. */
+function syncHeroBand(el) {
+  el = el || document.getElementById("heroband");
+  if (!el) return;
+  const off = el.classList.contains("hb-off");
+  const btn = el.querySelector(".hb-toggle");
+  if (btn) {
+    btn.setAttribute("aria-expanded", String(!off));
+    btn.querySelector(".hb-lb").textContent = off ? "보기" : "가리기";
+    btn.querySelector(".hb-eye").textContent = off ? "🙈" : "👁";
+  }
+}
+
+// 카드 아무 데나 눌러도 접히고 펴진다 (버튼은 어디를 눌러야 하는지 알려 주는 표식).
+document.addEventListener("click", (ev) => {
+  const el = ev.target.closest("#heroband");
+  if (!el) return;
+  const off = el.classList.toggle("hb-off");
+  localStorage.setItem(HB_HIDE_KEY, off ? "1" : "0");
+  syncHeroBand(el);
+});
 
 function kpiCard(label, value, sub, hero) {
   return `<div class="card${hero ? " hero" : ""}">
