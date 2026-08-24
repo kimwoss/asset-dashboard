@@ -54,7 +54,11 @@ const COVER_MEDIA = [
 ].map(m => ({ ...m,
   lg: `assets/${m.slug}.webp`, md: `assets/${m.slug}-md.webp`,
   sm: `assets/${m.slug}-sm.webp`, fallback: `assets/${m.slug}.jpg` }));
-const COVER_HOLD_MS = 9000;     // 한 장이 머무는 시간
+// 한 장이 머무는 시간. 19컷이라 9초면 한 바퀴가 171초(2.9분)였다 — 사진이 늘수록
+// 같은 장면을 다시 보기까지가 멀어진다. 5초면 95초로 절반이 된다.
+// 전환(1.0s)·줌(9s)과 함께 움직여야 한다. 이 값만 줄이면 전환이 슬롯의 3분의 1을
+// 먹고, 24초짜리 줌은 5분의 1만 재생돼 정지 화면처럼 보인다.
+const COVER_HOLD_MS = 5000;
 
 function coverSrc(m) {
   const w = window.innerWidth;
@@ -80,7 +84,17 @@ function startCover() {
   let idx = 0, front = 0;
   const paint = (layer, m) => {
     const main = layer.querySelector(".cl-main"), blur = layer.querySelector(".cl-blur");
+    // 앞서 이 레이어에 얹힌 <video>를 반드시 걷어낸다. 안 그러면 레이어가 둘뿐이라
+    // 영상 두 컷이 한 번씩 지나간 뒤로는 두 레이어 모두 영상을 품게 되고, 그 뒤 모든
+    // 사진 위에 그 영상이 계속 재생된다 — 같은 장면이 자꾸 끼어드는 것처럼 보인다.
+    const old = main.querySelector("video");
+    if (old) { old.pause(); old.removeAttribute("src"); old.load(); }
+    main.innerHTML = "";
     if (m.video) {
+      // 영상 자리에서는 배경 이미지를 걷어야 뒤에 옛 사진이 비치지 않는다
+      main.style.backgroundImage = "none";
+      blur.style.backgroundImage = "none";
+      layer.classList.remove("fit");
       main.innerHTML = `<video muted playsinline loop autoplay preload="none"
         poster="${m.poster || ""}"><source src="${m.video}"></video>`;
       return;
@@ -107,16 +121,19 @@ function startCover() {
   show(0);
   if (COVER_MEDIA.length < 2 || still) return;   // 한 장뿐이면 순환할 것이 없다
 
-  const preload = i => {                          // 다음 것만 미리 (전부 받지 않는다)
+  // 5초 간격이라 '다음 한 장'만으로는 늦는다 — 느린 회선에서 빈 칸이 스친다.
+  // 두 장 앞서 받되 전부 받지는 않는다. 영상 자리는 포스터라도 미리 받아 둔다.
+  const preload = i => {
     const m = COVER_MEDIA[i];
-    if (m.video) return;
-    const img = new Image(); img.src = coverSrc(m);
+    const url = m.video ? m.poster : coverSrc(m);
+    if (!url) return;
+    const img = new Image(); img.src = url;
   };
-  preload(1);
+  preload(1); preload(2);
   setInterval(() => {
     idx = (idx + 1) % COVER_MEDIA.length;
     show(idx);
-    preload((idx + 1) % COVER_MEDIA.length);
+    preload((idx + 2) % COVER_MEDIA.length);
   }, COVER_HOLD_MS);
 }
 
