@@ -283,11 +283,18 @@
   #cover[hidden] { display: none; }
   .cover-stack { position: absolute; inset: 0; z-index: 0; background: #0a1826; }
   /* 두 겹을 겹쳐 두고 서로 페이드 — 교체 순간 배경이 비지 않는다 */
-  .cover-layer { position: absolute; inset: 0; background-position: center 58%;
-    background-size: cover; background-repeat: no-repeat;
-    opacity: 0; transition: opacity 1.6s var(--ease); will-change: opacity, transform; }
+  .cover-layer { position: absolute; inset: 0; overflow: hidden;
+    opacity: 0; transition: opacity 1.6s var(--ease); will-change: opacity; }
   .cover-layer.on { opacity: 1; }
-  .cover-layer.kb { animation: coverZoom 24s ease-out forwards; }
+  /* 세로 사진은 가로 띠에 넣으면 인물만 크게 잘려 배경이 안 보인다. 그래서 사진 전체를
+     담고(contain), 남는 좌우는 같은 사진을 흐리게 깔아 메운다. 얼굴이 작아지고
+     주변 풍경이 드러난다 — 2026-08-24 요청. 가로 사진은 종전대로 꽉 채운다. */
+  .cl-blur, .cl-main { position: absolute; inset: 0; background-repeat: no-repeat; }
+  .cl-blur { background-size: cover; background-position: center;
+    filter: blur(26px) saturate(115%) brightness(.62); transform: scale(1.14); }
+  .cl-main { background-size: cover; }
+  .cover-layer.fit .cl-main { background-size: contain; background-position: center; }
+  .cover-layer.kb .cl-main { animation: coverZoom 24s ease-out forwards; }
   @keyframes coverZoom { from { transform: scale(1.06); } to { transform: scale(1); } }
   .cover-layer video { width: 100%; height: 100%; object-fit: cover; display: block; }
   /* 글자가 앉는 아래쪽만 눌러 준다 — 사진 위쪽(하늘)은 그대로 살린다 */
@@ -1450,15 +1457,18 @@ const hbHidden = () => localStorage.getItem(HB_HIDE_KEY) === "1";
    ⚠️ 전부 미리 받지 않는다. 지금 것과 '다음 것' 하나만 받아 둔다 — 표지 하나 보려고
       매번 몇 MB를 받게 하면 아침에 폰으로 여는 그 몇 초가 그대로 손해다. */
 const COVER_MEDIA = [
-  // 배치는 하루의 흐름 — 낮 → 해질녘. 넓은 컷과 가까운 컷을 번갈아 놓아 리듬을 준다.
-  // focus는 세로 사진이 가로 띠로 잘릴 때 어디를 남길지다. 얼굴이 잘리면 그 컷은 죽는다.
+  // 배치는 하루의 흐름 — 낮 → 해질녘 → 밤. 넓은 컷과 가까운 컷을 번갈아 리듬을 준다.
+  // fit:true = 세로 사진. 가로 띠에 꽉 채우면 인물만 크게 잘리므로 사진 전체를 담고
+  //            남는 좌우는 같은 사진을 흐리게 깔아 메운다(얼굴이 작아지고 배경이 산다).
+  // focus는 가로 사진을 띠에 맞춰 자를 때 어디를 남길지.
   { slug: "porto-bridge",   focus: "center 42%", caption: "Porto · Dom Luís I" },
   { slug: "lisboa-chiado",  focus: "center 46%", caption: "Lisboa · Chiado" },
-  { slug: "douro-window",   focus: "center 38%", caption: "Porto · Douro" },
+  { slug: "douro-window",   fit: true,           caption: "Porto · Douro" },
   { slug: "hero",           focus: "center 58%", caption: "Porto · Douro 2022" },
   { slug: "ribeira-street", focus: "center 52%", caption: "Porto · Ribeira" },
-  { slug: "sintra-wine",    focus: "center 30%", caption: "Sintra · 2022" },
-  { slug: "pastel-nata",    focus: "center 26%", caption: "Porto · Pastel de Nata" },
+  { slug: "sintra-wine",    fit: true,           caption: "Sintra · 2022" },
+  { slug: "pastel-nata",    fit: true,           caption: "Porto · Pastel de Nata" },
+  { slug: "porto-night",    focus: "center 46%", caption: "Porto · Ribeira Night" },
 ].map(m => ({ ...m,
   lg: `assets/${m.slug}.webp`, md: `assets/${m.slug}-md.webp`,
   sm: `assets/${m.slug}-sm.webp`, fallback: `assets/${m.slug}.jpg` }));
@@ -1479,25 +1489,32 @@ function startCover() {
 
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const layers = [document.createElement("div"), document.createElement("div")];
-  for (const l of layers) { l.className = "cover-layer"; stack.appendChild(l); }
+  for (const l of layers) {
+    l.className = "cover-layer";
+    l.innerHTML = '<div class="cl-blur"></div><div class="cl-main"></div>';
+    stack.appendChild(l);
+  }
 
   let idx = 0, front = 0;
   const paint = (layer, m) => {
-    layer.style.backgroundPosition = m.focus || "center 58%";
+    const main = layer.querySelector(".cl-main"), blur = layer.querySelector(".cl-blur");
     if (m.video) {
-      layer.innerHTML = `<video muted playsinline loop autoplay preload="none"
+      main.innerHTML = `<video muted playsinline loop autoplay preload="none"
         poster="${m.poster || ""}"><source src="${m.video}"></video>`;
-    } else {
-      layer.innerHTML = "";
-      layer.style.backgroundImage = `url("${coverSrc(m)}")`;
+      return;
     }
+    const url = `url("${coverSrc(m)}")`;
+    main.style.backgroundImage = url;
+    main.style.backgroundPosition = m.fit ? "center" : (m.focus || "center 58%");
+    layer.classList.toggle("fit", !!m.fit);
+    blur.style.backgroundImage = m.fit ? url : "none";
   };
   const show = i => {
     const m = COVER_MEDIA[i];
     const next = layers[front ^ 1];
     paint(next, m);
     // 켄번스는 매번 새로 시작해야 한다 — 클래스를 뗐다 붙여 애니메이션을 되감는다
-    next.classList.remove("kb"); void next.offsetWidth;
+    next.classList.remove("kb"); void next.querySelector(".cl-main").offsetWidth;
     if (!still) next.classList.add("kb");
     next.classList.add("on");
     layers[front].classList.remove("on");
