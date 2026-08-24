@@ -66,6 +66,8 @@
     --c-vi: #6d5cd6; --c-debt: #c0645f;
     /* '지금 vs 은퇴' 비교 막대 전용 — 항목 색을 쓰지 않고 두 계열만 구분한다 */
     --cmp-now: #b9b7ae; --cmp-ret: #2a78d6;
+    /* 표지 위를 지나가는 탭바의 유리 배경 */
+    --nav-bg: rgba(252,252,251,.82);
     /* 하위호환 별칭 */
     --up: var(--pos); --down: var(--neg);
     /* ── 타이포 — 크기가 아니라 '역할'로 쓴다 ──────────────────────────────
@@ -120,6 +122,7 @@
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
+      --nav-bg: rgba(20,20,19,.78);
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   } }
@@ -133,6 +136,7 @@
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
+      --nav-bg: rgba(20,20,19,.78);
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   }
@@ -146,7 +150,8 @@
        브라우저가 늘 적용하지는 않는다. */
     font-feature-settings: "tnum" 1, "kern" 1;
     font-size: var(--fs-body); line-height: 1.5;
-    padding: 22px 20px 60px; max-width: 1200px; margin: 0 auto;
+    --pad: 20px;   /* 표지·탭바가 이 여백을 뚫고 화면 끝까지 나갈 때 쓴다 */
+    padding: 22px var(--pad) 60px; max-width: 1200px; margin: 0 auto;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -269,8 +274,52 @@
   /* 탭 */
   /* overflow-x:auto 는 CSS 규칙상 overflow-y 도 auto 로 만든다 — 탭 높이가 살짝 넘치면
      세로 스크롤바(▲▼)가 생긴다. y는 hidden으로 막고, 좁은 화면용 가로 스크롤은 남기되 막대는 숨긴다. */
+  /* ── 표지 ────────────────────────────────────────────────────────────────
+     매일 아침 30초 보는 계기판이라 한 화면을 통째로 쓰지 않는다(62vh). 스크롤 없이도
+     순자산이 보이면서, 사진은 사진대로 살아 있는 절충. */
+  #cover { position: relative; height: 62svh; min-height: 340px; max-height: 620px;
+    margin: -18px calc(-1 * var(--pad)) 0; overflow: hidden;
+    display: flex; align-items: flex-end; isolation: isolate; }
+  #cover[hidden] { display: none; }
+  .cover-stack { position: absolute; inset: 0; z-index: 0; background: #0a1826; }
+  /* 두 겹을 겹쳐 두고 서로 페이드 — 교체 순간 배경이 비지 않는다 */
+  .cover-layer { position: absolute; inset: 0; background-position: center 58%;
+    background-size: cover; background-repeat: no-repeat;
+    opacity: 0; transition: opacity 1.6s var(--ease); will-change: opacity, transform; }
+  .cover-layer.on { opacity: 1; }
+  .cover-layer.kb { animation: coverZoom 24s ease-out forwards; }
+  @keyframes coverZoom { from { transform: scale(1.06); } to { transform: scale(1); } }
+  .cover-layer video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* 글자가 앉는 아래쪽만 눌러 준다 — 사진 위쪽(하늘)은 그대로 살린다 */
+  .cover-scrim { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(8,18,28,.30) 0%, rgba(8,18,28,0) 34%,
+                rgba(8,18,28,.42) 68%, rgba(8,18,28,.82) 100%); }
+  .cover-body { position: relative; z-index: 2; width: 100%;
+    padding: 0 var(--pad) 18px; }
+  .cover-cap { font-family: var(--mono); font-size: var(--fs-micro); letter-spacing: .14em;
+    text-transform: uppercase; color: rgba(255,255,255,.72); margin-bottom: 10px; }
+  /* 사진 위에서는 밴드가 유리판이 된다 — 페이지 배경색을 전제로 만든 색을 덮는다 */
+  #cover .heroband { background: rgba(12,18,26,.42); border-color: rgba(255,255,255,.16);
+    backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%);
+    box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+  #cover .heroband, #cover .hb-val, #cover .hb-g-head b { color: #fff; }
+  #cover .u-label, #cover .hb-sub, #cover .hb-g-head { color: rgba(255,255,255,.72); }
+  #cover .hb-track { background: rgba(255,255,255,.18); }
+  #cover .hb-toggle { color: rgba(255,255,255,.75); border-color: rgba(255,255,255,.28); }
+  @media (prefers-reduced-motion: reduce) {
+    .cover-layer { transition: none; }
+    .cover-layer.kb { animation: none; }
+  }
+
   .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
-          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
+          /* 표지 위로 떠서 따라다닌다. 제네시스는 스크롤해도 투명하지만 그 아래는 끝까지
+             사진이다 — 우리 아래는 표와 숫자라 투명하면 글자가 겹쳐 읽힌다. 유리로 간다. */
+          position: sticky; top: 0; z-index: 30;
+          background: var(--nav-bg); backdrop-filter: blur(14px) saturate(130%);
+          -webkit-backdrop-filter: blur(14px) saturate(130%);
+          margin-left: calc(-1 * var(--pad)); margin-right: calc(-1 * var(--pad));
+          padding-left: var(--pad); padding-right: var(--pad); }
   .tabs::-webkit-scrollbar { display: none; }
   /* 좁은 화면에서 탭이 넘칠 때, 잘린 쪽 가장자리를 흐리게 해 '더 있다'를 알린다.
      스크롤바를 숨겼으니 이 신호마저 없으면 나머지 탭의 존재를 모른다.
@@ -870,7 +919,18 @@
 <!-- 히어로 밴드 — 탭 위에 두어 어느 탭에 있든 '지금 얼마인가'가 보인다.
      대시보드의 첫 원칙은 요약을 먼저, 상세는 나중. 종전엔 순자산이 '자산 현황' 탭
      안에만 있어서, 첫 화면(브리핑)에서는 정작 가장 중요한 숫자가 보이지 않았다. -->
-<section id="heroband" style="display:none"></section>
+<!-- 표지 — 로그인 뒤 처음 만나는 화면. 사진(또는 영상)이 배경이고 그 위에 순자산이 앉는다.
+     제네시스처럼 미디어가 서서히 교차되며 바뀐다. 소재가 1장뿐이면 교차 없이 켄번스만 돈다.
+     히어로밴드를 여기 '옮겨' 담았다 — 표지에 큰 숫자를 따로 그리면 같은 값이 화면에
+     두 번 존재하게 되고, 이 프로젝트에서 그 구조가 늘 사고로 이어졌다. -->
+<section id="cover" hidden>
+  <div class="cover-stack" id="cover-stack" aria-hidden="true"></div>
+  <div class="cover-scrim" aria-hidden="true"></div>
+  <div class="cover-body">
+    <div class="cover-cap" id="cover-cap"></div>
+    <section id="heroband" style="display:none"></section>
+  </div>
+</section>
 <script>
   /* 순자산 가리기를 렌더 전에 미리 건다. 렌더 후에 걸면 숫자가 한 프레임
      번쩍이는데, 회사에서 열 때 그 한 순간이 곧 이 기능이 막으려던 것이다. */
@@ -1380,11 +1440,84 @@ function renderAnnualFlow(rows) {
 const HB_HIDE_KEY = "hb_hidden";
 const hbHidden = () => localStorage.getItem(HB_HIDE_KEY) === "1";
 
+/* ── 표지 미디어 ────────────────────────────────────────────────────────────
+   제네시스처럼 사진·영상이 서서히 교차되며 바뀐다. 소재를 여기에만 적어 두면
+   나머지는 알아서 돈다 — 1장이면 교차 없이 켄번스만, 2장 이상이면 순환.
+
+   사진 추가하는 법: docs/assets/에 파일을 넣고 아래 배열에 한 줄 더한다.
+     · lg/md/sm 세 크기를 넣으면 화면 폭에 맞는 것만 받는다(없으면 lg 하나로도 된다)
+     · 영상은 {video: "assets/xxx.mp4", poster: "assets/xxx.jpg"} 로
+   ⚠️ 전부 미리 받지 않는다. 지금 것과 '다음 것' 하나만 받아 둔다 — 표지 하나 보려고
+      매번 몇 MB를 받게 하면 아침에 폰으로 여는 그 몇 초가 그대로 손해다. */
+const COVER_MEDIA = [
+  { lg: "assets/hero.webp", md: "assets/hero-md.webp", sm: "assets/hero-sm.webp",
+    fallback: "assets/hero.jpg", focus: "center 58%", caption: "Porto · Douro 2022" },
+];
+const COVER_HOLD_MS = 9000;     // 한 장이 머무는 시간
+
+function coverSrc(m) {
+  const w = window.innerWidth;
+  const pick = w <= 760 ? (m.sm || m.md || m.lg) : w <= 1400 ? (m.md || m.lg) : m.lg;
+  return pick || m.fallback;
+}
+
+function startCover() {
+  const stack = document.getElementById("cover-stack");
+  const capEl = document.getElementById("cover-cap");
+  const cover = document.getElementById("cover");
+  if (!stack || !cover || !COVER_MEDIA.length) return;
+  cover.hidden = false;
+
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const layers = [document.createElement("div"), document.createElement("div")];
+  for (const l of layers) { l.className = "cover-layer"; stack.appendChild(l); }
+
+  let idx = 0, front = 0;
+  const paint = (layer, m) => {
+    layer.style.backgroundPosition = m.focus || "center 58%";
+    if (m.video) {
+      layer.innerHTML = `<video muted playsinline loop autoplay preload="none"
+        poster="${m.poster || ""}"><source src="${m.video}"></video>`;
+    } else {
+      layer.innerHTML = "";
+      layer.style.backgroundImage = `url("${coverSrc(m)}")`;
+    }
+  };
+  const show = i => {
+    const m = COVER_MEDIA[i];
+    const next = layers[front ^ 1];
+    paint(next, m);
+    // 켄번스는 매번 새로 시작해야 한다 — 클래스를 뗐다 붙여 애니메이션을 되감는다
+    next.classList.remove("kb"); void next.offsetWidth;
+    if (!still) next.classList.add("kb");
+    next.classList.add("on");
+    layers[front].classList.remove("on");
+    front ^= 1;
+    if (capEl) capEl.textContent = m.caption || "";
+  };
+
+  show(0);
+  if (COVER_MEDIA.length < 2 || still) return;   // 한 장뿐이면 순환할 것이 없다
+
+  const preload = i => {                          // 다음 것만 미리 (전부 받지 않는다)
+    const m = COVER_MEDIA[i];
+    if (m.video) return;
+    const img = new Image(); img.src = coverSrc(m);
+  };
+  preload(1);
+  setInterval(() => {
+    idx = (idx + 1) % COVER_MEDIA.length;
+    show(idx);
+    preload((idx + 1) % COVER_MEDIA.length);
+  }, COVER_HOLD_MS);
+}
+
 function renderHeroBand(snap, net) {
   const el = document.getElementById("heroband");
   if (!el || !net) return;
   el.className = "heroband" + (hbHidden() ? " hb-off" : "");
   el.style.display = "";
+  if (!startCover._done) { startCover._done = true; startCover(); }
 
   const d = snap.prev_day && snap.prev_day.net_krw ? net - snap.prev_day.net_krw : null;
   const chip = d == null ? ""
