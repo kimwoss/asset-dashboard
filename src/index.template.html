@@ -76,7 +76,18 @@
 <!-- 히어로 밴드 — 탭 위에 두어 어느 탭에 있든 '지금 얼마인가'가 보인다.
      대시보드의 첫 원칙은 요약을 먼저, 상세는 나중. 종전엔 순자산이 '자산 현황' 탭
      안에만 있어서, 첫 화면(브리핑)에서는 정작 가장 중요한 숫자가 보이지 않았다. -->
-<section id="heroband" style="display:none"></section>
+<!-- 표지 — 로그인 뒤 처음 만나는 화면. 사진(또는 영상)이 배경이고 그 위에 순자산이 앉는다.
+     제네시스처럼 미디어가 서서히 교차되며 바뀐다. 소재가 1장뿐이면 교차 없이 켄번스만 돈다.
+     히어로밴드를 여기 '옮겨' 담았다 — 표지에 큰 숫자를 따로 그리면 같은 값이 화면에
+     두 번 존재하게 되고, 이 프로젝트에서 그 구조가 늘 사고로 이어졌다. -->
+<section id="cover" hidden>
+  <div class="cover-stack" id="cover-stack" aria-hidden="true"></div>
+  <div class="cover-scrim" aria-hidden="true"></div>
+  <div class="cover-body">
+    <div class="cover-cap" id="cover-cap"></div>
+    <section id="heroband" style="display:none"></section>
+  </div>
+</section>
 <script>
   /* 순자산 가리기를 렌더 전에 미리 건다. 렌더 후에 걸면 숫자가 한 프레임
      번쩍이는데, 회사에서 열 때 그 한 순간이 곧 이 기능이 막으려던 것이다. */

@@ -1458,17 +1458,39 @@ const hbHidden = () => localStorage.getItem(HB_HIDE_KEY) === "1";
       매번 몇 MB를 받게 하면 아침에 폰으로 여는 그 몇 초가 그대로 손해다. */
 const COVER_MEDIA = [
   // 배치는 하루의 흐름 — 낮 → 해질녘 → 밤. 넓은 컷과 가까운 컷을 번갈아 리듬을 준다.
+  // 2022년 5월 포르투갈 19컷. 사진의 EXIF 촬영 시각으로 시간대를 갈랐다(추측이 아니다).
   // fit:true = 세로 사진. 가로 띠에 꽉 채우면 인물만 크게 잘리므로 사진 전체를 담고
   //            남는 좌우는 같은 사진을 흐리게 깔아 메운다(얼굴이 작아지고 배경이 산다).
   // focus는 가로 사진을 띠에 맞춰 자를 때 어디를 남길지.
-  { slug: "porto-bridge",   focus: "center 42%", caption: "Porto · Dom Luís I" },
-  { slug: "lisboa-chiado",  focus: "center 46%", caption: "Lisboa · Chiado" },
-  { slug: "douro-window",   fit: true,           caption: "Porto · Douro" },
-  { slug: "hero",           focus: "center 58%", caption: "Porto · Douro 2022" },
-  { slug: "ribeira-street", focus: "center 52%", caption: "Porto · Ribeira" },
-  { slug: "sintra-wine",    fit: true,           caption: "Sintra · 2022" },
-  { slug: "pastel-nata",    fit: true,           caption: "Porto · Pastel de Nata" },
-  { slug: "porto-night",    focus: "center 46%", caption: "Porto · Ribeira Night" },
+  // video는 아이폰 라이브 포토를 3배 늦추고 정방향→역방향으로 이어 붙인 것 —
+  //            1초짜리를 그대로 돌리면 9초 동안 열 번 튄다.
+
+  // ── 낮 ──────────────────────────────────────────────────────────────────
+  { slug: "porto-bridge",      focus: "center 42%", caption: "Porto · Dom Luís I" },
+  { slug: "lisboa-chiado",     focus: "center 46%", caption: "Lisboa · Chiado" },
+  { slug: "porto-douro-wide",  focus: "center 55%", caption: "Porto · Vila Nova de Gaia" },
+  { slug: "lisboa-arch",       focus: "center 55%", caption: "Lisboa · Baixa" },
+  { slug: "hero",              focus: "center 58%", caption: "Porto · Douro 2022" },
+  { slug: "chiado-brasileira", caption: "Lisboa · A Brasileira",
+    video: "assets/chiado-brasileira.mp4", poster: "assets/chiado-brasileira-poster.jpg" },
+  { slug: "douro-window",      fit: true,           caption: "Porto · Douro" },
+  { slug: "belem-tower",       focus: "center 45%", caption: "Lisboa · Torre de Belém" },
+  { slug: "pastel-nata",       fit: true,           caption: "Porto · Pastel de Nata" },
+  { slug: "porto-bridge-view", focus: "center 50%", caption: "Porto · Ponte Dom Luís I" },
+  { slug: "lisboa-table",      caption: "Lisboa · 그날의 점심",
+    video: "assets/lisboa-table.mp4", poster: "assets/lisboa-table-poster.jpg" },
+
+  // ── 해질녘 ──────────────────────────────────────────────────────────────
+  { slug: "ribeira-street",    focus: "center 52%", caption: "Porto · Ribeira" },
+  { slug: "douro-terrace",     focus: "center 50%", caption: "Porto · Cais da Ribeira" },
+  { slug: "azenhas-do-mar",    focus: "center 45%", caption: "Sintra · Azenhas do Mar" },
+  { slug: "porto-miradouro",   focus: "center 55%", caption: "Porto · Miradouro" },
+  { slug: "sintra-wine",       fit: true,           caption: "Sintra · 2022" },
+
+  // ── 밤 ──────────────────────────────────────────────────────────────────
+  { slug: "lisboa-wine",       focus: "center 50%", caption: "Sintra · Vinho" },
+  { slug: "alfama-night",      focus: "center 45%", caption: "Lisboa · Alfama" },
+  { slug: "porto-night",       focus: "center 46%", caption: "Porto · Ribeira Night" },
 ].map(m => ({ ...m,
   lg: `assets/${m.slug}.webp`, md: `assets/${m.slug}-md.webp`,
   sm: `assets/${m.slug}-sm.webp`, fallback: `assets/${m.slug}.jpg` }));
