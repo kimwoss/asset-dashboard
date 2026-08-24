@@ -42,6 +42,8 @@
     --c-vi: #6d5cd6; --c-debt: #c0645f;
     /* '지금 vs 은퇴' 비교 막대 전용 — 항목 색을 쓰지 않고 두 계열만 구분한다 */
     --cmp-now: #b9b7ae; --cmp-ret: #2a78d6;
+    /* 표지 위를 지나가는 탭바의 유리 배경 */
+    --nav-bg: rgba(252,252,251,.82);
     /* 하위호환 별칭 */
     --up: var(--pos); --down: var(--neg);
     /* ── 타이포 — 크기가 아니라 '역할'로 쓴다 ──────────────────────────────
@@ -96,6 +98,7 @@
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
+      --nav-bg: rgba(20,20,19,.78);
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   } }
@@ -109,6 +112,7 @@
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
+      --nav-bg: rgba(20,20,19,.78);
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   }
@@ -122,7 +126,8 @@
        브라우저가 늘 적용하지는 않는다. */
     font-feature-settings: "tnum" 1, "kern" 1;
     font-size: var(--fs-body); line-height: 1.5;
-    padding: 22px 20px 60px; max-width: 1200px; margin: 0 auto;
+    --pad: 20px;   /* 표지·탭바가 이 여백을 뚫고 화면 끝까지 나갈 때 쓴다 */
+    padding: 22px var(--pad) 60px; max-width: 1200px; margin: 0 auto;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -245,8 +250,59 @@
   /* 탭 */
   /* overflow-x:auto 는 CSS 규칙상 overflow-y 도 auto 로 만든다 — 탭 높이가 살짝 넘치면
      세로 스크롤바(▲▼)가 생긴다. y는 hidden으로 막고, 좁은 화면용 가로 스크롤은 남기되 막대는 숨긴다. */
+  /* ── 표지 ────────────────────────────────────────────────────────────────
+     매일 아침 30초 보는 계기판이라 한 화면을 통째로 쓰지 않는다(62vh). 스크롤 없이도
+     순자산이 보이면서, 사진은 사진대로 살아 있는 절충. */
+  #cover { position: relative; height: 62svh; min-height: 340px; max-height: 620px;
+    margin: -18px calc(-1 * var(--pad)) 0; overflow: hidden;
+    display: flex; align-items: flex-end; isolation: isolate; }
+  #cover[hidden] { display: none; }
+  .cover-stack { position: absolute; inset: 0; z-index: 0; background: #0a1826; }
+  /* 두 겹을 겹쳐 두고 서로 페이드 — 교체 순간 배경이 비지 않는다 */
+  .cover-layer { position: absolute; inset: 0; overflow: hidden;
+    opacity: 0; transition: opacity 1.6s var(--ease); will-change: opacity; }
+  .cover-layer.on { opacity: 1; }
+  /* 세로 사진은 가로 띠에 넣으면 인물만 크게 잘려 배경이 안 보인다. 그래서 사진 전체를
+     담고(contain), 남는 좌우는 같은 사진을 흐리게 깔아 메운다. 얼굴이 작아지고
+     주변 풍경이 드러난다 — 2026-08-24 요청. 가로 사진은 종전대로 꽉 채운다. */
+  .cl-blur, .cl-main { position: absolute; inset: 0; background-repeat: no-repeat; }
+  .cl-blur { background-size: cover; background-position: center;
+    filter: blur(26px) saturate(115%) brightness(.62); transform: scale(1.14); }
+  .cl-main { background-size: cover; }
+  .cover-layer.fit .cl-main { background-size: contain; background-position: center; }
+  .cover-layer.kb .cl-main { animation: coverZoom 24s ease-out forwards; }
+  @keyframes coverZoom { from { transform: scale(1.06); } to { transform: scale(1); } }
+  .cover-layer video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* 글자가 앉는 아래쪽만 눌러 준다 — 사진 위쪽(하늘)은 그대로 살린다 */
+  .cover-scrim { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(8,18,28,.30) 0%, rgba(8,18,28,0) 34%,
+                rgba(8,18,28,.42) 68%, rgba(8,18,28,.82) 100%); }
+  .cover-body { position: relative; z-index: 2; width: 100%;
+    padding: 0 var(--pad) 18px; }
+  .cover-cap { font-family: var(--mono); font-size: var(--fs-micro); letter-spacing: .14em;
+    text-transform: uppercase; color: rgba(255,255,255,.72); margin-bottom: 10px; }
+  /* 사진 위에서는 밴드가 유리판이 된다 — 페이지 배경색을 전제로 만든 색을 덮는다 */
+  #cover .heroband { background: rgba(12,18,26,.42); border-color: rgba(255,255,255,.16);
+    backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%);
+    box-shadow: 0 18px 50px rgba(0,0,0,.35); }
+  #cover .heroband, #cover .hb-val, #cover .hb-g-head b { color: #fff; }
+  #cover .u-label, #cover .hb-sub, #cover .hb-g-head { color: rgba(255,255,255,.72); }
+  #cover .hb-track { background: rgba(255,255,255,.18); }
+  #cover .hb-toggle { color: rgba(255,255,255,.75); border-color: rgba(255,255,255,.28); }
+  @media (prefers-reduced-motion: reduce) {
+    .cover-layer { transition: none; }
+    .cover-layer.kb { animation: none; }
+  }
+
   .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
-          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+          overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
+          /* 표지 위로 떠서 따라다닌다. 제네시스는 스크롤해도 투명하지만 그 아래는 끝까지
+             사진이다 — 우리 아래는 표와 숫자라 투명하면 글자가 겹쳐 읽힌다. 유리로 간다. */
+          position: sticky; top: 0; z-index: 30;
+          background: var(--nav-bg); backdrop-filter: blur(14px) saturate(130%);
+          -webkit-backdrop-filter: blur(14px) saturate(130%);
+          margin-left: calc(-1 * var(--pad)); margin-right: calc(-1 * var(--pad));
+          padding-left: var(--pad); padding-right: var(--pad); }
   .tabs::-webkit-scrollbar { display: none; }
   /* 좁은 화면에서 탭이 넘칠 때, 잘린 쪽 가장자리를 흐리게 해 '더 있다'를 알린다.
      스크롤바를 숨겼으니 이 신호마저 없으면 나머지 탭의 존재를 모른다.

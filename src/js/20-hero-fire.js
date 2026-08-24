@@ -7,11 +7,125 @@
 const HB_HIDE_KEY = "hb_hidden";
 const hbHidden = () => localStorage.getItem(HB_HIDE_KEY) === "1";
 
+/* ── 표지 미디어 ────────────────────────────────────────────────────────────
+   제네시스처럼 사진·영상이 서서히 교차되며 바뀐다. 소재를 여기에만 적어 두면
+   나머지는 알아서 돈다 — 1장이면 교차 없이 켄번스만, 2장 이상이면 순환.
+
+   사진 추가하는 법: docs/assets/에 파일을 넣고 아래 배열에 한 줄 더한다.
+     · lg/md/sm 세 크기를 넣으면 화면 폭에 맞는 것만 받는다(없으면 lg 하나로도 된다)
+     · 영상은 {video: "assets/xxx.mp4", poster: "assets/xxx.jpg"} 로
+   ⚠️ 전부 미리 받지 않는다. 지금 것과 '다음 것' 하나만 받아 둔다 — 표지 하나 보려고
+      매번 몇 MB를 받게 하면 아침에 폰으로 여는 그 몇 초가 그대로 손해다. */
+const COVER_MEDIA = [
+  // 배치는 하루의 흐름 — 낮 → 해질녘 → 밤. 넓은 컷과 가까운 컷을 번갈아 리듬을 준다.
+  // 2022년 5월 포르투갈 19컷. 사진의 EXIF 촬영 시각으로 시간대를 갈랐다(추측이 아니다).
+  // fit:true = 세로 사진. 가로 띠에 꽉 채우면 인물만 크게 잘리므로 사진 전체를 담고
+  //            남는 좌우는 같은 사진을 흐리게 깔아 메운다(얼굴이 작아지고 배경이 산다).
+  // focus는 가로 사진을 띠에 맞춰 자를 때 어디를 남길지.
+  // video는 아이폰 라이브 포토를 3배 늦추고 정방향→역방향으로 이어 붙인 것 —
+  //            1초짜리를 그대로 돌리면 9초 동안 열 번 튄다.
+
+  // ── 낮 ──────────────────────────────────────────────────────────────────
+  { slug: "porto-bridge",      focus: "center 42%", caption: "Porto · Dom Luís I" },
+  { slug: "lisboa-chiado",     focus: "center 46%", caption: "Lisboa · Chiado" },
+  { slug: "porto-douro-wide",  focus: "center 55%", caption: "Porto · Vila Nova de Gaia" },
+  { slug: "lisboa-arch",       focus: "center 55%", caption: "Lisboa · Baixa" },
+  { slug: "hero",              focus: "center 58%", caption: "Porto · Douro 2022" },
+  { slug: "chiado-brasileira", caption: "Lisboa · A Brasileira",
+    video: "assets/chiado-brasileira.mp4", poster: "assets/chiado-brasileira-poster.jpg" },
+  { slug: "douro-window",      fit: true,           caption: "Porto · Douro" },
+  { slug: "belem-tower",       focus: "center 45%", caption: "Lisboa · Torre de Belém" },
+  { slug: "pastel-nata",       fit: true,           caption: "Porto · Pastel de Nata" },
+  { slug: "porto-bridge-view", focus: "center 50%", caption: "Porto · Ponte Dom Luís I" },
+  { slug: "lisboa-table",      caption: "Lisboa · 그날의 점심",
+    video: "assets/lisboa-table.mp4", poster: "assets/lisboa-table-poster.jpg" },
+
+  // ── 해질녘 ──────────────────────────────────────────────────────────────
+  { slug: "ribeira-street",    focus: "center 52%", caption: "Porto · Ribeira" },
+  { slug: "douro-terrace",     focus: "center 50%", caption: "Porto · Cais da Ribeira" },
+  { slug: "azenhas-do-mar",    focus: "center 45%", caption: "Sintra · Azenhas do Mar" },
+  { slug: "porto-miradouro",   focus: "center 55%", caption: "Porto · Miradouro" },
+  { slug: "sintra-wine",       fit: true,           caption: "Sintra · 2022" },
+
+  // ── 밤 ──────────────────────────────────────────────────────────────────
+  { slug: "lisboa-wine",       focus: "center 50%", caption: "Sintra · Vinho" },
+  { slug: "alfama-night",      focus: "center 45%", caption: "Lisboa · Alfama" },
+  { slug: "porto-night",       focus: "center 46%", caption: "Porto · Ribeira Night" },
+].map(m => ({ ...m,
+  lg: `assets/${m.slug}.webp`, md: `assets/${m.slug}-md.webp`,
+  sm: `assets/${m.slug}-sm.webp`, fallback: `assets/${m.slug}.jpg` }));
+const COVER_HOLD_MS = 9000;     // 한 장이 머무는 시간
+
+function coverSrc(m) {
+  const w = window.innerWidth;
+  const pick = w <= 760 ? (m.sm || m.md || m.lg) : w <= 1400 ? (m.md || m.lg) : m.lg;
+  return pick || m.fallback;
+}
+
+function startCover() {
+  const stack = document.getElementById("cover-stack");
+  const capEl = document.getElementById("cover-cap");
+  const cover = document.getElementById("cover");
+  if (!stack || !cover || !COVER_MEDIA.length) return;
+  cover.hidden = false;
+
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const layers = [document.createElement("div"), document.createElement("div")];
+  for (const l of layers) {
+    l.className = "cover-layer";
+    l.innerHTML = '<div class="cl-blur"></div><div class="cl-main"></div>';
+    stack.appendChild(l);
+  }
+
+  let idx = 0, front = 0;
+  const paint = (layer, m) => {
+    const main = layer.querySelector(".cl-main"), blur = layer.querySelector(".cl-blur");
+    if (m.video) {
+      main.innerHTML = `<video muted playsinline loop autoplay preload="none"
+        poster="${m.poster || ""}"><source src="${m.video}"></video>`;
+      return;
+    }
+    const url = `url("${coverSrc(m)}")`;
+    main.style.backgroundImage = url;
+    main.style.backgroundPosition = m.fit ? "center" : (m.focus || "center 58%");
+    layer.classList.toggle("fit", !!m.fit);
+    blur.style.backgroundImage = m.fit ? url : "none";
+  };
+  const show = i => {
+    const m = COVER_MEDIA[i];
+    const next = layers[front ^ 1];
+    paint(next, m);
+    // 켄번스는 매번 새로 시작해야 한다 — 클래스를 뗐다 붙여 애니메이션을 되감는다
+    next.classList.remove("kb"); void next.querySelector(".cl-main").offsetWidth;
+    if (!still) next.classList.add("kb");
+    next.classList.add("on");
+    layers[front].classList.remove("on");
+    front ^= 1;
+    if (capEl) capEl.textContent = m.caption || "";
+  };
+
+  show(0);
+  if (COVER_MEDIA.length < 2 || still) return;   // 한 장뿐이면 순환할 것이 없다
+
+  const preload = i => {                          // 다음 것만 미리 (전부 받지 않는다)
+    const m = COVER_MEDIA[i];
+    if (m.video) return;
+    const img = new Image(); img.src = coverSrc(m);
+  };
+  preload(1);
+  setInterval(() => {
+    idx = (idx + 1) % COVER_MEDIA.length;
+    show(idx);
+    preload((idx + 1) % COVER_MEDIA.length);
+  }, COVER_HOLD_MS);
+}
+
 function renderHeroBand(snap, net) {
   const el = document.getElementById("heroband");
   if (!el || !net) return;
   el.className = "heroband" + (hbHidden() ? " hb-off" : "");
   el.style.display = "";
+  if (!startCover._done) { startCover._done = true; startCover(); }
 
   const d = snap.prev_day && snap.prev_day.net_krw ? net - snap.prev_day.net_krw : null;
   const chip = d == null ? ""
