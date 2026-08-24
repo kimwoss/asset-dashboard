@@ -1450,9 +1450,18 @@ const hbHidden = () => localStorage.getItem(HB_HIDE_KEY) === "1";
    ⚠️ 전부 미리 받지 않는다. 지금 것과 '다음 것' 하나만 받아 둔다 — 표지 하나 보려고
       매번 몇 MB를 받게 하면 아침에 폰으로 여는 그 몇 초가 그대로 손해다. */
 const COVER_MEDIA = [
-  { lg: "assets/hero.webp", md: "assets/hero-md.webp", sm: "assets/hero-sm.webp",
-    fallback: "assets/hero.jpg", focus: "center 58%", caption: "Porto · Douro 2022" },
-];
+  // 배치는 하루의 흐름 — 낮 → 해질녘. 넓은 컷과 가까운 컷을 번갈아 놓아 리듬을 준다.
+  // focus는 세로 사진이 가로 띠로 잘릴 때 어디를 남길지다. 얼굴이 잘리면 그 컷은 죽는다.
+  { slug: "porto-bridge",   focus: "center 42%", caption: "Porto · Dom Luís I" },
+  { slug: "lisboa-chiado",  focus: "center 46%", caption: "Lisboa · Chiado" },
+  { slug: "douro-window",   focus: "center 38%", caption: "Porto · Douro" },
+  { slug: "hero",           focus: "center 58%", caption: "Porto · Douro 2022" },
+  { slug: "ribeira-street", focus: "center 52%", caption: "Porto · Ribeira" },
+  { slug: "sintra-wine",    focus: "center 30%", caption: "Sintra · 2022" },
+  { slug: "pastel-nata",    focus: "center 26%", caption: "Porto · Pastel de Nata" },
+].map(m => ({ ...m,
+  lg: `assets/${m.slug}.webp`, md: `assets/${m.slug}-md.webp`,
+  sm: `assets/${m.slug}-sm.webp`, fallback: `assets/${m.slug}.jpg` }));
 const COVER_HOLD_MS = 9000;     // 한 장이 머무는 시간
 
 function coverSrc(m) {
