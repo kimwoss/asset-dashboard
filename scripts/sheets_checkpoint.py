@@ -11,7 +11,7 @@ bundang-market-report(private)가 매일 07:00 리포트를 발송한 뒤
 실패는 파이프라인을 죽이지 않는다 — 예외 시 {} 반환, 대시보드는 해당 탭만 비운다.
 """
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import sheets_fire  # 인증 재사용
@@ -19,7 +19,14 @@ import sheets_fire  # 인증 재사용
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "★오늘의체크포인트"
 PAYLOAD_CELL = "A3"
-STALE_DAYS = 3  # 이보다 오래되면 '오래된 리포트'로 표시
+# 매일 나오는 리포트라 하루만 밀려도 이미 틀린 내용이다 — 특히 운세는 날짜 자체가
+# 내용이라 어제 일진을 오늘 것으로 보여주면 거짓말이 된다. 종전엔 3일이라 2026-08-26에
+# 워크플로가 통째로 유실됐는데도 화면은 어제 운세를 아무 표시 없이 보여줬다.
+#
+# 다만 '아직 오늘 걸 안 만든 이른 아침'과 '오늘 발송이 실패한 것'은 다르다.
+# 모닝 리포트는 06~07시에 나오므로, 그 시각이 지나도 어제 것이면 그때 밀린 것으로 본다.
+STALE_AFTER_HOUR = 8   # KST. 이 시각이 지났는데 어제 것이면 '밀렸다'
+KST = timezone(timedelta(hours=9))
 
 
 def fetch_checkpoint(today: Optional[date] = None) -> Dict[str, Any]:
@@ -49,7 +56,9 @@ def fetch_checkpoint(today: Optional[date] = None) -> Dict[str, Any]:
             gen_date = datetime.fromisoformat(gen).date()
             age = (today - gen_date).days
             payload["age_days"] = age
-            payload["stale"] = age >= STALE_DAYS
+            # 이틀 이상이면 무조건, 하루면 발송 시각이 지난 뒤부터 밀린 것으로 본다
+            payload["stale"] = age >= 2 or (
+                age == 1 and datetime.now(KST).hour >= STALE_AFTER_HOUR)
         except (ValueError, TypeError):
             payload["age_days"] = None
             payload["stale"] = False

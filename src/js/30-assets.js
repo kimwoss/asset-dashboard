@@ -235,7 +235,13 @@ function renderCheckpoint(cp, finBlock) {
   const mktGroupHead = t => `<tr class="mkt-grp"><td colspan="${2 + HZ.length}">${esc(t)}</td></tr>`;
 
   let h = "";
-  if (cp.stale) h += `<div class="cp-stale">⚠️ ${cp.age_days}일 전(${esc(cp.date_label)}) 리포트입니다 — 최신 발송이 밀렸을 수 있어요.</div>`;
+  if (cp.stale) {
+    // 하루 밀린 것과 며칠 밀린 것은 말이 달라야 한다. 운세는 날짜가 곧 내용이라
+    // '어제 것'이라는 사실이 분명히 보여야 오늘 일진으로 착각하지 않는다.
+    const when = cp.age_days === 1 ? "어제" : `${cp.age_days}일 전`;
+    h += `<div class="cp-stale">⚠️ ${when}(${esc(cp.date_label)}) 리포트입니다 —`
+       + ` 오늘 발송이 밀렸어요. <b>운세·날씨는 어제 기준</b>이고 시세·뉴스는 실시간입니다.</div>`;
+  }
 
   // 브리핑(인사말·날씨·운세)은 모닝 리포트가 하루 한 번 만든다 — 시세·뉴스(실시간)와 달리
   // 오늘 것이 아닐 수 있다. 아직 안 왔으면 '언제 오는지'까지 말해 준다.
