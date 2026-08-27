@@ -521,13 +521,24 @@
   .donut-cell .cap { font-size: var(--fs-cap); color: var(--ink-muted); margin-bottom: 8px; text-align: center; min-height: 15px; }
   svg text { font-family: inherit; }
 
+  /* 표를 감싸는 가로 스크롤 상자. 표가 뷰포트보다 넓어도 '페이지'는 절대 옆으로 밀리지
+     않게 한다 — 밀리면 오른쪽에 빈 여백만 나오고 본문이 잘린다.
+     주의: 이 상자가 그리드/플렉스 아이템 안에 있으면 부모에 min-width:0이 필요하다.
+     아이템의 기본값 min-width:auto가 '내용의 최소 폭'을 바닥으로 잡아 상자가 못 줄어든다. */
+  .tbl-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+
   /* 표 (전 화면 공통 규격) */
   table { width: 100%; border-collapse: collapse; font-size: var(--fs-body); }
   th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* 표 헤더는 '데이터 축' — 모노+대문자+자간으로 본문과 층을 가른다 */
   th { color: var(--ink-muted); font-family: var(--mono); font-weight: 700; font-size: var(--fs-micro);
        letter-spacing: .08em; border-bottom: 1px solid var(--baseline); }
-  th:first-child, td:first-child { text-align: left; white-space: normal; }
+  /* 첫 열만 줄바꿈을 허용한다. 나머지 숫자 열이 nowrap이라, 폭이 모자라면 압박이 전부
+     이 열로 쏠린다 — 폰에서 '힐스테이트 파인루체'가 33px 폭에 아홉 줄로 떨어졌다(2026-08 실측).
+     · min-width: 표가 좁아져도 이 아래로는 못 눌린다. 남는 폭은 감싼 .tbl-scroll이 스크롤로 흡수한다.
+     · word-break: keep-all — 한글은 기본값이 글자 단위로 끊긴다. 어절(띄어쓰기) 단위로 끊어야 읽힌다. */
+  th:first-child, td:first-child { text-align: left; white-space: normal;
+                                   word-break: keep-all; min-width: 7em; }
   td.name { font-weight: 600; }
   tbody tr:last-child td { border-bottom: none; }
   td .chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
@@ -547,6 +558,10 @@
      align-items:start 가 없으면 두 열이 서로의 높이에 끌려 늘어난다. */
   .cp-cols { display: grid; gap: 0 14px; align-items: start; }
   @media (min-width: 900px) { .cp-cols { grid-template-columns: 1.15fr 1fr; } }
+  /* 그리드 아이템의 기본 min-width는 auto — 내용(nowrap 표)의 최소 폭이 트랙의 바닥이 된다.
+     그래서 한 열짜리 그리드인데도 트랙이 582px로 벌어져 폰에서 페이지가 227px 밀렸다.
+     0으로 낮춰야 안쪽 .tbl-scroll이 비로소 제 몫을 한다. */
+  .cp-cols > * { min-width: 0; }
 
 
   /* 매물 링크 — 표 안에서 밑줄 없는 파란 글씨는 어두운 배경에서 잘 안 보인다.
@@ -721,6 +736,12 @@
 
   /* 현금 흐름 계획 */
   .cf-pipe { display: grid; grid-template-columns: 200px 1fr 132px; gap: 12px; align-items: center; padding: 9px 0; }
+  /* 폰 — 200+132 고정 열이 이미 332px이라 375px 화면을 넘긴다. 이름·금액을 한 줄에 두고
+     막대는 그 아래로 내린다. 막대는 길이가 정보라 좁게 눌리면 오히려 못 읽는다. */
+  @media (max-width: 560px) {
+    .cf-pipe { grid-template-columns: 1fr auto; gap: 4px 10px; }
+    .cf-pipe-track { grid-column: 1 / -1; order: 3; }
+  }
   .cf-pipe-name { font-size: var(--fs-body); font-weight: 600; }
   .cf-pipe-name small { display: block; font-weight: 400; font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 2px; white-space: normal; }
   .cf-pipe-track { height: 20px; background: var(--grid); border-radius: 4px; position: relative; overflow: hidden; }
@@ -983,7 +1004,7 @@
     <div class="note" id="sim-note"></div>
     <details class="sim-fold" id="sim-fold">
       <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div style="overflow-x:auto"><table id="sim-table"></table></div>
+      <div class="tbl-scroll"><table id="sim-table"></table></div>
       <div class="note" id="sim-table-note"></div>
     </details>
   </section>
@@ -1075,7 +1096,7 @@
 
   <section class="card" id="flow-section" style="display:none">
     <h2>연도별 소득 및 지출 현황</h2>
-    <div style="overflow-x:auto"><table id="flow-table"></table></div>
+    <div class="tbl-scroll"><table id="flow-table"></table></div>
     <div class="goal-sub" id="flow-note" style="margin-top:10px"></div>
   </section>
 
@@ -1563,7 +1584,11 @@ function startCover() {
   };
 
   show(0);
-  if (COVER_MEDIA.length < 2 || still) return;   // 한 장뿐이면 순환할 것이 없다
+  // 종전엔 여기서 `|| still`로 순환까지 멈췄다. '동작 줄이기'를 켠 폰에서는 표지가 첫 장에
+  // 붙박여 있었다(2026-08 제보). 줄여야 할 것은 켄번스 확대와 크로스페이드지, 사진이 바뀌는
+  // 일 자체가 아니다. 그 둘은 이미 CSS가 끈다(.cover-layer{transition:none} / .kb{animation:none}).
+  // 여기서는 순수하게 '장이 하나뿐인가'만 본다.
+  if (COVER_MEDIA.length < 2) return;
 
   // 5초 간격이라 '다음 한 장'만으로는 늦는다 — 느린 회선에서 빈 칸이 스친다.
   // 두 장 앞서 받되 전부 받지는 않는다. 영상 자리는 포스터라도 미리 받아 둔다.
@@ -2123,7 +2148,7 @@ function renderCheckpoint(cp, finBlock) {
     const hasFx = mktGroups.some(g => g[2] === "won");
     h += `<section class="card">
       <div class="cp-mkt-head"><h2>시세</h2>${badge}</div>
-      <div style="overflow-x:auto"><table class="mkt mkt-unified">
+      <div class="tbl-scroll"><table class="mkt mkt-unified">
         <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
         <tbody>${rows}</tbody></table></div>
       ${usAsof ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
@@ -3383,7 +3408,7 @@ function renderCities(ct, net) {
         <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${fmtMan(c.monthly_total)}</div><div class="s">현지 물가 연동 항목</div></div>
         <div class="fact"><div class="l">연 고정비</div><div class="v">${fmtMan(c.annual_fixed)}</div><div class="s">한국 귀속·수동 항목</div></div>
       </div>
-      <div style="overflow-x:auto;margin-top:14px"><table class="mkt">
+      <div class="tbl-scroll" style="margin-top:14px"><table class="mkt">
         <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
         <tbody>${catRows}</tbody></table></div>`;
   };
