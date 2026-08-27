@@ -238,7 +238,7 @@ function renderCities(ct, net) {
         <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${fmtMan(c.monthly_total)}</div><div class="s">현지 물가 연동 항목</div></div>
         <div class="fact"><div class="l">연 고정비</div><div class="v">${fmtMan(c.annual_fixed)}</div><div class="s">한국 귀속·수동 항목</div></div>
       </div>
-      <div style="overflow-x:auto;margin-top:14px"><table class="mkt">
+      <div class="tbl-scroll" style="margin-top:14px"><table class="mkt">
         <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
         <tbody>${catRows}</tbody></table></div>`;
   };

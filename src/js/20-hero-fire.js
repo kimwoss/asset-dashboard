@@ -119,7 +119,11 @@ function startCover() {
   };
 
   show(0);
-  if (COVER_MEDIA.length < 2 || still) return;   // 한 장뿐이면 순환할 것이 없다
+  // 종전엔 여기서 `|| still`로 순환까지 멈췄다. '동작 줄이기'를 켠 폰에서는 표지가 첫 장에
+  // 붙박여 있었다(2026-08 제보). 줄여야 할 것은 켄번스 확대와 크로스페이드지, 사진이 바뀌는
+  // 일 자체가 아니다. 그 둘은 이미 CSS가 끈다(.cover-layer{transition:none} / .kb{animation:none}).
+  // 여기서는 순수하게 '장이 하나뿐인가'만 본다.
+  if (COVER_MEDIA.length < 2) return;
 
   // 5초 간격이라 '다음 한 장'만으로는 늦는다 — 느린 회선에서 빈 칸이 스친다.
   // 두 장 앞서 받되 전부 받지는 않는다. 영상 자리는 포스터라도 미리 받아 둔다.

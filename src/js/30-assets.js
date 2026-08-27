@@ -323,7 +323,7 @@ function renderCheckpoint(cp, finBlock) {
     const hasFx = mktGroups.some(g => g[2] === "won");
     h += `<section class="card">
       <div class="cp-mkt-head"><h2>시세</h2>${badge}</div>
-      <div style="overflow-x:auto"><table class="mkt mkt-unified">
+      <div class="tbl-scroll"><table class="mkt mkt-unified">
         <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
         <tbody>${rows}</tbody></table></div>
       ${usAsof ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
