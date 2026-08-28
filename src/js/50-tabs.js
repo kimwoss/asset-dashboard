@@ -530,8 +530,23 @@ function initTabs() {
     // 좁은 화면에서 반쯤 잘린 탭을 눌렀을 때 그 탭이 온전히 보이게 끌어온다
     b.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     syncFade();
-    // 탭을 바꾸면 그 탭의 처음부터 읽는 게 자연스럽다 (이미 위에 있으면 건드리지 않는다)
-    if (window.scrollY > 120) window.scrollTo({ top: 0, behavior: "smooth" });
+    // 탭을 바꾸면 새 패널을 처음부터 보여 준다. 다만 페이지 맨 위(표지)까지 끌고 가지 않는다 —
+    // 폰에서 메뉴를 누를 때마다 표지로 튕겨 올라간다는 제보(2026-08). 탭바가 sticky라
+    // 탭바의 제자리까지만 올리면 탭바는 화면 맨 위에 그대로 붙어 있고 패널만 처음으로 돌아온다.
+    // 기준점은 탭바가 아니라 '지금 연 패널'에서 잡는다. 탭바는 sticky라 붙어 있는 동안
+    // offsetTop도 getBoundingClientRect도 '붙은 위치'를 돌려줘, 스크롤 위치에 따라 값이
+    // 흔들린다 — 처음 시도에서 712와 2200을 오갔고 오히려 아래로 더 내려간 적도 있다.
+    // 패널은 sticky가 아니라 흐름 그대로라 좌표가 안정적이다.
+    const panel = document.getElementById("tab-" + b.dataset.tab);
+    if (panel) {
+      const navH = nav.getBoundingClientRect().height;
+      const target = Math.max(0, window.scrollY + panel.getBoundingClientRect().top - navH);
+      // 위로만 끌어올린다. 아직 표지 쪽을 보고 있다면 그대로 둔다.
+      if (window.scrollY > target + 4) {
+        const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        window.scrollTo({ top: target, behavior: still ? "auto" : "smooth" });
+      }
+    }
   });
 }
 
