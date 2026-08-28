@@ -4016,7 +4016,13 @@ async function render() {
         liveAt.replace(" KST", "")}${ago}</span>`
                   + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
   } else {
-    hdr.innerHTML = `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
+    // 실시간을 못 받았다는 사실을 화면에 남긴다. 종전엔 '스냅샷'만 떠서, 기기마다 순자산이
+    // 다르게 보여도 왜 그런지 단서가 없었다 — 폰만 실시간을 못 받으면 반나절 전 값이
+    // 조용히 표시된다(2026-08 문의). live.enc는 raw.githubusercontent 한 곳에서만 오므로
+    // 그 호스트가 막힌 망에서는 이 배지가 켜진다.
+    const why = live ? "" :
+      `<span class="hdr-live stale" title="실시간 파일(live.enc)을 받지 못했습니다. 아래 값은 일별 스냅샷 기준입니다. 망에서 raw.githubusercontent.com이 막혀 있으면 이 상태가 됩니다."><span class="dot"></span>실시간 못 받음</span>`;
+    hdr.innerHTML = why + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
   }
   document.getElementById("fx").textContent = snap.fx_usdkrw
     ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$" + (liveAt ? "" : " (" + snap.fx_asof + ")")
@@ -4331,7 +4337,11 @@ async function main() {
   // 발행한 값을 캐시 우회해 즉시 당겨온다. CI가 갱신했으면 숫자가 실제로 바뀌어 보인다.
   const rb = document.getElementById("refresh");
   rb.style.display = "";
-  rb.addEventListener("click", async () => {
+
+  // 마지막으로 데이터를 받아 온 시각. 화면에 다시 돌아왔을 때 다시 받을지 판단한다.
+  let lastLoad = Date.now();
+
+  const refreshAll = async (silent) => {
     if (rb.disabled) return;
     rb.disabled = true; rb.classList.add("spin");
     const t0 = Date.now();
@@ -4339,15 +4349,38 @@ async function main() {
       const pw = localStorage.getItem("asset_pw");
       [baseSnap, histText] = await loadData(pw);   // 일별 발행본 재수신 (핵심 — 종전엔 live만 받았다)
       const freshness = await render();            // live.enc 재수신 + 전체 재렌더
-      flashUpdated();
-      showToast(`업데이트 완료 · ${freshness}`);
+      lastLoad = Date.now();
+      // 자동 갱신은 조용히 한다 — 앱을 오갈 때마다 토스트가 뜨면 성가시다.
+      if (!silent) { flashUpdated(); showToast(`업데이트 완료 · ${freshness}`); }
     } catch (e) {
-      showToast("업데이트 실패 — 잠시 후 다시 시도해 주세요");
+      // 자동 갱신이 실패하면 화면을 건드리지 않고 그대로 둔다(기존 값이 남는 편이 빈 화면보다 낫다)
+      if (!silent) showToast("업데이트 실패 — 잠시 후 다시 시도해 주세요");
     } finally {
       // 스핀이 너무 짧게 깜빡이지 않도록 최소 600ms 유지 (동작했다는 체감)
       setTimeout(() => { rb.disabled = false; rb.classList.remove("spin"); }, Math.max(0, 600 - (Date.now() - t0)));
     }
-  });
+  };
+  rb.addEventListener("click", () => refreshAll(false));
+
+  // 화면에 다시 돌아오면 알아서 최신화한다.
+  //
+  // 종전엔 페이지를 처음 열 때 딱 한 번 그리고 끝이었다. 폰은 탭을 켜 둔 채로 두는 일이
+  // 흔해서, 며칠 전에 받은 화면이 그대로 남아 있었다 — 데스크톱과 폰이 서로 다른 시각의
+  // 순자산을 보여준 원인이다(2026-08 제보). latest.enc(일별)와 live.enc(10분)는 최대
+  // 반나절 넘게 벌어지기도 한다.
+  //
+  // pageshow(persisted)도 함께 듣는다. bfcache로 복원되면 스크립트가 다시 돌지 않고
+  // visibilitychange도 오지 않는 경우가 있다(iOS Safari에서 흔하다).
+  const AUTO_REFRESH_GAP = 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
+  const maybeAutoRefresh = () => {
+    if (document.visibilityState !== "visible") return;
+    if (Date.now() - lastLoad < AUTO_REFRESH_GAP) return;
+    refreshAll(true);
+  };
+  // visibilitychange는 document에서 발생한다. window에 걸면 버블링에 기대게 되므로
+  // 표준 대상인 document에 직접 건다.
+  document.addEventListener("visibilitychange", maybeAutoRefresh);
+  addEventListener("pageshow", e => { if (e.persisted) maybeAutoRefresh(); });
 }
 
 // 업데이트 직후 헤더 시각과 현재 탭에 짧은 하이라이트 — '방금 갱신됐다'는 시각적 신호
