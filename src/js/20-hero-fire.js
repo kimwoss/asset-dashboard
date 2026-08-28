@@ -32,13 +32,13 @@ const COVER_MEDIA = [
   { slug: "lisboa-arch",       focus: "center 55%", caption: "Lisboa · Baixa" },
   { slug: "hero",              focus: "center 58%", caption: "Porto · Douro 2022" },
   { slug: "chiado-brasileira", caption: "Lisboa · A Brasileira",
-    video: "assets/chiado-brasileira.mp4", poster: "assets/chiado-brasileira-poster.jpg" },
+    video: "assets/chiado-brasileira-v2.mp4", poster: "assets/chiado-brasileira-poster.jpg" },
   { slug: "douro-window",      fit: true,           caption: "Porto · Douro" },
   { slug: "belem-tower",       focus: "center 45%", caption: "Lisboa · Torre de Belém" },
   { slug: "pastel-nata",       fit: true,           caption: "Porto · Pastel de Nata" },
   { slug: "porto-bridge-view", focus: "center 50%", caption: "Porto · Ponte Dom Luís I" },
   { slug: "lisboa-table",      caption: "Lisboa · 그날의 점심",
-    video: "assets/lisboa-table.mp4", poster: "assets/lisboa-table-poster.jpg" },
+    video: "assets/lisboa-table-v2.mp4", poster: "assets/lisboa-table-poster.jpg" },
 
   // ── 해질녘 ──────────────────────────────────────────────────────────────
   { slug: "ribeira-street",    focus: "center 52%", caption: "Porto · Ribeira" },
@@ -95,20 +95,29 @@ function startCover() {
       main.style.backgroundImage = "none";
       blur.style.backgroundImage = "none";
       layer.classList.remove("fit");
-      main.innerHTML = `<video muted playsinline loop autoplay preload="none"
+      // loop를 뺐다. 원본이 라이브포토라 1초 안팎인데, 5초를 채우려고 반복하면 산만하고
+      // 늘려서 채우면 슬로모션이 된다(종전엔 4~8배로 늘려 놨었다). 한 번만 제 속도로 흐르고,
+      // 끝나면 아래 run()이 곧바로 다음 장으로 넘긴다.
+      main.innerHTML = `<video muted playsinline autoplay preload="auto"
         poster="${m.poster || ""}"><source src="${m.video}"></video>`;
-      return;
+      const v = main.querySelector("video");
+      // autoplay 속성만으로는 iOS에서 시작되지 않는 경우가 있다. 막히면 조용히 넘어간다 —
+      // 재생이 안 되면 ended도 안 오지만, run()의 타이머가 5초 뒤 받아 준다.
+      v.play?.().catch(() => {});
+      return v;
     }
     const url = `url("${coverSrc(m)}")`;
     main.style.backgroundImage = url;
     main.style.backgroundPosition = m.fit ? "center" : (m.focus || "center 58%");
     layer.classList.toggle("fit", !!m.fit);
     blur.style.backgroundImage = m.fit ? url : "none";
+    return null;
   };
+  // 영상이면 그 <video>를, 사진이면 null을 돌려준다 — run()이 넘길 시점을 정하는 데 쓴다
   const show = i => {
     const m = COVER_MEDIA[i];
     const next = layers[front ^ 1];
-    paint(next, m);
+    const vid = paint(next, m);
     // 켄번스는 매번 새로 시작해야 한다 — 클래스를 뗐다 붙여 애니메이션을 되감는다
     next.classList.remove("kb"); void next.querySelector(".cl-main").offsetWidth;
     if (!still) next.classList.add("kb");
@@ -116,14 +125,14 @@ function startCover() {
     layers[front].classList.remove("on");
     front ^= 1;
     if (capEl) capEl.textContent = m.caption || "";
+    return vid;
   };
 
-  show(0);
   // 종전엔 여기서 `|| still`로 순환까지 멈췄다. '동작 줄이기'를 켠 폰에서는 표지가 첫 장에
   // 붙박여 있었다(2026-08 제보). 줄여야 할 것은 켄번스 확대와 크로스페이드지, 사진이 바뀌는
   // 일 자체가 아니다. 그 둘은 이미 CSS가 끈다(.cover-layer{transition:none} / .kb{animation:none}).
   // 여기서는 순수하게 '장이 하나뿐인가'만 본다.
-  if (COVER_MEDIA.length < 2) return;
+  if (COVER_MEDIA.length < 2) { show(0); return; }   // 한 장뿐이면 그려만 두고 순환은 없다
 
   // 5초 간격이라 '다음 한 장'만으로는 늦는다 — 느린 회선에서 빈 칸이 스친다.
   // 두 장 앞서 받되 전부 받지는 않는다. 영상 자리는 포스터라도 미리 받아 둔다.
@@ -134,11 +143,24 @@ function startCover() {
     const img = new Image(); img.src = url;
   };
   preload(1); preload(2);
-  setInterval(() => {
+
+  // 종전엔 setInterval이라 한 장의 체류 시간이 무조건 5초로 고정이었다. 영상은 제 길이가
+  // 따로 있어서 그 틀에 안 맞는다 — 그래서 타이머를 매 장 새로 거는 사슬로 바꾼다.
+  let timer = null;
+  const advance = () => {
     idx = (idx + 1) % COVER_MEDIA.length;
-    show(idx);
+    run(idx);
     preload((idx + 2) % COVER_MEDIA.length);
-  }, COVER_HOLD_MS);
+  };
+  const run = i => {
+    const vid = show(i);
+    clearTimeout(timer);
+    // 사진은 5초를 채운다. 영상은 5초를 못 채워도 끝나는 즉시 넘어간다.
+    // 이 타이머는 영상에겐 안전망이다 — 재생이 막혀 ended가 영영 안 와도 화면이 멈추지 않는다.
+    timer = setTimeout(advance, COVER_HOLD_MS);
+    if (vid) vid.addEventListener("ended", advance, { once: true });
+  };
+  run(0);
 }
 
 function renderHeroBand(snap, net) {
