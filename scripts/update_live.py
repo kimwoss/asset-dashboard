@@ -303,6 +303,21 @@ def main():
     # 4) 직전 발행본 — 수명이 남은 블록은 여기서 그대로 가져다 쓴다.
     prev, meta = _load_prev()
     meta = dict(meta)
+    # 시트를 방금 고쳤을 때 캐시를 건너뛰는 문 — 워크플로 입력 FRESH_BLOCKS로 받는다.
+    # 코드 지문(_code)은 파싱 코드가 바뀔 때만 열리는데, 값만 바뀐 경우엔 안 열려서
+    # 수명이 끝날 때까지(최대 4시간) 옛 값이 실려 나갔다. 'all' 또는 블록 이름 목록.
+    fresh = {b.strip() for b in (os.getenv("FRESH_BLOCKS") or "").split(",") if b.strip()}
+    if fresh:
+        if "all" in fresh:
+            print("INFO: FRESH_BLOCKS=all — 모든 시트 블록을 다시 읽습니다")
+            meta = {}
+        else:
+            hit = fresh & set(meta)
+            print(f"INFO: FRESH_BLOCKS={sorted(fresh)} — 해당 블록을 다시 읽습니다"
+                  + (f" (수명 무시: {sorted(hit)})" if hit else ""))
+            for b in fresh:
+                meta.pop(b, None)
+
     code = _code_fingerprint()
     if prev and prev.get("_code") != code:
         print(f"INFO: 시트 파싱 코드가 바뀌었습니다({prev.get('_code')} -> {code}) "
