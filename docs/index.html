@@ -503,6 +503,16 @@
     border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 6px;
     vertical-align: middle; letter-spacing: 0; }
 
+  /* 정렬 가능한 머리글 — 누를 수 있다는 걸 화살표로 미리 알린다(⇅), 켜지면 방향(▲▼) */
+  th.of-sort { cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color var(--dur-1) var(--ease); }
+  th.of-sort:hover { color: var(--ink-1); }
+  th.of-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  th.of-sort.on { color: var(--accent); }
+  .of-arrow { margin-left: 3px; font-size: .82em; opacity: .45; }
+  th.of-sort:hover .of-arrow { opacity: .8; }
+  th.of-sort.on .of-arrow { opacity: 1; }
+
   .linkish { font: inherit; color: var(--c-re); background: none; border: none; padding: 0;
     cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .linkish:hover { opacity: .75; }
@@ -3214,9 +3224,7 @@ function renderOfficetel(of) {
     + kpiCard("\ucd5c\uc800 \ud658\uc0b0\uc804\uc138", eok(s.min_conv), "\uc0c1\ud55c " + eok(of.cap_man) + " \u00b7 \uc804\uc6a9 " + of.area_min + "\ud3c9\u2191")
     + kpiCard("\ud6c4\ubcf4 \uc624\ud53c\uc2a4\ud154", (s.buildings ?? 0) + "\uacf3", "\ud0c0\uc785 " + (s.total ?? 0) + "\uc885");
 
-  // 별점이 높은 순 → 같으면 싼 순. 중개사가 훑는 순서와 같게.
-  const live = of.items.filter(x => x.ok).sort((p1, p2) =>
-    (p2.stars || "").length - (p1.stars || "").length || p1.converted - p2.converted);
+  const live = of.items.filter(x => x.ok);
   const asof = live.map(x => x.asof).filter(Boolean).sort().pop();
   document.getElementById("of-asof").textContent = asof ? "\ucd5c\uadfc \ud655\uc778 " + asof : "";
   document.getElementById("of-criteria").textContent = of.criteria || "";
@@ -3260,10 +3268,47 @@ function renderOfficetel(of) {
              : '<span class="of-deal none">' + t + "</span>";
   };
 
-  document.getElementById("of-live").innerHTML =
-    "<thead><tr><th>\uc624\ud53c\uc2a4\ud154</th><th>\ud0c0\uc785</th><th>\uc804\uc6a9</th><th>\uad6c\uc870</th>"
-    + "<th>\ubcf4\uc99d\uae08/\uc6d4\uc138</th><th>\ud658\uc0b0\uc804\uc138</th><th>\uce35\u00b7\ud5a5</th><th>\ud655\uc778\uc77c</th><th></th></tr></thead><tbody>"
-    + (live.length ? live.map(x =>
+  // ── 정렬 ────────────────────────────────────────────────────────────────
+  // 기본은 별점 높은 순 → 같으면 싼 순(중개사가 훑는 순서). 전용·환산전세·확인일
+  // 머리글을 누르면 그 열로 정렬하고, 같은 열을 다시 누르면 방향이 뒤집힌다.
+  // 값이 빈 행(전용 미상 등)은 방향과 무관하게 늘 아래로 보낸다 — 빈 칸이 위에
+  // 몰리면 정렬한 보람이 없다.
+  const OF_SORT = {
+    area:      { get: x => x.area,       dir:  1 },   // 작은 평형부터
+    converted: { get: x => x.converted,  dir:  1 },   // 싼 것부터
+    asof:      { get: x => x.asof || "", dir: -1 },   // 최신부터
+  };
+  let ofSort = null;
+
+  const ofSorted = () => {
+    if (!ofSort) return [...live].sort((p1, p2) =>
+      (p2.stars || "").length - (p1.stars || "").length || p1.converted - p2.converted);
+    const get = OF_SORT[ofSort.key].get, d = ofSort.dir;
+    return [...live].sort((p1, p2) => {
+      const x = get(p1), y = get(p2);
+      const ex = x === null || x === undefined || x === "";
+      const ey = y === null || y === undefined || y === "";
+      if (ex || ey) return ex - ey;
+      return x < y ? -d : x > y ? d : 0;
+    });
+  };
+
+  const ofTh = (key, label) => {
+    const on = ofSort && ofSort.key === key;
+    return '<th class="of-sort' + (on ? " on" : "") + '" data-sort="' + key + '"'
+         + ' role="button" tabindex="0" title="눌러서 정렬" aria-sort="'
+         + (on ? (ofSort.dir > 0 ? "ascending" : "descending") : "none") + '">'
+         + label + '<span class="of-arrow">' + (on ? (ofSort.dir > 0 ? "▲" : "▼") : "⇅") + "</span></th>";
+  };
+
+  function paintLive() {
+    const rows = ofSorted();
+    document.getElementById("of-live").innerHTML =
+      "<thead><tr><th>\uc624\ud53c\uc2a4\ud154</th><th>\ud0c0\uc785</th>"
+      + ofTh("area", "전용") + "<th>구조</th>"
+      + "<th>보증금/월세</th>" + ofTh("converted", "환산전세")
+      + "<th>층·향</th>" + ofTh("asof", "확인일") + "<th></th></tr></thead><tbody>"
+      + (rows.length ? rows.map(x =>
         '<tr><td class="name">' + starTag(x) + esc(x.name)
         + '<span class="mkt-asof">' + esc(x.region || "") + "</span></td>"
         + "<td>" + esc(x.type || "—") + "</td><td>" + (x.area ? x.area.toFixed(2) + "\ud3c9" : "\u2014") + "</td>"
@@ -3273,9 +3318,26 @@ function renderOfficetel(of) {
         + asofCell(x.asof)
         + "<td>" + goLink(x.link) + "</td></tr>").join("")
       : '<tr><td colspan="9" style="color:var(--ink-muted)">\uae30\uc900\uc744 \ud1b5\uacfc\ud55c \ub9e4\ubb3c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4</td></tr>')
-    + "</tbody>";
+          + "</tbody>";
+  }
+  paintLive();
 
-  // \ud0c0\uc785 \uce74\ud0c8\ub85c\uadf8 \u2014 \uc624\ud53c\uc2a4\ud154\u00b7\ud0c0\uc785 \ud55c \uc904\ub85c \uc811\uace0, \ub9e4\ubb3c \uc218\ub97c \ub20c\ub7ec \ud38c\uce5c\ub2e4.
+  const ofTable = document.getElementById("of-live");
+  const ofPick = key => {
+    if (!OF_SORT[key]) return;
+    ofSort = (ofSort && ofSort.key === key) ? { key, dir: -ofSort.dir }
+                                            : { key, dir: OF_SORT[key].dir };
+    paintLive();
+  };
+  ofTable.addEventListener("click", ev => {
+    const th = ev.target.closest("th.of-sort"); if (th) ofPick(th.dataset.sort);
+  });
+  ofTable.addEventListener("keydown", ev => {
+    if (ev.key !== "Enter" && ev.key !== " ") return;
+    const th = ev.target.closest("th.of-sort");
+    if (th) { ev.preventDefault(); ofPick(th.dataset.sort); }
+  });
+
   const groups = new Map();
   for (const x of of.items) {
     const k = x.name + " " + x.type;
