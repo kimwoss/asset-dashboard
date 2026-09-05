@@ -67,7 +67,17 @@
     /* '지금 vs 은퇴' 비교 막대 전용 — 항목 색을 쓰지 않고 두 계열만 구분한다 */
     --cmp-now: #b9b7ae; --cmp-ret: #2a78d6;
     /* 표지 위를 지나가는 탭바의 유리 배경 */
-    --nav-bg: rgba(252,252,251,.82);
+    --nav-bg: rgba(252,252,251,.88);
+    /* 내비게이션 전용 팔레트 — 제네시스식으로 조용하게. 시그니처는 구리색 한 줄이고,
+       선택 표시는 색으로 소리치지 않고 '판(plate)'을 깔아 층을 만든다.
+       --accent(파랑)를 쓰지 않는 이유: 그 파랑은 링크·포커스링의 색이라, 내비까지
+       같은 색을 쓰면 '누를 수 있는 것'과 '지금 여기'가 한 색으로 뭉갠다. */
+    --nav-accent: #9a6a3c;                  /* 구리 */
+    /* 판을 흰색으로 두면 바 자체가 이미 거의 흰색이라 보이지 않는다.
+       구리에서 파생한 옅은 톤을 깔아, 선택 표시와 시그니처를 한 몸으로 만든다. */
+    --nav-on-bg: rgba(154,106,60,.10);
+    --nav-on-line: rgba(154,106,60,.32);
+    --nav-hover: rgba(17,21,27,.045);
     /* 하위호환 별칭 */
     --up: var(--pos); --down: var(--neg);
     /* ── 타이포 — 크기가 아니라 '역할'로 쓴다 ──────────────────────────────
@@ -122,7 +132,11 @@
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
-      --nav-bg: rgba(20,20,19,.78);
+      --nav-bg: rgba(20,20,19,.86);
+      --nav-accent: #c89b6a;                /* 어두운 바탕에선 구리를 한 단계 밝게 */
+      --nav-on-bg: rgba(200,155,106,.15);
+      --nav-on-line: rgba(200,155,106,.34);
+      --nav-hover: rgba(255,255,255,.05);
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   } }
@@ -136,7 +150,11 @@
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
       --cmp-now: #55544f; --cmp-ret: #4a92ea;
-      --nav-bg: rgba(20,20,19,.78);
+      --nav-bg: rgba(20,20,19,.86);
+      --nav-accent: #c89b6a;                /* 어두운 바탕에선 구리를 한 단계 밝게 */
+      --nav-on-bg: rgba(200,155,106,.15);
+      --nav-on-line: rgba(200,155,106,.34);
+      --nav-hover: rgba(255,255,255,.05);
       --shadow: none; --shadow-lift: 0 6px 20px rgba(0,0,0,.45);
       --flow-hi: rgba(74,146,234,.12);
   }
@@ -322,7 +340,7 @@
     .cover-layer.kb { animation: none; }
   }
 
-  .tabs { display: flex; gap: 2px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
           overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -ms-overflow-style: none;
           /* 표지 위로 떠서 따라다닌다. 제네시스는 스크롤해도 투명하지만 그 아래는 끝까지
              사진이다 — 우리 아래는 표와 숫자라 투명하면 글자가 겹쳐 읽힌다. 유리로 간다. */
@@ -330,7 +348,9 @@
           background: var(--nav-bg); backdrop-filter: blur(14px) saturate(130%);
           -webkit-backdrop-filter: blur(14px) saturate(130%);
           margin-left: calc(-1 * var(--pad)); margin-right: calc(-1 * var(--pad));
-          padding-left: var(--pad); padding-right: var(--pad); }
+          padding-left: var(--pad); padding-right: var(--pad);
+          /* 판이 숨 쉴 위아래 여백. 이게 없으면 선택 표시가 바에 꽉 끼어 답답하다. */
+          padding-top: 6px; padding-bottom: 6px; }
   .tabs::-webkit-scrollbar { display: none; }
   /* 좁은 화면에서 탭이 넘칠 때, 잘린 쪽 가장자리를 흐리게 해 '더 있다'를 알린다.
      스크롤바를 숨겼으니 이 신호마저 없으면 나머지 탭의 존재를 모른다.
@@ -342,20 +362,24 @@
                       #000 calc(100% - var(--fade-r)), transparent 100%); }
   .tabs.fade-l { --fade-l: 30px; }
   .tabs.fade-r { --fade-r: 30px; }
+  /* 비활성 탭은 --ink-muted였다. 유리 바 위에서 대비가 모자라 메뉴 영역 자체가
+     흐릿하게 묻혔다(2026-08 제보). 본문 계열(--ink-2)로 올려 '읽히는 것'을 먼저 만든다.
+     자간은 제네시스처럼 살짝 벌린다 — 짧은 한글 라벨이 덩어리로 뭉치지 않고 또렷해진다. */
   .tab { position: relative; background: none; border: none; cursor: pointer; font-family: inherit;
-         white-space: nowrap; font-size: var(--fs-nav); font-weight: 600; color: var(--ink-muted);
-         padding: 13px 18px; margin-bottom: -1px; letter-spacing: -0.015em;
-         transition: color var(--dur-1) var(--ease); }
-  /* 밑줄을 border가 아니라 의사요소로 그린다 — 좌우로 자라나는 연출이 가능해지고,
-     hover 때 옅게 미리 비쳐 '여기를 누르면 여기가 켜진다'가 손끝에서 먼저 읽힌다. */
-  .tab::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 2.5px;
-                background: var(--accent); border-radius: 2px;
-                transform: scaleX(0); transform-origin: 50% 50%; opacity: 0;
-                transition: transform var(--dur-2) var(--ease-out), opacity var(--dur-1) var(--ease); }
-  .tab:hover { color: var(--ink-2); }
-  .tab:hover::after { transform: scaleX(.55); opacity: .35; }
-  .tab.on { color: var(--accent); font-weight: 700; }   /* 굵기까지 올려 한눈에 잡히게 */
-  .tab.on::after { transform: scaleX(1); opacity: 1; }
+         white-space: nowrap; font-size: var(--fs-nav); font-weight: 600; color: var(--ink-2);
+         /* 세로 12px — 판을 넣느라 11px로 줄였더니 터치 높이가 42px로 떨어졌다.
+            손가락으로 누르는 표적은 44px 아래로 내리지 않는다. */
+         padding: 12px 18px; border-radius: 10px; letter-spacing: .012em;
+         transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease),
+                     box-shadow var(--dur-1) var(--ease); }
+  /* 선택 표시는 색이 아니라 '판'으로 한다. 종전엔 2.5px 밑줄 하나뿐이라 어느 메뉴에
+     있는지가 한눈에 안 잡혔다.
+     판 안에 구리 밑줄까지 겹쳐 봤지만 부산했다 — 판이 이미 '여기'라고 말하는데 줄이
+     한 번 더 말한다. 제네시스는 둘 중 하나만 쓴다. 판과 구리 실테두리만 남긴다. */
+  .tab:hover { color: var(--ink-1); background: var(--nav-hover); }
+  .tab.on { color: var(--ink-1); font-weight: 700;
+            background: var(--nav-on-bg);
+            box-shadow: inset 0 0 0 1px var(--nav-on-line); }
   .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; border-radius: 6px; }
   /* 키보드 포커스 기본값 — 탭에만 있던 링을 나머지 조작 요소로 넓힌다.
      :focus-visible이라 마우스 클릭에는 링이 뜨지 않고 키보드 이동에만 보인다. */
