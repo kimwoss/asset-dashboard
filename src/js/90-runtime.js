@@ -441,18 +441,23 @@ async function render() {
   const drawTrend = () => {
     const box = document.getElementById("trend");
     lineChart(box, trendYearly ? histY : histM, { yearly: trendYearly });
-    box.style.cursor = "pointer";
-    box.title = trendYearly ? `${curY}년 월별로 펼치기` : "연 단위로 접기";
-    document.getElementById("trend-note").textContent = trendYearly
+    for (const b of document.querySelectorAll("#trend-seg .seg-btn"))
+      b.classList.toggle("on", (b.dataset.v === "y") === trendYearly);
+    document.getElementById("trend-note").textContent = (trendYearly
       ? `해마다 1점 — ${curY}년은 ${asof} 기준으로, 위 KPI·자산 배분과 같은 시점입니다.`
-        + ` 차트를 누르면 ${curY}년을 월별로 펼칩니다.`
       : `2025년까지는 연말 기준 · 2026년부터는 월말 기준 · ${curY}년 ${curM}월은 ${asof}`
-        + ` — 위 KPI·자산 배분과 같은 시점입니다. 차트를 누르면 연 단위로 접힙니다.`;
+        + ` — 위 KPI·자산 배분과 같은 시점입니다.`)
+      + " 차트 위를 좌우로 훑으면 시점별 값이 위에 뜹니다.";
   };
-  document.getElementById("trend").addEventListener("click", () => {
-    trendYearly = !trendYearly;
+  // 렌더가 여러 번 돌아도(자동 갱신) 리스너가 쌓이지 않게 onclick 한 자리에 건다
+  document.getElementById("trend-seg").onclick = ev => {
+    const b = ev.target.closest(".seg-btn");
+    if (!b) return;
+    const y = b.dataset.v === "y";
+    if (y === trendYearly) return;
+    trendYearly = y;
     drawTrend();
-  });
+  };
   drawTrend();
 
   // 금융자산 탭 (★주식계좌)
