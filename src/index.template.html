@@ -141,7 +141,14 @@
   </section>
 
   <section class="card">
-    <h2>순자산 추이</h2>
+    <!-- 연/월 전환은 차트 탭이 아니라 버튼으로 한다. 차트를 누르면 전환되던 방식은
+         눈에 띄지 않았고, 폰에서 손가락으로 값을 훑는(스크럽) 동작과 부딪힌다. -->
+    <div class="cp-mkt-head"><h2>순자산 추이</h2>
+      <div class="seg" id="trend-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-v="y">연도별</button>
+        <button class="seg-btn" data-v="m">월별</button>
+      </div>
+    </div>
     <div id="trend"></div>
     <div class="note" id="trend-note"></div>
   </section>

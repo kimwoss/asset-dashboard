@@ -80,14 +80,17 @@ function donutCell(parent) {
 /* ---- 추이 라인 차트 (크로스헤어 + 툴팁) ---- */
 function lineChart(container, points, opts) {
   // points: [{date, total}]
-  const W = Math.min(container.clientWidth || 900, 1000), H = 260;
-  const m = { l: 56, r: 16, t: 24, b: 26 };  // t: 점 위 값 라벨 자리
-  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}` });
   if (points.length === 0) { container.textContent = "이력 데이터가 아직 없습니다."; return; }
+  const W = Math.min(container.clientWidth || 900, 1000);
+  const narrow = W < 520;                       // 폰
+  const H = narrow ? 220 : 260;
+  const m = { l: narrow ? 50 : 56, r: 16, t: 24, b: 26 };  // t: 점 위 값 라벨 자리
+  const svg = el("svg", { width: "100%", viewBox: `0 0 ${W} ${H}`, class: "lc-svg" });
   const vals = points.map(p => p.total);
   let lo = Math.min(...vals), hi = Math.max(...vals);
   if (lo === hi) { lo *= 0.97; hi *= 1.03; }
-  const pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+  // 아래쪽 여백은 폰에서 넉넉히 — 골짜기 점의 라벨을 점 아래에 두는데, x축 라벨과 부딪히지 않게.
+  const span = hi - lo; lo -= span * (narrow ? 0.16 : 0.08); hi += span * 0.08;
   const xs = i => points.length === 1 ? (m.l + W - m.r) / 2
     : m.l + (W - m.l - m.r) * i / (points.length - 1);
   const ys = v => m.t + (H - m.t - m.b) * (1 - (v - lo) / (hi - lo));
@@ -98,56 +101,146 @@ function lineChart(container, points, opts) {
     const t = el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--ink-muted)" }, svg);
     t.textContent = fmtEok(v);
   }
-  // x labels — 연말은 "YYYY", 그 외는 "YY.MM". 겹치지 않게 최대 ~8개 균등 표시.
-  // 연 단위 보기에서는 날짜가 연말이 아니어도(올해 점은 오늘) 연도만 찍는다.
+  // x labels — 연말은 "YYYY", 그 외는 "YY.MM". 연 단위 보기에서는 연도만 찍는다.
   const xlab = (opts && opts.yearly)
     ? date => date.slice(0, 4)
     : date => {
         const [y, mo, d] = date.split("-");
         return (mo === "12" && d === "31") ? y : y.slice(2) + "." + mo;
       };
-  // 라벨은 매 기간 표시. 다만 폭이 부족하면(연 단위로 늘어나면) 겹치지 않게 솎는다.
-  const per = (W - m.l - m.r) / Math.max(1, points.length - 1);
-  const step = Math.max(1, Math.ceil(34 / Math.max(per, 1)));
-  const xIdx = new Set();
-  for (let i = 0; i < points.length; i += step) xIdx.add(i);
-  xIdx.add(points.length - 1);
-  for (const i of xIdx) {
-    const t = el("text", { x: xs(i), y: H - 6, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-muted)" }, svg);
-    t.textContent = xlab(points[i].date);
+  // 라벨 상자 — 값 라벨과 x축 라벨이 같은 규칙으로 서로를 피한다.
+  // 종전엔 간격(34px)만 보고 솎아서, 왼쪽 정렬된 첫 라벨이 오른쪽으로 뻗는 것을 몰랐다.
+  // 폰에서 '2021'과 '2023'이 붙어 '20212023'으로 읽혔다.
+  const placed = [];
+  const hit = b => placed.some(o => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+  const lastX = points.length - 1;
+  const boxAt = (cx, anchor, w, y) => {
+    const x0 = anchor === "start" ? cx - 2 : anchor === "end" ? cx - w + 2 : cx - w / 2;
+    return { x0, x1: x0 + w, y0: y - 11, y1: y + 3 };
+  };
+  const anchorOf = i => i === 0 ? "start" : i === lastX ? "end" : "middle";
+  // x축: 끝점 → 첫 점 → 나머지(가운데부터 고르게)를 넣을 수 있는 만큼. 이웃 사이 6px는 비운다.
+  const xOrder = [lastX, 0];
+  const per = (W - m.l - m.r) / Math.max(1, lastX);
+  const stride = Math.max(1, Math.ceil(40 / Math.max(per, 1)));
+  for (let i = lastX - stride; i > 0; i -= stride) xOrder.push(i);
+  for (let i = 1; i < lastX; i++) xOrder.push(i);
+  const xSeen = new Set();
+  for (const i of xOrder) {
+    if (xSeen.has(i)) continue; xSeen.add(i);
+    const txt = xlab(points[i].date), a = anchorOf(i);
+    const b = boxAt(xs(i), a, txt.length * 6.6 + 6, H - 6);
+    const pad6 = { ...b, x0: b.x0 - 3, x1: b.x1 + 3 };
+    if (hit(pad6)) continue;
+    placed.push(pad6);
+    el("text", { x: xs(i), y: H - 6, "text-anchor": a, "font-size": 11, fill: "var(--ink-muted)" }, svg)
+      .textContent = txt;
   }
   if (points.length > 1) {
     const d = points.map((p, i) => (i ? "L" : "M") + xs(i).toFixed(1) + " " + ys(p.total).toFixed(1)).join(" ");
     el("path", { d, fill: "none", stroke: "var(--c-re)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
   }
-  const dotR = points.length <= 40 ? 3.5 : 0;
+  const dotR = points.length <= 40 ? (narrow ? 3 : 3.5) : 0;
   if (dotR) points.forEach((p, i) =>
     el("circle", { cx: xs(i), cy: ys(p.total), r: dotR, fill: "var(--c-re)", stroke: "var(--surface-1)", "stroke-width": 2 }, svg));
-  // 점 위 순자산 값 — 마우스오버 없이도 바로 읽히게 (촘촘하면 라벨 간격만큼 솎음)
-  for (const i of xIdx) {
-    const p = points[i];
-    el("text", { x: xs(i), y: ys(p.total) - 9,
-                 "text-anchor": i === 0 ? "start" : i === points.length - 1 ? "end" : "middle",
-                 "font-size": 11, "font-weight": 600, fill: "var(--ink-1)" }, svg)
-      .textContent = fmtEok(p.total);
+
+  // 점 위 값 라벨 — 겹치지 않는 것만 놓는다.
+  // 종전엔 x축 라벨과 같은 간격(34px)으로 솎았는데, 값 라벨('18.71억')은 그보다 넓어서
+  // 폰 폭에서 이웃끼리 포개졌다(2026-09 제보). 이제 라벨마다 실제 차지할 상자를 어림해
+  // 이미 놓인 상자와 부딪히면 건너뛴다. 무엇을 먼저 놓을지는 '의미'로 정한다 —
+  // 지금 값, 출발점, 최고점, 최저점이 먼저이고 나머지는 자리가 남을 때만.
+  // 데스크톱은 자리가 넉넉해 종전처럼 전부 뜨고, 폰은 핵심만 남는다. 나머지는 스크럽으로 읽는다.
+  const labW = s => (s.length - 1) * 6.7 + 11 + 6;   // 숫자·마침표 ≈6.7px, '억' ≈11px, 여백
+  const iMax = vals.indexOf(Math.max(...vals)), iMin = vals.indexOf(Math.min(...vals));
+  const order = [lastX, 0, iMax, iMin];
+  for (let i = lastX - 1; i > 0; i--) order.push(i);   // 최근 쪽부터 채운다
+  // 폰에서는 가로 한 칸에 값 라벨 하나만 — 높이가 달라 겹치지 않더라도 위아래로
+  // 지그재그 쌓이면 빽빽하긴 마찬가지다. 비는 점은 판독창(스크럽)으로 읽는다.
+  const vcols = [];
+  const colHit = b => narrow && vcols.some(o => b.x0 < o.x1 + 6 && b.x1 > o.x0 - 6);
+  const key = new Set([lastX, 0, iMax, iMin]);        // 반대편 재시도는 이 넷에게만
+  const seen = new Set();
+  for (const i of order) {
+    if (seen.has(i)) continue; seen.add(i);
+    const p = points[i], s = fmtEok(p.total), w = labW(s);
+    const anchor = anchorOf(i), cx = xs(i);
+    // 골짜기(양옆보다 낮은 점)는 라벨을 아래에 둔다 — 위에 두면 내려오고 올라가는 선에 얹힌다.
+    const v = p.total, pv = points[i - 1], nx = points[i + 1];
+    const valley = pv && nx && v < pv.total && v < nx.total;
+    const above = ys(v) - 9, below = ys(v) + 19;
+    let y = valley ? below : above;
+    if (y === above && above < 12) y = below;           // 위에 자리가 없으면 점 아래로
+    let box = boxAt(cx, anchor, w, y);
+    if (!key.has(i) && colHit(box)) continue;          // 핵심 점은 칸 규칙에서 뺀다(실제로 겹칠 때만 비킨다)
+    if (hit(box)) {                                      // 핵심 점만 반대쪽을 한 번 더 본다
+      if (!key.has(i)) continue;
+      y = y === above ? below : above;
+      box = boxAt(cx, anchor, w, y);
+      if (y < 12 || y > H - m.b + 2 || hit(box)) continue;
+    }
+    placed.push(box); vcols.push(box);
+    el("text", { x: cx, y, "text-anchor": anchor, "font-size": 11, "font-weight": 600,
+                 fill: i === lastX ? "var(--ink-1)" : "var(--ink-2)", class: "lc-lab" }, svg).textContent = s;
   }
-  // crosshair
+
+  // 판독창 — 지금 가리키는 점의 시점·값·직전 대비. 기본은 가장 최근 점.
+  // 종전엔 마우스를 올려야만 툴팁이 떴다. 폰에는 '올린다'가 없어 라벨이 빠진 점의 값을
+  // 볼 방법이 없었다. 손가락으로 좌우로 끌면 판독창이 따라간다(주식 앱의 스크럽 방식).
+  const read = document.createElement("div");
+  read.className = "lc-read";
+  const monthsBetween = (a, b) => {
+    const [y1, m1] = a.split("-").map(Number), [y2, m2] = b.split("-").map(Number);
+    return (y2 - y1) * 12 + (m2 - m1);
+  };
+  const when = (p, i) => {
+    const [y, mo, d] = p.date.split("-");
+    const base = (opts && opts.yearly) || (mo === "12" && d === "31") ? `${y}년` : `${y}.${mo}`;
+    return i === lastX ? `${base} · 현재` : base;
+  };
+  const setRead = i => {
+    const p = points[i], prev = points[i - 1];
+    let delta = "";
+    if (prev) {
+      const dv = p.total - prev.total;
+      const unit = monthsBetween(prev.date, p.date) <= 1 ? "전월" : "전년";
+      const cls = dv > 0 ? "up" : dv < 0 ? "down" : "";
+      delta = `<span class="lc-delta ${cls}">${unit} 대비 ${dv > 0 ? "▲" : dv < 0 ? "▼" : ""} ${fmtEok(Math.abs(dv))}</span>`;
+    }
+    read.innerHTML = `<span class="lc-when">${when(p, i)}</span><b class="lc-val">${fmtEok(p.total)}</b>${delta}`;
+  };
+
   const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--baseline)", "stroke-width": 1, visibility: "hidden" }, svg);
-  const hot = el("circle", { r: 5, fill: "var(--c-re)", stroke: "var(--surface-1)", "stroke-width": 2, visibility: "hidden" }, svg);
-  svg.addEventListener("mousemove", ev => {
+  const hot = el("circle", { r: 5.5, fill: "var(--c-re)", stroke: "var(--surface-1)", "stroke-width": 2, visibility: "hidden" }, svg);
+  const focus = i => {
+    cross.setAttribute("x1", xs(i)); cross.setAttribute("x2", xs(i));
+    cross.setAttribute("visibility", "visible");
+    hot.setAttribute("cx", xs(i)); hot.setAttribute("cy", ys(points[i].total));
+    hot.setAttribute("visibility", "visible");
+    setRead(i);
+  };
+  const reset = () => {
+    cross.setAttribute("visibility", "hidden"); hot.setAttribute("visibility", "hidden");
+    setRead(lastX);
+  };
+  const nearest = ev => {
     const box = svg.getBoundingClientRect();
     const px = (ev.clientX - box.left) * W / box.width;
     let best = 0, bd = 1e9;
     points.forEach((_, i) => { const d = Math.abs(xs(i) - px); if (d < bd) { bd = d; best = i; } });
-    const p = points[best];
-    cross.setAttribute("x1", xs(best)); cross.setAttribute("x2", xs(best));
-    cross.setAttribute("visibility", "visible");
-    hot.setAttribute("cx", xs(best)); hot.setAttribute("cy", ys(p.total));
-    hot.setAttribute("visibility", "visible");
-    showTip(ev, `<b>${p.date}</b><br>순자산 ${fmtEok(p.total)}<br><span style="color:var(--ink-muted)">${fmtWon(p.total)}</span>`);
+    return best;
+  };
+  // pointer 이벤트 하나로 마우스·터치를 함께 받는다. touch-action: pan-y(CSS)라 세로 스크롤은
+  // 그대로 되고, 가로로 끌 때만 스크럽이 된다.
+  svg.addEventListener("pointerdown", ev => focus(nearest(ev)));
+  svg.addEventListener("pointermove", ev => {
+    if (ev.pointerType === "mouse" || ev.buttons) focus(nearest(ev));
   });
-  svg.addEventListener("mouseleave", () => { cross.setAttribute("visibility", "hidden"); hot.setAttribute("visibility", "hidden"); hideTip(); });
-  container.replaceChildren(svg);
+  // 마우스는 벗어나면 지금 값으로 돌아간다. 손가락은 떼도 남겨 둔다 — 읽으려고 뗀 것이다.
+  svg.addEventListener("pointerleave", ev => { if (ev.pointerType === "mouse") reset(); });
+  svg.addEventListener("pointercancel", reset);
+
+  reset();
+  container.replaceChildren(read, svg);
 }
 
 /* ---- 연도별 소득·지출 ------------------------------------------------------

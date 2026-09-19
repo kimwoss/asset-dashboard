@@ -503,6 +503,16 @@
     border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 6px;
     vertical-align: middle; letter-spacing: 0; }
 
+  /* 정렬 가능한 머리글 — 누를 수 있다는 걸 화살표로 미리 알린다(⇅), 켜지면 방향(▲▼) */
+  th.of-sort { cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color var(--dur-1) var(--ease); }
+  th.of-sort:hover { color: var(--ink-1); }
+  th.of-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  th.of-sort.on { color: var(--accent); }
+  .of-arrow { margin-left: 3px; font-size: .82em; opacity: .45; }
+  th.of-sort:hover .of-arrow { opacity: .8; }
+  th.of-sort.on .of-arrow { opacity: 1; }
+
   .linkish { font: inherit; color: var(--c-re); background: none; border: none; padding: 0;
     cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .linkish:hover { opacity: .75; }
@@ -657,6 +667,16 @@
   .fact .v { font-size: var(--fs-4); font-weight: 700; font-variant-numeric: tabular-nums; }
   .fact .v.dual { font-size: var(--fs-body); letter-spacing: -0.02em; white-space: nowrap; }
   .fact .s { font-size: var(--fs-cap); color: var(--ink-muted); margin-top: 3px; }
+
+  /* 추이 차트 판독창 — 가리키는 점의 시점·값·직전 대비. 폰에서 라벨이 빠진 점도 여기서 읽는다. */
+  .lc-read { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px;
+             min-height: 30px; margin: 2px 0 4px; font-variant-numeric: tabular-nums; }
+  .lc-when { font-size: var(--fs-sm); color: var(--ink-muted); }
+  .lc-val { font-size: var(--fs-num-md); font-weight: 700; color: var(--ink-1); letter-spacing: -.01em; }
+  .lc-delta { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+  .lc-delta.up { color: var(--pos); } .lc-delta.down { color: var(--neg); }
+  /* 세로 스크롤은 브라우저에 맡기고 가로 끌기만 스크럽으로 받는다 */
+  .lc-svg { display: block; touch-action: pan-y; cursor: crosshair; -webkit-user-select: none; user-select: none; }
 
   /* 세그먼트 토글 */
   .seg { display: inline-flex; background: var(--grid); border-radius: var(--r-sm); padding: 2px; gap: 2px; margin-bottom: 14px; }
