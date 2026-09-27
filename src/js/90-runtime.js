@@ -89,6 +89,8 @@ function applyLive(snap, live) {
     if (live.news && live.news.length) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
+    // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
+    snap.checkpoint.market_closed = !!live.market_closed;
   }
   if (live.fx_usdkrw) snap.fx_usdkrw = live.fx_usdkrw;
 

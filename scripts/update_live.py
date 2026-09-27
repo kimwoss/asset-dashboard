@@ -201,6 +201,15 @@ _FX = [
 _HORIZONS = (("d1", 1), ("w1", 7), ("m1", 30), ("y1", 365))
 
 
+def _all_markets_closed() -> bool:
+    """국내·미국·외환이 모두 닫혀 있으면 True. 하나라도 열려 있으면 False."""
+    try:
+        import quotes
+        return not any(quotes._is_open(m) for m in ("KRX", "US", "FX"))
+    except Exception:  # noqa: BLE001 — 판단 못 하면 '열려 있다'고 본다(과한 단정 금지)
+        return False
+
+
 def _quotes(symbols):
     """{symbol: {price, asof, d1, w1, m1, y1}} — 각 기준일 '이전 마지막 거래일' 종가 대비 %.
 
@@ -212,6 +221,9 @@ def _quotes(symbols):
     out = {}
     try:
         df = yf.download(symbols, period="2y", progress=False, threads=False)["Close"]
+        # 주말 행은 버린다 — 야후는 환율(KRW=X)에 토·일 행을 만든다. 실제로 거래된 날이
+        # 아닌데 값이 흔들려, 장이 닫힌 주말에도 시세표와 환율이 계속 바뀌어 보였다.
+        df = df[[d.weekday() < 5 for d in pd.DatetimeIndex(df.index)]]
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 시세 조회 실패 ({e})")
         return out
@@ -393,6 +405,9 @@ def main():
         "kr": kr,
         "fx": fx,
         "fx_usdkrw": round(fin.get("fx") or (fx[0]["rate"] if fx else 0), 2),
+        # 전 시장이 닫혀 있나 — 화면이 "실시간"이라고 말하면서 값이 안 변하면
+        # 고장처럼 보인다. 닫혔으면 닫혔다고 쓰기 위한 플래그.
+        "market_closed": _all_markets_closed(),
         "accounts": accounts,
         "financial_total": total,
         "news": news,

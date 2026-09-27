@@ -299,7 +299,10 @@ function renderCheckpoint(cp, finBlock) {
   // 지수 · 환율 — 제목은 고정("미국 지수" 등)으로, 실시간 여부는 기준시각 배지로 알린다.
   // cp.live_at 은 30분 시세 잡(live.enc)이 붙었을 때만 채워진다. 없으면 07:00 스냅샷.
   const badge = cp.live_at
-    ? `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`
+    ? (cp.market_closed
+        // 장이 닫혔는데 '실시간'이라 적으면, 값이 안 변하는 것을 고장으로 읽게 된다.
+        ? `<span class="live-badge off">장 마감 · 종가 기준 (${esc(cp.live_at)} 확인)</span>`
+        : `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`)
     : `<span class="live-badge off">오늘 아침 스냅샷${cp.generated_at ? ` · ${esc((cp.generated_at).slice(11,16))}` : ""}</span>`;
   const fg = cp.fear_greed || {};
   const fgLine = fg.score != null

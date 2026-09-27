@@ -21,7 +21,89 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
+KST = timezone(timedelta(hours=9))
+
+
+def _market(sym: str) -> str:
+    """심볼이 속한 시장. 열려 있는지 판단하는 기준이 시장마다 다르다."""
+    s = sym.upper()
+    if s.endswith("=X"):
+        return "FX"
+    if s.endswith(".KS") or s.endswith(".KQ"):
+        return "KRX"
+    return "US"
+
+
+def _is_open(market: str, now: Optional[datetime] = None) -> bool:
+    """지금 그 시장이 열려 있나 — 시계만 본다(휴장일은 '봉이 신선한가'로 따로 거른다)."""
+    now = now or datetime.now(KST)
+    wd = now.weekday()
+    if market == "KRX":
+        if wd >= 5:
+            return False
+        t = now.hour * 60 + now.minute
+        return 9 * 60 <= t <= 15 * 60 + 30
+    if market == "US":
+        from zoneinfo import ZoneInfo
+        ny = now.astimezone(ZoneInfo("America/New_York"))
+        if ny.weekday() >= 5:
+            return False
+        t = ny.hour * 60 + ny.minute
+        return 9 * 60 + 30 <= t <= 16 * 60
+    # 외환 — 월 06:00 KST 개장 ~ 토 06:00 KST 폐장 (뉴욕 일요일 17:00 ET 기준)
+    if wd == 5:
+        return now.hour < 6
+    if wd == 6:
+        return False
+    if wd == 0:
+        return now.hour >= 6
+    return True
+
+
+def _daily_closes(symbols: List[str]) -> Dict[str, float]:
+    """{심볼: 마지막 '정식 종가'}. 주말 행은 버린다.
+
+    야후는 환율(KRW=X)에 토·일 행을 만든다. 실제로 거래된 날이 아니고 값도 흔들려,
+    주말마다 평가액이 움직이는 원인이 된다(2026-09 실측: 금 1,367.36 → 일 1,354.40).
+    """
+    import pandas as pd
+    import yfinance as yf
+    try:
+        df = yf.download(symbols, period="10d", interval="1d", progress=False,
+                         threads=False, auto_adjust=False)
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: 일봉 종가 실패 ({type(e).__name__}: {str(e)[:60]})")
+        return {}
+    if df is None or df.empty or "Close" not in df:
+        return {}
+    cl = df["Close"]
+    if isinstance(cl, pd.Series):
+        cl = cl.to_frame(symbols[0])
+    idx = pd.DatetimeIndex(cl.index)
+    cl = cl[[d.weekday() < 5 for d in idx]]
+    out: Dict[str, float] = {}
+    for s in symbols:
+        if s not in cl:
+            continue
+        v = cl[s].dropna()
+        if len(v):
+            out[s] = float(v.iloc[-1])
+    return out
+
+
+def settled_fx(sheet_fx: Optional[float]) -> Optional[float]:
+    """외환이 닫혀 있으면 마지막 평일 종가로 고정한다.
+
+    시트의 환율은 GOOGLEFINANCE라 주말에도 값이 바뀐다. USD 보유분이 금융자산의 3분의 1이라
+    그것만으로 순자산이 주말 내내 움직였다.
+    """
+    if _is_open("FX"):
+        return sheet_fx
+    v = _daily_closes(["KRW=X"]).get("KRW=X")
+    return v or sheet_fx
 
 # 시세를 믿지 않는 선 — 시트 값 대비 이 비율을 넘게 벗어나면 무시한다.
 # 액면분할·티커 재사용 같은 사고에서 yfinance가 엉뚱한 값을 주는 일이 있다.
@@ -52,7 +134,20 @@ def fetch_prices(symbols: List[str]) -> Tuple[Dict[str, float], Optional[str]]:
 
     out: Dict[str, float] = {}
     t0 = time.time()
-    # 한 번에 받는다. 종목마다 Ticker().fast_info를 부르면 22종목 × 하루 144회 =
+
+    # 기준은 '정식 종가'다. 장중에만 1분봉으로 갈아끼운다.
+    #
+    # 종전엔 언제나 1분봉의 마지막 값을 썼다. 두 가지가 잘못됐다.
+    #   ① 국내 ETF는 1분봉이 14:59에서 끊겨 종가 단일가(15:30)를 통째로 놓친다.
+    #      2026-09 실측: 보유 6종목이 정식 종가보다 0.18~0.44% 낮게 잡혔다. 상시 저평가였다.
+    #   ② 배치가 레이트리밋 등으로 실패하면 종목별 폴백(fast_info=정식 종가)으로 넘어가는데,
+    #      두 값이 0.2~0.4% 달라서 실행마다 평가액이 점프했다. 장이 닫힌 주말에도 숫자가
+    #      계속 바뀌어 보인 주된 원인이다.
+    # 이제 닫혀 있으면 어느 실행에서 받아도 같은 값이 나온다.
+    daily = _daily_closes(symbols)
+    intraday: Dict[str, float] = {}
+
+    # 1분봉은 한 번에 받는다. 종목마다 Ticker().fast_info를 부르면 22종목 × 하루 144회 =
     # 3,168 요청이 되어 Yahoo 레이트리밋에 걸린다. download는 실행당 1요청이다.
     try:
         df = yf.download(symbols, period="1d", interval="1m", progress=False,
@@ -62,17 +157,27 @@ def fetch_prices(symbols: List[str]) -> Tuple[Dict[str, float], Optional[str]]:
             if len(symbols) == 1:                 # 단일 종목은 컬럼이 평평하게 온다
                 v = cl.dropna()
                 if len(v):
-                    out[symbols[0]] = float(v.iloc[-1])
+                    intraday[symbols[0]] = float(v.iloc[-1])
             else:
                 for s in symbols:
                     if s in cl:
                         v = cl[s].dropna()
                         if len(v):
-                            out[s] = float(v.iloc[-1])
+                            intraday[s] = float(v.iloc[-1])
     except Exception as e:  # noqa: BLE001
-        print(f"WARN: 일괄 시세 실패 ({type(e).__name__}: {str(e)[:60]})")
+        print(f"WARN: 1분봉 실패 ({type(e).__name__}: {str(e)[:60]}) — 종가로 진행")
 
-    # 일괄에서 빠진 것만 개별로 — 보통 0~2종목이라 요청이 늘지 않는다
+    live = 0
+    for s in symbols:
+        if _is_open(_market(s)) and s in intraday:
+            out[s] = intraday[s]; live += 1
+        elif s in daily:
+            out[s] = daily[s]
+        elif s in intraday:                        # 일봉을 못 받았으면 있는 것이라도
+            out[s] = intraday[s]
+
+    # 둘 다 못 받은 것만 개별로 — 보통 0~2종목이라 요청이 늘지 않는다.
+    # (장이 닫혀 있는데 여기로 내려오면 fast_info의 lastPrice는 정식 종가라 결과가 같다)
     for s in [x for x in symbols if x not in out]:
         try:
             v = yf.Ticker(s).fast_info["lastPrice"]
@@ -80,9 +185,9 @@ def fetch_prices(symbols: List[str]) -> Tuple[Dict[str, float], Optional[str]]:
                 out[s] = float(v)
         except Exception as e:  # noqa: BLE001 — 한 종목 실패가 전체를 막지 않는다
             print(f"WARN: {s} 시세 실패 ({type(e).__name__})")
-    from datetime import datetime, timedelta, timezone
-    asof = datetime.now(timezone(timedelta(hours=9))).isoformat()
-    print(f"OK: 시세 {len(out)}/{len(symbols)}종목 ({time.time()-t0:.1f}s)")
+    asof = datetime.now(KST).isoformat()
+    print(f"OK: 시세 {len(out)}/{len(symbols)}종목 (장중 {live} · 종가 {len(out)-live}) "
+          f"({time.time()-t0:.1f}s)")
     return out, asof
 
 
@@ -94,7 +199,12 @@ def apply_live_prices(fin: Dict[str, Any], fx: Optional[float] = None) -> Dict[s
     holdings = (fin or {}).get("holdings") or []
     if not holdings:
         return fin
-    rate = fx or fin.get("fx") or 0
+    # 환율도 같은 규칙 — 닫혀 있으면 마지막 평일 종가로 고정한다.
+    # 시트 환율(GOOGLEFINANCE)은 주말에도 움직여서, USD 보유분(금융자산의 1/3)을 통해
+    # 순자산이 주말 내내 흔들렸다. 표시용 fin["fx"]도 같은 값으로 맞춰 환산과 어긋나지 않게 한다.
+    rate = fx or settled_fx(fin.get("fx")) or 0
+    if rate:
+        fin["fx"] = rate
     by_sym = _symbols(holdings)
     prices, asof = fetch_prices(sorted(by_sym))
     if not prices:
