@@ -268,6 +268,9 @@
     color: var(--ink-muted); background: var(--surface-1);
     border: 1px solid var(--border); border-radius: var(--r-pill); padding: 3px 9px; }
   .hb-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  /* 넓은 화면에선 이 버튼이 오른쪽 열(FIRE 게이지)의 첫 줄 위에 뜬다 — 'FIRE 기본 76.1%'의
+     숫자가 버튼에 가려졌다(2026-10 점검). 첫 머리줄만 버튼 폭만큼 비켜 세로 배치는 그대로 둔다. */
+  @media (min-width: 720px) { .hb-gauges > :first-child .hb-g-head { padding-right: 84px; } }
   @media (prefers-reduced-motion: reduce) {
     .heroband .hb-val, .heroband .hb-deltas, .heroband .hb-gauges { transition: none; }
   }
@@ -389,6 +392,20 @@
   /* 탭 전환 — 내용이 아래에서 살짝 떠오르며 들어온다. 갈아끼운 티가 나야 방금 바뀐 걸 안다. */
   @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .tab-panel-in { animation: tabIn var(--dur-3) var(--ease-out) both; }
+
+  .tab .t-short { display: none; }
+  @media (max-width: 560px) {
+    /* 폰 폭에선 탭 여덟 개가 화면 두 개 반이라 '투자 포트폴리…'처럼 잘려 보였다.
+       짧은 이름으로 바꾼다 — 스크린리더는 aria-label로 원래 이름을 그대로 읽는다. */
+    .tab .t-full { display: none; }
+    .tab .t-short { display: inline; }
+    .tab { padding: 12px 14px; }
+    /* 헤더가 다섯 줄(제목·실시간·스냅샷·환율+버튼·업데이트)이었다. 실시간을 받았으면
+       스냅샷 시각은 보조라 접고, 업데이트 버튼은 아이콘만 남겨 다른 버튼과 한 줄에 둔다. */
+    .hdr-snap.secondary { display: none; }
+    #refresh .lb { display: none; }
+    #refresh { padding: 0 10px; }
+  }
 
   /* 카드 */
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
@@ -964,7 +981,7 @@
   <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
      target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
     <span class="ic">👵</span><span class="lb">마음돌봄할머니</span></a>
-  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다">
+  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다" aria-label="업데이트하기">
     <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
 
@@ -1017,14 +1034,14 @@
 </script>
 
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
-  <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint">오늘의 브리핑</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="overview">자산 현황</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="financial">투자 포트폴리오</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="spending">월간 생활비</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="cashflow">현금 흐름 계획</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="review">연간 리뷰</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="cities">후보 도시</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="officetel">다음 후보집</button>
+  <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint" aria-label="오늘의 브리핑"><span class="t-full">오늘의 브리핑</span><span class="t-short" aria-hidden="true">브리핑</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="overview" aria-label="자산 현황"><span class="t-full">자산 현황</span><span class="t-short" aria-hidden="true">자산</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="financial" aria-label="투자 포트폴리오"><span class="t-full">투자 포트폴리오</span><span class="t-short" aria-hidden="true">투자</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="spending" aria-label="월간 생활비"><span class="t-full">월간 생활비</span><span class="t-short" aria-hidden="true">생활비</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cashflow" aria-label="현금 흐름 계획"><span class="t-full">현금 흐름 계획</span><span class="t-short" aria-hidden="true">현금흐름</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="review" aria-label="연간 리뷰"><span class="t-full">연간 리뷰</span><span class="t-short" aria-hidden="true">리뷰</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="officetel" aria-label="다음 후보집"><span class="t-full">다음 후보집</span><span class="t-short" aria-hidden="true">후보집</span></button>
 </nav>
 
 <div id="tab-overview" style="display:none">
@@ -3891,6 +3908,27 @@ function initTabs() {
     nav.classList.toggle("fade-l", nav.scrollLeft > 1);
     nav.classList.toggle("fade-r", nav.scrollLeft < max - 1);
   };
+  // 탭과 패널을 서로 잇는다. role만 있고 연결이 없으면 스크린리더가 '이 탭이 어느 내용을
+  // 여는지' 알 수 없다. 키보드는 WAI-ARIA 탭 패턴(←/→/Home/End, 선택된 탭만 Tab 순서)을 따른다.
+  const tabsAll = [...nav.querySelectorAll(".tab")];
+  for (const t of tabsAll) {
+    const panel = document.getElementById("tab-" + t.dataset.tab);
+    t.id = "tabbtn-" + t.dataset.tab;
+    t.setAttribute("aria-controls", "tab-" + t.dataset.tab);
+    t.tabIndex = t.classList.contains("on") ? 0 : -1;
+    if (panel) { panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", t.id); }
+  }
+  nav.addEventListener("keydown", ev => {
+    const vis = tabsAll.filter(t => t.style.display !== "none");
+    const i = vis.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = { ArrowRight: (i + 1) % vis.length, ArrowLeft: (i - 1 + vis.length) % vis.length,
+                Home: 0, End: vis.length - 1 }[ev.key];
+    if (j === undefined) return;
+    ev.preventDefault();
+    vis[j].focus();
+    vis[j].click();
+  });
   nav.addEventListener("scroll", syncFade, { passive: true });
   addEventListener("resize", syncFade);
   syncFade();
@@ -3903,6 +3941,7 @@ function initTabs() {
       t.classList.toggle("on", on);
       // 시각 상태만 바꾸면 스크린리더는 어느 탭이 열렸는지 알 수 없다
       t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
     }
     // 탭 목록을 여기 하드코딩하면 탭을 늘릴 때마다 이 배열을 같이 고쳐야 하고, 잊으면
     // 버튼은 눌리는데 내용이 안 뜬다 ('다음 후보집'을 넣을 때 실제로 그랬다).
@@ -4114,15 +4153,26 @@ async function gate() {
   // 인트로 연출을 끝까지 보여줄 최소 시간 (재방문 자동진입도 이 시간은 머문다)
   const minShow = new Promise(r => setTimeout(r, reduce ? 300 : 2400));
 
+  // 받기 실패(망·서버)와 풀기 실패(비밀번호)를 가른다. fetch가 망에서 끊기면 TypeError,
+  // 서버가 거절하면 우리가 'HTTP'를 넣어 던진다. 나머지는 복호화 실패다.
+  const isNetErr = e => e instanceof TypeError || String(e).includes("HTTP");
   const saved = localStorage.getItem("asset_pw");
   if (saved) {
     autoRow.style.display = "";
     try {
       const [data] = await Promise.all([loadData(saved), minShow]);
       return data;
-    } catch {
-      localStorage.removeItem("asset_pw");
+    } catch (e) {
       autoRow.style.display = "none";
+      if (isNetErr(e)) {
+        // 저장된 비밀번호는 그대로 둔다 — 종전엔 신호가 잠깐 끊겨도 지워서 매번 다시 쳐야 했다.
+        // 입력칸에 미리 넣어 두니 '들어가기'만 다시 누르면 된다.
+        input.value = saved;
+        msg.textContent = "데이터를 받지 못했어요. 연결을 확인하고 '들어가기'를 눌러 주세요.";
+      } else {
+        localStorage.removeItem("asset_pw");
+        msg.textContent = "비밀번호가 바뀌었어요. 새 비밀번호를 입력해 주세요.";
+      }
     }
   }
 
@@ -4140,8 +4190,8 @@ async function gate() {
         resolve(data);
       } catch (e) {
         btn.disabled = false;
-        msg.textContent = String(e).includes("HTTP")
-          ? "데이터를 불러오지 못했어요 (" + e + ")"
+        msg.textContent = isNetErr(e)
+          ? "데이터를 불러오지 못했어요. 연결을 확인해 주세요."
           : "비밀번호가 맞지 않아요.";
       }
     };
@@ -4205,6 +4255,13 @@ async function render() {
   // 값인지 판단이 안 됐다. 실시간 여부는 점 있는 배지로 올리고(가장 먼저 눈에 걸림),
   // 스냅샷 시각은 보조로 내린다. 환율은 데이터라 시세 영역에서 따로 보여준다.
   const hdr = document.getElementById("updated");
+  // 오늘 시각이면 날짜를 뺀다 — '2026-10-09 16:06'의 날짜는 오늘인 한 정보가 없다.
+  // (아래 todayKST는 이 함수 뒤쪽에서 const로 선언돼 여기서 쓰면 선언 전 접근 오류다 — 직접 계산)
+  const hdrToday = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const hdrTime = t => {
+    const v = (t || "").replace(" KST", "");
+    return v.startsWith(hdrToday + " ") ? v.slice(11) : v;
+  };
   if (liveAt) {
     // 몇 분 전인지까지 적는다. 시각만 있으면 '지금 값인가'를 사람이 매번 계산해야 한다.
     // 배지 색은 나이로 바꾼다 — 10분 이내가 목표이고, 넘어가면 눈에 걸려야 한다.
@@ -4218,8 +4275,8 @@ async function render() {
     const ago = mins == null ? "" : mins < 1 ? " · 방금" : ` · ${mins}분 전`;
     hdr.innerHTML = `<span class="hdr-live${stale ? " stale" : ""}" title="${
         esc(freshnessTip(live))}"><span class="dot"></span>실시간 ${
-        liveAt.replace(" KST", "")}${ago}</span>`
-                  + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
+        hdrTime(liveAt)}${ago}</span>`
+                  + `<span class="hdr-snap secondary">스냅샷 ${hdrTime(snap.updated_at)}</span>`;
   } else {
     // 실시간을 못 받았다는 사실을 화면에 남긴다. 종전엔 '스냅샷'만 떠서, 기기마다 순자산이
     // 다르게 보여도 왜 그런지 단서가 없었다 — 폰만 실시간을 못 받으면 반나절 전 값이
