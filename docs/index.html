@@ -60,6 +60,8 @@
     /* 의미색 배경 틴트 — 등락을 '색'만이 아니라 '형태(칩)'로도 읽히게 한다.
        색각 특성과 무관하게 훑을 때 시선에 걸리는 것이 목적. */
     --pos-bg: rgba(10,122,61,.10); --neg-bg: rgba(193,67,64,.10); --warn-bg: rgba(169,116,26,.12);
+    /* 시세 방향 — 국내 증권 관례(상승 빨강·하락 파랑). --pos/--neg(우리에게 좋은가)와 다른 질문이다 */
+    --rise: #d42a3c; --fall: #1d62d4; --rise-bg: rgba(212,42,60,.10); --fall-bg: rgba(29,98,212,.10);
     --accent-bg: rgba(31,95,208,.08);
     /* 색 — 자산 카테고리 (차트·칩 공용) */
     --c-re: #2a78d6; --c-us: #17a074; --c-kr: #e0961a; --c-cash: #0a9668;
@@ -128,6 +130,7 @@
       --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
       --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
       --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --rise: #ff6b6f; --fall: #6aa6ff; --rise-bg: rgba(255,107,111,.15); --fall-bg: rgba(106,166,255,.15);
       --accent-bg: rgba(91,149,238,.13);
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
@@ -146,6 +149,7 @@
       --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
       --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
       --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --rise: #ff6b6f; --fall: #6aa6ff; --rise-bg: rgba(255,107,111,.15); --fall-bg: rgba(106,166,255,.15);
       --accent-bg: rgba(91,149,238,.13);
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
@@ -958,6 +962,97 @@
     #intro .cap, #intro .title, #intro .sub, #intro .cta { animation: introUp .4s ease both; }
   }
 
+
+  /* ── 2026-10 벤치마킹 반영 (구글·네이버·카카오·삼성전자·현대차그룹) ─────────────── */
+
+  /* 시세는 국내 증권 관례로 — 상승 빨강·하락 파랑. 구글 파이낸스(한국어)·네이버 증권·카카오
+     계열이 모두 이렇게 읽힌다. 우리 돈(순자산·부채·생활비)은 종전대로 '우리에게 좋은가'
+     (초록/빨강)로 판정한다 — 시장의 방향과 가계의 판정은 다른 질문이라 섞지 않는다. */
+  .rise { color: var(--rise); } .fall { color: var(--fall); }
+  .delta-chip.rise { background: var(--rise-bg); color: var(--rise); }
+  .delta-chip.fall { background: var(--fall-bg); color: var(--fall); }
+
+  /* 표지 멈춤 — 카카오·삼성·현대차 모두 스스로 넘어가는 히어로에 멈춤 버튼을 둔다.
+     5초 넘게 스스로 움직이는 화면은 멈출 수 있어야 한다(WCAG 2.2.2). */
+  .cover-capline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .cover-capline .cover-cap { margin-bottom: 0; }
+  .cover-pause { flex: none; width: 32px; height: 32px; border-radius: 50%; display: inline-grid; place-items: center;
+    padding: 0; cursor: pointer; color: rgba(255,255,255,.85); background: rgba(12,18,26,.35);
+    border: 1px solid rgba(255,255,255,.28); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .cover-pause[hidden] { display: none; }
+  .cover-pause:hover { color: #fff; border-color: rgba(255,255,255,.6); }
+  .cover-pause svg { width: 12px; height: 12px; fill: currentColor; }
+
+  /* 읽기 진행선 — 현대차그룹처럼 고정 바 바로 아래 얇은 선. 탭 하나가 폰 열 화면에 이르니
+     '어디쯤 읽고 있나'가 보여야 한다. 탭바가 화면 위에 붙어 있을 때만 켠다. */
+  #readprog { position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 31; pointer-events: none;
+    opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+  #readprog.on { opacity: 1; }
+  #readprog i { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); }
+
+  /* 순자산 1년 흐름 — 구글 파이낸스 카드처럼 숫자 곁에 선 하나. 점선이 1년 전 값(기준선)이라
+     선이 점선 위면 1년 사이 늘었다는 뜻이 색 없이도 읽힌다. */
+  .hb-spark { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .hb-spark svg { width: 132px; height: 30px; color: var(--accent); overflow: visible; flex: none; }
+  .hb-spark small { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted); white-space: nowrap; }
+  @media (max-width: 420px) { .hb-spark svg { width: 110px; } }
+  #cover .hb-spark svg { color: #fff; }
+  #cover .hb-spark small { color: rgba(255,255,255,.72); }
+  .heroband .hb-spark { transition: filter .18s, opacity .18s; }
+  .hb-off .hb-spark { filter: blur(9px); opacity: .30; user-select: none; }
+
+  /* 찾기 — 구글·카카오·현대차가 모두 화면 아래에 '무엇을 찾고 있나요?'를 띄운다(삼성은 AI 버튼).
+     폰에서 엄지가 닿는 곳이다(One UI: 보는 곳은 위, 누르는 곳은 아래). 탭 8개·섹션 40여 개로
+     곧장 건너뛴다. 초성만 쳐도 찾는다(ㅅㅎㅂ → 생활비) — 네이버·카카오 검색창의 습관. */
+  #finder-fab { position: fixed; z-index: 40; right: 18px; bottom: 18px; height: 44px; padding: 0 16px;
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font-family: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2);
+    background: var(--nav-bg); border: 1px solid var(--border); border-radius: var(--r-pill);
+    box-shadow: 0 8px 28px rgba(0,0,0,.18);
+    backdrop-filter: blur(14px) saturate(130%); -webkit-backdrop-filter: blur(14px) saturate(130%); }
+  #finder-fab[hidden] { display: none; }
+  #finder-fab:hover { color: var(--ink-1); border-color: var(--accent); }
+  #finder-fab svg { width: 16px; height: 16px; flex: none; }
+  #finder-fab kbd { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+    border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; }
+  @media (max-width: 720px) {
+    #finder-fab { left: 16px; right: 16px; bottom: max(14px, env(safe-area-inset-bottom)); }
+    #finder-fab kbd { display: none; }
+    body.has-finder { padding-bottom: 72px; }
+    body.has-finder #toast { bottom: 80px; }
+  }
+  #finder[hidden] { display: none; }
+  #finder { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-start; justify-content: center;
+    padding: 12vh 16px 16px; }
+  .fd-backdrop { position: absolute; inset: 0; background: rgba(8,12,18,.45);
+    backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+  .fd-panel { position: relative; width: min(560px, 100%); max-height: 70vh; display: flex; flex-direction: column;
+    overflow: hidden; background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.35); }
+  .fd-input { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--border); }
+  .fd-input svg { width: 18px; height: 18px; color: var(--ink-muted); flex: none; }
+  /* 16px — iOS가 입력칸에 초점을 줄 때 화면을 확대하지 않는 하한 */
+  .fd-input input { flex: 1; min-width: 0; height: 54px; border: 0; outline: 0; background: transparent;
+    font-family: inherit; font-size: 16px; color: var(--ink-1); }
+  .fd-close { border: 0; background: none; color: var(--ink-muted); font: inherit; font-size: var(--fs-sm);
+    cursor: pointer; padding: 10px; min-height: 44px; }
+  .fd-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; }
+  .fd-list li[role="option"] { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+    border-radius: 10px; cursor: pointer; }
+  .fd-list li[aria-selected="true"] { background: var(--nav-on-bg); box-shadow: inset 0 0 0 1px var(--nav-on-line); }
+  .fd-ic { width: 22px; text-align: center; flex: none; color: var(--ink-muted); }
+  .fd-lb { flex: 1; min-width: 0; color: var(--ink-1); font-size: var(--fs-body); }
+  .fd-lb mark { background: none; color: var(--accent); font-weight: 700; }
+  .fd-hint { flex: none; font-size: var(--fs-micro); color: var(--ink-muted); }
+  .fd-empty { padding: 22px 16px; color: var(--ink-muted); font-size: var(--fs-sm); text-align: center; }
+  @media (max-width: 720px) {
+    /* 폰에서는 아래에서 올라오는 시트 — 누른 자리(엄지)에서 그대로 이어진다 */
+    #finder { align-items: flex-end; padding: 0; }
+    .fd-panel { width: 100%; max-height: 78vh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  }
+  .finder-hit { animation: finderHit 1.4s var(--ease-out); }
+  @keyframes finderHit { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .finder-hit { animation: none; outline: 2px solid var(--accent); } }
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -1020,7 +1115,10 @@
   <div class="cover-stack" id="cover-stack" aria-hidden="true"></div>
   <div class="cover-scrim" aria-hidden="true"></div>
   <div class="cover-body">
-    <div class="cover-cap" id="cover-cap"></div>
+    <div class="cover-capline">
+      <div class="cover-cap" id="cover-cap"></div>
+      <button class="cover-pause" id="cover-pause" type="button" hidden aria-pressed="false"></button>
+    </div>
     <section id="heroband" style="display:none"></section>
   </div>
 </section>
@@ -1043,6 +1141,22 @@
   <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="officetel" aria-label="다음 후보집"><span class="t-full">다음 후보집</span><span class="t-short" aria-hidden="true">후보집</span></button>
 </nav>
+<div id="readprog" aria-hidden="true"><i></i></div>
+<button id="finder-fab" type="button" hidden aria-haspopup="dialog" aria-expanded="false" aria-controls="finder">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>무엇을 찾고 있나요?</span><kbd>/</kbd></button>
+<div id="finder" role="dialog" aria-modal="true" aria-label="대시보드 찾기" hidden>
+  <div class="fd-backdrop"></div>
+  <div class="fd-panel">
+    <div class="fd-input">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="text" role="combobox" aria-expanded="true" aria-controls="fd-list" aria-autocomplete="list"
+             aria-label="찾을 탭이나 섹션" placeholder="탭·섹션 이름, 초성도 돼요 (ㅅㅎㅂ)"
+             autocomplete="off" spellcheck="false" enterkeyhint="go">
+      <button class="fd-close" type="button">닫기</button>
+    </div>
+    <ul class="fd-list" id="fd-list" role="listbox" aria-label="이동할 곳"></ul>
+  </div>
+</div>
 
 <div id="tab-overview" style="display:none">
   <div class="cards" id="kpis"></div>
@@ -1774,6 +1888,7 @@ function startCover() {
   // 따로 있어서 그 틀에 안 맞는다 — 그래서 타이머를 매 장 새로 거는 사슬로 바꾼다.
   let timer = null;
   const advance = () => {
+    if (paused) return;
     idx = (idx + 1) % COVER_MEDIA.length;
     run(idx);
     preload((idx + 2) % COVER_MEDIA.length);
@@ -1786,6 +1901,34 @@ function startCover() {
     timer = setTimeout(advance, COVER_HOLD_MS);
     if (vid) vid.addEventListener("ended", advance, { once: true });
   };
+  // 멈춤 — 타이머를 끊고 지금 장에 머문다. 다시 누르면 다음 장부터 이어 간다.
+  // 이 기기에 기억한다 — 움직임 없이 보고 싶은 사람은 매번 누르지 않아도 된다.
+  const pauseBtn = document.getElementById("cover-pause");
+  let paused = false;
+  const setPaused = p => {
+    paused = p;
+    try { localStorage.setItem("cover_paused", p ? "1" : "0"); } catch {}
+    if (!pauseBtn) return;
+    const lb = p ? "사진 넘김 다시 시작" : "사진 넘김 멈추기";
+    pauseBtn.setAttribute("aria-pressed", p ? "true" : "false");
+    pauseBtn.setAttribute("aria-label", lb);
+    pauseBtn.title = lb;
+    pauseBtn.innerHTML = p
+      ? '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7-4.5z"/></svg>'
+      : '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z"/></svg>';
+  };
+  let saved = false;
+  try { saved = localStorage.getItem("cover_paused") === "1"; } catch {}
+  setPaused(saved);
+  if (pauseBtn) {
+    pauseBtn.hidden = false;
+    pauseBtn.addEventListener("click", () => {
+      if (paused) { setPaused(false); advance(); return; }
+      setPaused(true);
+      clearTimeout(timer);
+      stack.querySelector(".cover-layer.on video")?.pause();
+    });
+  }
   run(0);
 }
 
@@ -1831,6 +1974,41 @@ function renderHeroBand(snap, net) {
             aria-controls="heroband" title="순자산 카드 접기/펴기">
       <span class="hb-eye"></span><span class="hb-lb"></span></button>`;
   syncHeroBand(el);
+}
+
+/* 순자산 1년 흐름 — 월별 점(그 달 마지막 값) 최근 13개를 선 하나로. 점선은 출발점(1년 전)
+   값이라, 끝이 점선 위에 있으면 1년 사이 늘었다는 뜻이 색 없이도 읽힌다. */
+function renderHeroSpark(histM) {
+  const main = document.querySelector("#heroband .hb-main");
+  if (!main) return;
+  main.querySelector(".hb-spark")?.remove();
+  // '최근 13점'으로 자르면 안 된다 — 지난 해들은 연말 1점뿐이라 2023·2024 연말 점과 올해 월별 점이
+  // 섞여, x축 한 칸이 어떤 곳은 1년이고 어떤 곳은 한 달이 된다. 1년 안의 점만, 날짜 간격대로 놓는다.
+  const ms = d => Date.parse(d + "T00:00:00+09:00");
+  const t1 = ms((histM || []).at(-1)?.date || "1970-01-01"), t0 = t1 - 365 * 864e5;
+  const pts = (histM || []).filter(p => ms(p.date) >= t0);
+  if (pts.length < 3) return;
+  const W = 132, H = 30, pad = 2;
+  const vs = pts.map(p => p.total);
+  const lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const ta = ms(pts[0].date), tspan = (t1 - ta) || 1;
+  const x = i => pad + (ms(pts[i].date) - ta) / tspan * (W - 2 * pad);
+  const y = v => H - pad - (v - lo) / span * (H - 2 * pad);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.total).toFixed(1)}`).join("");
+  const first = pts[0], last = pts[pts.length - 1];
+  const from = `${first.date.slice(2, 4)}.${first.date.slice(5, 7)}`;
+  const label = `${from} ${fmtEok(first.total)} → ${fmtEok(last.total)}`;
+  const div = document.createElement("div");
+  div.className = "hb-spark";
+  div.setAttribute("role", "img");
+  div.setAttribute("aria-label", `순자산 흐름 ${from} ${fmtEok(first.total)}에서 지금 ${fmtEok(last.total)}`);
+  div.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+      <line x1="0" x2="${W}" y1="${y(vs[0]).toFixed(1)}" y2="${y(vs[0]).toFixed(1)}"
+            stroke="currentColor" stroke-opacity=".4" stroke-dasharray="2 3"/>
+      <path d="${d}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last.total).toFixed(1)}" r="2.6" fill="currentColor"/>
+    </svg><small aria-hidden="true">${label}</small>`;
+  main.appendChild(div);
 }
 
 /* 접힘 상태를 화면에 반영. 값 자체를 지우지 않고 가리기만 한다 —
@@ -2205,7 +2383,8 @@ function renderCheckpoint(cp, finBlock) {
     return;
   }
   const pct = v => (v == null || Math.abs(v) < 0.005) ? "0.00%" : (v > 0 ? "+" : "") + v.toFixed(2) + "%";
-  const cls = v => v > 0 ? "delta-up" : v < 0 ? "delta-down" : "";
+  // 시세는 방향으로 칠한다(국내 관례: 상승 빨강·하락 파랑) — 우리 돈의 판정색과 다른 축이다
+  const cls = v => v > 0 ? "rise" : v < 0 ? "fall" : "";
   const px = (v, unit) => v == null ? "—"
     : unit === "pt" ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "pt"
     : unit === "$" ? "$" + v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -2230,7 +2409,7 @@ function renderCheckpoint(cp, finBlock) {
     if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
     const v = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
     if (k === "d1") {
-      const dir = Math.abs(p) < 0.005 ? "flat" : (p > 0 ? "up" : "dn");
+      const dir = Math.abs(p) < 0.005 ? "flat" : (p > 0 ? "rise" : "fall");
       return `<td><span class="delta-chip ${dir}">${v}</span></td>`;
     }
     return `<td class="${cls(p)}"><b>${v}</b></td>`;
@@ -3896,11 +4075,205 @@ function renderReview(rv) {
   draw(rich || rv.years[0]);
 }
 
+// ── 찾기 (하단 '무엇을 찾고 있나요?') ─────────────────────────────────────────
+// 초성 — '생활비' → 'ㅅㅎㅂ'. 네이버·카카오 검색창처럼 자음만 쳐도 찾게 한다.
+const FD_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+const fdCho = s => [...s].map(c => {
+  const k = c.charCodeAt(0) - 0xAC00;
+  return k >= 0 && k <= 11171 ? FD_CHO[Math.floor(k / 588)] : c;
+}).join("");
+const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
+// 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
+const FD_ALIAS = {
+  checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
+  overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
+  financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
+  spending:   "가계부 소비 지출 생활비 카테고리",
+  cashflow:   "연금 세금 건보료 건강보험 현금흐름 은퇴",
+  review:     "추억 베스트 1년 리뷰",
+  cities:     "해외 도시 은퇴지 생활비",
+  officetel:  "오피스텔 매물 집 전세 월세 후보",
+};
+
+function initFinder() {
+  const fab = document.getElementById("finder-fab"), dlg = document.getElementById("finder");
+  if (!fab || !dlg || initFinder._done) return;
+  initFinder._done = true;
+  const input = dlg.querySelector("input"), list = dlg.querySelector(".fd-list");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let items = [], shown = [], sel = 0, lastFocus = null;
+
+  const scrollToEl = el => {
+    const navH = document.getElementById("tabs").offsetHeight;
+    scrollTo({ top: el.getBoundingClientRect().top + scrollY - navH - 12, behavior: reduce ? "auto" : "smooth" });
+  };
+  const flash = el => {
+    el.classList.remove("finder-hit"); void el.offsetWidth; el.classList.add("finder-hit");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });   // 스크린리더도 도착한 곳에서 읽기 시작한다
+  };
+  const goTab = t => {
+    if (!t.classList.contains("on")) { t.click(); return; }
+    const pane = document.getElementById("tab-" + t.dataset.tab);
+    if (pane) scrollToEl(pane);
+  };
+  const goSection = (t, card) => {
+    if (!t.classList.contains("on")) t.click();
+    // 탭 전환이 패널을 그리고 제자리로 올린 뒤에 내려가야 한다
+    setTimeout(() => { scrollToEl(card); flash(card); }, 80);
+  };
+
+  // 색인은 열 때마다 새로 만든다 — 데이터가 없어 숨은 탭, '업데이트하기'로 다시 그린 섹션이
+  // 그대로 반영된다. 목록을 손으로 적어 두면 섹션을 늘릴 때마다 여기도 고쳐야 한다.
+  const build = () => {
+    const out = [];
+    for (const t of document.querySelectorAll("#tabs .tab")) {
+      if (t.style.display === "none") continue;
+      const name = t.getAttribute("aria-label") || t.textContent.trim();
+      out.push({ ic: "▦", label: name, hint: "탭", alias: FD_ALIAS[t.dataset.tab] || "", run: () => goTab(t) });
+      const pane = document.getElementById("tab-" + t.dataset.tab);
+      if (!pane) continue;
+      for (const h of pane.querySelectorAll("section.card h2")) {
+        const label = h.textContent.replace(/\s+/g, " ").trim();
+        const card = h.closest("section.card");
+        if (label && card) out.push({ ic: "·", label, hint: name, run: () => goSection(t, card) });
+      }
+    }
+    out.push({ ic: "◐", label: "화면 밝기 바꾸기 (라이트/다크)", hint: "설정",
+               run: () => document.getElementById("theme")?.click() });
+    out.push({ ic: "◎", label: hbHidden() ? "순자산 보이기" : "순자산 가리기", hint: "설정",
+               run: () => document.querySelector("#heroband .hb-toggle")?.click() });
+    out.push({ ic: "↻", label: "지금 업데이트하기", hint: "설정",
+               run: () => document.getElementById("refresh")?.click() });
+    out.push({ ic: "↑", label: "맨 위로", hint: "이동",
+               run: () => scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" }) });
+    for (const it of out) { it.n = fdNorm(it.label + " " + (it.alias || "")); it.c = fdCho(it.n); }
+    return out;
+  };
+
+  // 완성된 글자로 쳤으면 글자로만 찾는다. 자음이 섞였을 때만 초성으로 찾는다 —
+  // 그러지 않으면 '배당'이 초성 'ㅂㄷ'을 거쳐 '부동산'까지 끌어온다.
+  const match = q => {
+    const nq = fdNorm(q);
+    if (!nq) return items.filter(i => ["탭", "설정", "이동"].includes(i.hint));   // 빈칸이면 탭·설정만
+    const jamo = /[ㄱ-ㅎ]/.test(nq), cq = fdCho(nq);
+    const hit = [];
+    for (const it of items) {
+      const at = it.n.indexOf(nq);
+      const s = at === 0 ? 3 : at > 0 ? 2 : (jamo && it.c.includes(cq)) ? 1 : -1;
+      if (s >= 0) hit.push([s, it]);
+    }
+    return hit.sort((a, b) => b[0] - a[0]).map(h => h[1]);
+  };
+
+  const draw = () => {
+    shown = match(input.value).slice(0, 40);
+    sel = Math.max(0, Math.min(sel, shown.length - 1));
+    if (!shown.length) {
+      list.innerHTML = `<li class="fd-empty" role="presentation">찾는 항목이 없어요</li>`;
+      input.removeAttribute("aria-activedescendant");
+      return;
+    }
+    const q = input.value.trim(), ql = q.toLowerCase();
+    list.innerHTML = shown.map((it, i) => {
+      let lb = esc(it.label);
+      const at = q && !/[ㄱ-ㅎ]/.test(q) ? it.label.toLowerCase().indexOf(ql) : -1;
+      if (at >= 0) lb = esc(it.label.slice(0, at)) + "<mark>" + esc(it.label.slice(at, at + q.length))
+                       + "</mark>" + esc(it.label.slice(at + q.length));
+      return `<li role="option" id="fd-${i}" aria-selected="${i === sel}">`
+           + `<span class="fd-ic" aria-hidden="true">${it.ic}</span><span class="fd-lb">${lb}</span>`
+           + `<span class="fd-hint">${esc(it.hint)}</span></li>`;
+    }).join("");
+    input.setAttribute("aria-activedescendant", "fd-" + sel);
+    list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+  };
+
+  const open = () => {
+    if (!dlg.hidden) return;
+    lastFocus = document.activeElement;
+    items = build(); sel = 0; input.value = "";
+    dlg.hidden = false;
+    fab.setAttribute("aria-expanded", "true");
+    document.documentElement.style.overflow = "hidden";   // 뒤 화면이 같이 굴러가지 않게
+    draw();
+    setTimeout(() => input.focus(), 0);
+  };
+  const close = (restore = true) => {
+    if (dlg.hidden) return;
+    dlg.hidden = true;
+    fab.setAttribute("aria-expanded", "false");
+    document.documentElement.style.overflow = "";
+    if (restore && lastFocus?.focus) lastFocus.focus({ preventScroll: true });
+  };
+  const pick = i => { const it = shown[i]; if (!it) return; close(false); it.run(); };
+
+  fab.addEventListener("click", open);
+  dlg.querySelector(".fd-backdrop").addEventListener("click", () => close());
+  dlg.querySelector(".fd-close").addEventListener("click", () => close());
+  input.addEventListener("input", () => { sel = 0; draw(); });
+  input.addEventListener("keydown", ev => {
+    // 한글 조합 중의 Enter·화살표는 IME 몫이다 — 가로채면 마지막 글자가 두 번 들어가거나 사라진다
+    if (ev.isComposing || ev.keyCode === 229) return;
+    if (ev.key === "ArrowDown") { ev.preventDefault(); sel = Math.min(shown.length - 1, sel + 1); draw(); }
+    else if (ev.key === "ArrowUp") { ev.preventDefault(); sel = Math.max(0, sel - 1); draw(); }
+    else if (ev.key === "Enter") { ev.preventDefault(); pick(sel); }
+  });
+  list.addEventListener("click", ev => {
+    const li = ev.target.closest('li[role="option"]');
+    if (li) pick(+li.id.slice(3));
+  });
+  dlg.addEventListener("keydown", ev => {
+    if (ev.key === "Escape") { ev.preventDefault(); close(); return; }
+    if (ev.key !== "Tab") return;            // 포커스 가두기 — 입력칸과 닫기 사이만 돈다
+    const f = [input, dlg.querySelector(".fd-close")];
+    ev.preventDefault();
+    f[(f.indexOf(document.activeElement) + (ev.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+  });
+  // '/' 또는 Ctrl/⌘+K — 글을 쓰는 중이 아닐 때만
+  addEventListener("keydown", ev => {
+    const a = document.activeElement;
+    const typing = a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable);
+    if ((ev.key === "/" && !typing) || ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "k")) {
+      ev.preventDefault(); open();
+    }
+  });
+  fab.hidden = false;
+  document.body.classList.add("has-finder");
+}
+
+// ── 읽기 진행선 — 지금 연 탭에서 어디쯤인가 ──────────────────────────────────
+function initReadProgress(nav) {
+  const prog = document.getElementById("readprog");
+  if (!prog) return;
+  const bar = prog.firstElementChild;
+  let raf = 0;
+  const update = () => {
+    raf = 0;
+    const nb = nav.getBoundingClientRect();
+    const on = nav.querySelector(".tab.on");
+    const pane = on && document.getElementById("tab-" + on.dataset.tab);
+    if (nb.top > 0.5 || !pane) { prog.classList.remove("on"); return; }   // 탭바가 붙어 있을 때만
+    prog.style.top = nb.height + "px";
+    const r = pane.getBoundingClientRect();
+    const total = Math.max(1, r.height - (innerHeight - nb.height));
+    const done = Math.min(1, Math.max(0, (nb.height - r.top) / total));
+    bar.style.transform = `scaleX(${done.toFixed(4)})`;
+    prog.classList.add("on");
+  };
+  const req = () => { if (!raf) raf = requestAnimationFrame(update); };
+  addEventListener("scroll", req, { passive: true });
+  addEventListener("resize", req);
+  nav.addEventListener("click", () => setTimeout(req, 60));
+  req();
+}
+
 function initTabs() {
   const nav = document.getElementById("tabs");
   nav.style.display = "flex";
   if (_tabsInited) return;   // 재렌더(업데이트 버튼) 시 리스너 중복 방지
   _tabsInited = true;
+  initFinder();
+  initReadProgress(nav);
 
   // 넘치는 쪽 가장자리만 흐리게 — 스크롤바를 숨겼으니 이게 유일한 '더 있다' 신호다
   const syncFade = () => {
@@ -4323,6 +4696,7 @@ async function render() {
   const curKey = todayKST.slice(0, 7);
   byMonth.set(curKey, { date: todayKST, total: net });
   const histM = [...byMonth.values()].sort((a, b) => a.date < b.date ? -1 : 1);
+  renderHeroSpark(histM);
 
   // 연 단위 보기 — 각 해의 마지막 점 하나. 올해는 '지금' 값이 그 해의 끝점이 된다.
   // 기본을 이쪽으로 두는 이유: 지난 해들은 어차피 연말 1점뿐이라, 올해만 월별로 촘촘하면
