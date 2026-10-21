@@ -148,6 +148,7 @@ function startCover() {
   // 따로 있어서 그 틀에 안 맞는다 — 그래서 타이머를 매 장 새로 거는 사슬로 바꾼다.
   let timer = null;
   const advance = () => {
+    if (paused) return;
     idx = (idx + 1) % COVER_MEDIA.length;
     run(idx);
     preload((idx + 2) % COVER_MEDIA.length);
@@ -160,6 +161,34 @@ function startCover() {
     timer = setTimeout(advance, COVER_HOLD_MS);
     if (vid) vid.addEventListener("ended", advance, { once: true });
   };
+  // 멈춤 — 타이머를 끊고 지금 장에 머문다. 다시 누르면 다음 장부터 이어 간다.
+  // 이 기기에 기억한다 — 움직임 없이 보고 싶은 사람은 매번 누르지 않아도 된다.
+  const pauseBtn = document.getElementById("cover-pause");
+  let paused = false;
+  const setPaused = p => {
+    paused = p;
+    try { localStorage.setItem("cover_paused", p ? "1" : "0"); } catch {}
+    if (!pauseBtn) return;
+    const lb = p ? "사진 넘김 다시 시작" : "사진 넘김 멈추기";
+    pauseBtn.setAttribute("aria-pressed", p ? "true" : "false");
+    pauseBtn.setAttribute("aria-label", lb);
+    pauseBtn.title = lb;
+    pauseBtn.innerHTML = p
+      ? '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7-4.5z"/></svg>'
+      : '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5h2.5v9H2.5zM7 1.5h2.5v9H7z"/></svg>';
+  };
+  let saved = false;
+  try { saved = localStorage.getItem("cover_paused") === "1"; } catch {}
+  setPaused(saved);
+  if (pauseBtn) {
+    pauseBtn.hidden = false;
+    pauseBtn.addEventListener("click", () => {
+      if (paused) { setPaused(false); advance(); return; }
+      setPaused(true);
+      clearTimeout(timer);
+      stack.querySelector(".cover-layer.on video")?.pause();
+    });
+  }
   run(0);
 }
 
@@ -205,6 +234,41 @@ function renderHeroBand(snap, net) {
             aria-controls="heroband" title="순자산 카드 접기/펴기">
       <span class="hb-eye"></span><span class="hb-lb"></span></button>`;
   syncHeroBand(el);
+}
+
+/* 순자산 1년 흐름 — 월별 점(그 달 마지막 값) 최근 13개를 선 하나로. 점선은 출발점(1년 전)
+   값이라, 끝이 점선 위에 있으면 1년 사이 늘었다는 뜻이 색 없이도 읽힌다. */
+function renderHeroSpark(histM) {
+  const main = document.querySelector("#heroband .hb-main");
+  if (!main) return;
+  main.querySelector(".hb-spark")?.remove();
+  // '최근 13점'으로 자르면 안 된다 — 지난 해들은 연말 1점뿐이라 2023·2024 연말 점과 올해 월별 점이
+  // 섞여, x축 한 칸이 어떤 곳은 1년이고 어떤 곳은 한 달이 된다. 1년 안의 점만, 날짜 간격대로 놓는다.
+  const ms = d => Date.parse(d + "T00:00:00+09:00");
+  const t1 = ms((histM || []).at(-1)?.date || "1970-01-01"), t0 = t1 - 365 * 864e5;
+  const pts = (histM || []).filter(p => ms(p.date) >= t0);
+  if (pts.length < 3) return;
+  const W = 132, H = 30, pad = 2;
+  const vs = pts.map(p => p.total);
+  const lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const ta = ms(pts[0].date), tspan = (t1 - ta) || 1;
+  const x = i => pad + (ms(pts[i].date) - ta) / tspan * (W - 2 * pad);
+  const y = v => H - pad - (v - lo) / span * (H - 2 * pad);
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.total).toFixed(1)}`).join("");
+  const first = pts[0], last = pts[pts.length - 1];
+  const from = `${first.date.slice(2, 4)}.${first.date.slice(5, 7)}`;
+  const label = `${from} ${fmtEok(first.total)} → ${fmtEok(last.total)}`;
+  const div = document.createElement("div");
+  div.className = "hb-spark";
+  div.setAttribute("role", "img");
+  div.setAttribute("aria-label", `순자산 흐름 ${from} ${fmtEok(first.total)}에서 지금 ${fmtEok(last.total)}`);
+  div.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">
+      <line x1="0" x2="${W}" y1="${y(vs[0]).toFixed(1)}" y2="${y(vs[0]).toFixed(1)}"
+            stroke="currentColor" stroke-opacity=".4" stroke-dasharray="2 3"/>
+      <path d="${d}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last.total).toFixed(1)}" r="2.6" fill="currentColor"/>
+    </svg><small aria-hidden="true">${label}</small>`;
+  main.appendChild(div);
 }
 
 /* 접힘 상태를 화면에 반영. 값 자체를 지우지 않고 가리기만 한다 —

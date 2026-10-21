@@ -36,6 +36,8 @@
     /* 의미색 배경 틴트 — 등락을 '색'만이 아니라 '형태(칩)'로도 읽히게 한다.
        색각 특성과 무관하게 훑을 때 시선에 걸리는 것이 목적. */
     --pos-bg: rgba(10,122,61,.10); --neg-bg: rgba(193,67,64,.10); --warn-bg: rgba(169,116,26,.12);
+    /* 시세 방향 — 국내 증권 관례(상승 빨강·하락 파랑). --pos/--neg(우리에게 좋은가)와 다른 질문이다 */
+    --rise: #d42a3c; --fall: #1d62d4; --rise-bg: rgba(212,42,60,.10); --fall-bg: rgba(29,98,212,.10);
     --accent-bg: rgba(31,95,208,.08);
     /* 색 — 자산 카테고리 (차트·칩 공용) */
     --c-re: #2a78d6; --c-us: #17a074; --c-kr: #e0961a; --c-cash: #0a9668;
@@ -104,6 +106,7 @@
       --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
       --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
       --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --rise: #ff6b6f; --fall: #6aa6ff; --rise-bg: rgba(255,107,111,.15); --fall-bg: rgba(106,166,255,.15);
       --accent-bg: rgba(91,149,238,.13);
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
@@ -122,6 +125,7 @@
       --grid: #242c36; --baseline: #38424e; --border: rgba(255,255,255,0.10);
       --pos: #3cb96a; --neg: #e0706c; --accent: #5b95ee; --warn: #d09a3a;
       --pos-bg: rgba(60,185,106,.14); --neg-bg: rgba(224,112,108,.14); --warn-bg: rgba(208,154,58,.16);
+      --rise: #ff6b6f; --fall: #6aa6ff; --rise-bg: rgba(255,107,111,.15); --fall-bg: rgba(106,166,255,.15);
       --accent-bg: rgba(91,149,238,.13);
       --c-re: #4a92ea; --c-us: #22b184; --c-kr: #d99b2c; --c-cash: #17a877;
       --c-vi: #9689ec; --c-debt: #d68a86;
@@ -244,6 +248,9 @@
     color: var(--ink-muted); background: var(--surface-1);
     border: 1px solid var(--border); border-radius: var(--r-pill); padding: 3px 9px; }
   .hb-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  /* 넓은 화면에선 이 버튼이 오른쪽 열(FIRE 게이지)의 첫 줄 위에 뜬다 — 'FIRE 기본 76.1%'의
+     숫자가 버튼에 가려졌다(2026-10 점검). 첫 머리줄만 버튼 폭만큼 비켜 세로 배치는 그대로 둔다. */
+  @media (min-width: 720px) { .hb-gauges > :first-child .hb-g-head { padding-right: 84px; } }
   @media (prefers-reduced-motion: reduce) {
     .heroband .hb-val, .heroband .hb-deltas, .heroband .hb-gauges { transition: none; }
   }
@@ -365,6 +372,20 @@
   /* 탭 전환 — 내용이 아래에서 살짝 떠오르며 들어온다. 갈아끼운 티가 나야 방금 바뀐 걸 안다. */
   @keyframes tabIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .tab-panel-in { animation: tabIn var(--dur-3) var(--ease-out) both; }
+
+  .tab .t-short { display: none; }
+  @media (max-width: 560px) {
+    /* 폰 폭에선 탭 여덟 개가 화면 두 개 반이라 '투자 포트폴리…'처럼 잘려 보였다.
+       짧은 이름으로 바꾼다 — 스크린리더는 aria-label로 원래 이름을 그대로 읽는다. */
+    .tab .t-full { display: none; }
+    .tab .t-short { display: inline; }
+    .tab { padding: 12px 14px; }
+    /* 헤더가 다섯 줄(제목·실시간·스냅샷·환율+버튼·업데이트)이었다. 실시간을 받았으면
+       스냅샷 시각은 보조라 접고, 업데이트 버튼은 아이콘만 남겨 다른 버튼과 한 줄에 둔다. */
+    .hdr-snap.secondary { display: none; }
+    #refresh .lb { display: none; }
+    #refresh { padding: 0 10px; }
+  }
 
   /* 카드 */
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
@@ -917,3 +938,94 @@
     #intro .cap, #intro .title, #intro .sub, #intro .cta { animation: introUp .4s ease both; }
   }
 
+
+  /* ── 2026-10 벤치마킹 반영 (구글·네이버·카카오·삼성전자·현대차그룹) ─────────────── */
+
+  /* 시세는 국내 증권 관례로 — 상승 빨강·하락 파랑. 구글 파이낸스(한국어)·네이버 증권·카카오
+     계열이 모두 이렇게 읽힌다. 우리 돈(순자산·부채·생활비)은 종전대로 '우리에게 좋은가'
+     (초록/빨강)로 판정한다 — 시장의 방향과 가계의 판정은 다른 질문이라 섞지 않는다. */
+  .rise { color: var(--rise); } .fall { color: var(--fall); }
+  .delta-chip.rise { background: var(--rise-bg); color: var(--rise); }
+  .delta-chip.fall { background: var(--fall-bg); color: var(--fall); }
+
+  /* 표지 멈춤 — 카카오·삼성·현대차 모두 스스로 넘어가는 히어로에 멈춤 버튼을 둔다.
+     5초 넘게 스스로 움직이는 화면은 멈출 수 있어야 한다(WCAG 2.2.2). */
+  .cover-capline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .cover-capline .cover-cap { margin-bottom: 0; }
+  .cover-pause { flex: none; width: 32px; height: 32px; border-radius: 50%; display: inline-grid; place-items: center;
+    padding: 0; cursor: pointer; color: rgba(255,255,255,.85); background: rgba(12,18,26,.35);
+    border: 1px solid rgba(255,255,255,.28); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .cover-pause[hidden] { display: none; }
+  .cover-pause:hover { color: #fff; border-color: rgba(255,255,255,.6); }
+  .cover-pause svg { width: 12px; height: 12px; fill: currentColor; }
+
+  /* 읽기 진행선 — 현대차그룹처럼 고정 바 바로 아래 얇은 선. 탭 하나가 폰 열 화면에 이르니
+     '어디쯤 읽고 있나'가 보여야 한다. 탭바가 화면 위에 붙어 있을 때만 켠다. */
+  #readprog { position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 31; pointer-events: none;
+    opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+  #readprog.on { opacity: 1; }
+  #readprog i { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); }
+
+  /* 순자산 1년 흐름 — 구글 파이낸스 카드처럼 숫자 곁에 선 하나. 점선이 1년 전 값(기준선)이라
+     선이 점선 위면 1년 사이 늘었다는 뜻이 색 없이도 읽힌다. */
+  .hb-spark { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .hb-spark svg { width: 132px; height: 30px; color: var(--accent); overflow: visible; flex: none; }
+  .hb-spark small { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted); white-space: nowrap; }
+  @media (max-width: 420px) { .hb-spark svg { width: 110px; } }
+  #cover .hb-spark svg { color: #fff; }
+  #cover .hb-spark small { color: rgba(255,255,255,.72); }
+  .heroband .hb-spark { transition: filter .18s, opacity .18s; }
+  .hb-off .hb-spark { filter: blur(9px); opacity: .30; user-select: none; }
+
+  /* 찾기 — 구글·카카오·현대차가 모두 화면 아래에 '무엇을 찾고 있나요?'를 띄운다(삼성은 AI 버튼).
+     폰에서 엄지가 닿는 곳이다(One UI: 보는 곳은 위, 누르는 곳은 아래). 탭 8개·섹션 40여 개로
+     곧장 건너뛴다. 초성만 쳐도 찾는다(ㅅㅎㅂ → 생활비) — 네이버·카카오 검색창의 습관. */
+  #finder-fab { position: fixed; z-index: 40; right: 18px; bottom: 18px; height: 44px; padding: 0 16px;
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font-family: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2);
+    background: var(--nav-bg); border: 1px solid var(--border); border-radius: var(--r-pill);
+    box-shadow: 0 8px 28px rgba(0,0,0,.18);
+    backdrop-filter: blur(14px) saturate(130%); -webkit-backdrop-filter: blur(14px) saturate(130%); }
+  #finder-fab[hidden] { display: none; }
+  #finder-fab:hover { color: var(--ink-1); border-color: var(--accent); }
+  #finder-fab svg { width: 16px; height: 16px; flex: none; }
+  #finder-fab kbd { font-family: var(--mono); font-size: var(--fs-micro); color: var(--ink-muted);
+    border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; }
+  @media (max-width: 720px) {
+    #finder-fab { left: 16px; right: 16px; bottom: max(14px, env(safe-area-inset-bottom)); }
+    #finder-fab kbd { display: none; }
+    body.has-finder { padding-bottom: 72px; }
+    body.has-finder #toast { bottom: 80px; }
+  }
+  #finder[hidden] { display: none; }
+  #finder { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-start; justify-content: center;
+    padding: 12vh 16px 16px; }
+  .fd-backdrop { position: absolute; inset: 0; background: rgba(8,12,18,.45);
+    backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+  .fd-panel { position: relative; width: min(560px, 100%); max-height: 70vh; display: flex; flex-direction: column;
+    overflow: hidden; background: var(--surface-1); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.35); }
+  .fd-input { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--border); }
+  .fd-input svg { width: 18px; height: 18px; color: var(--ink-muted); flex: none; }
+  /* 16px — iOS가 입력칸에 초점을 줄 때 화면을 확대하지 않는 하한 */
+  .fd-input input { flex: 1; min-width: 0; height: 54px; border: 0; outline: 0; background: transparent;
+    font-family: inherit; font-size: 16px; color: var(--ink-1); }
+  .fd-close { border: 0; background: none; color: var(--ink-muted); font: inherit; font-size: var(--fs-sm);
+    cursor: pointer; padding: 10px; min-height: 44px; }
+  .fd-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; }
+  .fd-list li[role="option"] { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+    border-radius: 10px; cursor: pointer; }
+  .fd-list li[aria-selected="true"] { background: var(--nav-on-bg); box-shadow: inset 0 0 0 1px var(--nav-on-line); }
+  .fd-ic { width: 22px; text-align: center; flex: none; color: var(--ink-muted); }
+  .fd-lb { flex: 1; min-width: 0; color: var(--ink-1); font-size: var(--fs-body); }
+  .fd-lb mark { background: none; color: var(--accent); font-weight: 700; }
+  .fd-hint { flex: none; font-size: var(--fs-micro); color: var(--ink-muted); }
+  .fd-empty { padding: 22px 16px; color: var(--ink-muted); font-size: var(--fs-sm); text-align: center; }
+  @media (max-width: 720px) {
+    /* 폰에서는 아래에서 올라오는 시트 — 누른 자리(엄지)에서 그대로 이어진다 */
+    #finder { align-items: flex-end; padding: 0; }
+    .fd-panel { width: 100%; max-height: 78vh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  }
+  .finder-hit { animation: finderHit 1.4s var(--ease-out); }
+  @keyframes finderHit { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .finder-hit { animation: none; outline: 2px solid var(--accent); } }

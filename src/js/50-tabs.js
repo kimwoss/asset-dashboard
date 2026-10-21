@@ -536,11 +536,205 @@ function renderReview(rv) {
   draw(rich || rv.years[0]);
 }
 
+// ── 찾기 (하단 '무엇을 찾고 있나요?') ─────────────────────────────────────────
+// 초성 — '생활비' → 'ㅅㅎㅂ'. 네이버·카카오 검색창처럼 자음만 쳐도 찾게 한다.
+const FD_CHO = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
+const fdCho = s => [...s].map(c => {
+  const k = c.charCodeAt(0) - 0xAC00;
+  return k >= 0 && k <= 11171 ? FD_CHO[Math.floor(k / 588)] : c;
+}).join("");
+const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
+// 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
+const FD_ALIAS = {
+  checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
+  overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
+  financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
+  spending:   "가계부 소비 지출 생활비 카테고리",
+  cashflow:   "연금 세금 건보료 건강보험 현금흐름 은퇴",
+  review:     "추억 베스트 1년 리뷰",
+  cities:     "해외 도시 은퇴지 생활비",
+  officetel:  "오피스텔 매물 집 전세 월세 후보",
+};
+
+function initFinder() {
+  const fab = document.getElementById("finder-fab"), dlg = document.getElementById("finder");
+  if (!fab || !dlg || initFinder._done) return;
+  initFinder._done = true;
+  const input = dlg.querySelector("input"), list = dlg.querySelector(".fd-list");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let items = [], shown = [], sel = 0, lastFocus = null;
+
+  const scrollToEl = el => {
+    const navH = document.getElementById("tabs").offsetHeight;
+    scrollTo({ top: el.getBoundingClientRect().top + scrollY - navH - 12, behavior: reduce ? "auto" : "smooth" });
+  };
+  const flash = el => {
+    el.classList.remove("finder-hit"); void el.offsetWidth; el.classList.add("finder-hit");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });   // 스크린리더도 도착한 곳에서 읽기 시작한다
+  };
+  const goTab = t => {
+    if (!t.classList.contains("on")) { t.click(); return; }
+    const pane = document.getElementById("tab-" + t.dataset.tab);
+    if (pane) scrollToEl(pane);
+  };
+  const goSection = (t, card) => {
+    if (!t.classList.contains("on")) t.click();
+    // 탭 전환이 패널을 그리고 제자리로 올린 뒤에 내려가야 한다
+    setTimeout(() => { scrollToEl(card); flash(card); }, 80);
+  };
+
+  // 색인은 열 때마다 새로 만든다 — 데이터가 없어 숨은 탭, '업데이트하기'로 다시 그린 섹션이
+  // 그대로 반영된다. 목록을 손으로 적어 두면 섹션을 늘릴 때마다 여기도 고쳐야 한다.
+  const build = () => {
+    const out = [];
+    for (const t of document.querySelectorAll("#tabs .tab")) {
+      if (t.style.display === "none") continue;
+      const name = t.getAttribute("aria-label") || t.textContent.trim();
+      out.push({ ic: "▦", label: name, hint: "탭", alias: FD_ALIAS[t.dataset.tab] || "", run: () => goTab(t) });
+      const pane = document.getElementById("tab-" + t.dataset.tab);
+      if (!pane) continue;
+      for (const h of pane.querySelectorAll("section.card h2")) {
+        const label = h.textContent.replace(/\s+/g, " ").trim();
+        const card = h.closest("section.card");
+        if (label && card) out.push({ ic: "·", label, hint: name, run: () => goSection(t, card) });
+      }
+    }
+    out.push({ ic: "◐", label: "화면 밝기 바꾸기 (라이트/다크)", hint: "설정",
+               run: () => document.getElementById("theme")?.click() });
+    out.push({ ic: "◎", label: hbHidden() ? "순자산 보이기" : "순자산 가리기", hint: "설정",
+               run: () => document.querySelector("#heroband .hb-toggle")?.click() });
+    out.push({ ic: "↻", label: "지금 업데이트하기", hint: "설정",
+               run: () => document.getElementById("refresh")?.click() });
+    out.push({ ic: "↑", label: "맨 위로", hint: "이동",
+               run: () => scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" }) });
+    for (const it of out) { it.n = fdNorm(it.label + " " + (it.alias || "")); it.c = fdCho(it.n); }
+    return out;
+  };
+
+  // 완성된 글자로 쳤으면 글자로만 찾는다. 자음이 섞였을 때만 초성으로 찾는다 —
+  // 그러지 않으면 '배당'이 초성 'ㅂㄷ'을 거쳐 '부동산'까지 끌어온다.
+  const match = q => {
+    const nq = fdNorm(q);
+    if (!nq) return items.filter(i => ["탭", "설정", "이동"].includes(i.hint));   // 빈칸이면 탭·설정만
+    const jamo = /[ㄱ-ㅎ]/.test(nq), cq = fdCho(nq);
+    const hit = [];
+    for (const it of items) {
+      const at = it.n.indexOf(nq);
+      const s = at === 0 ? 3 : at > 0 ? 2 : (jamo && it.c.includes(cq)) ? 1 : -1;
+      if (s >= 0) hit.push([s, it]);
+    }
+    return hit.sort((a, b) => b[0] - a[0]).map(h => h[1]);
+  };
+
+  const draw = () => {
+    shown = match(input.value).slice(0, 40);
+    sel = Math.max(0, Math.min(sel, shown.length - 1));
+    if (!shown.length) {
+      list.innerHTML = `<li class="fd-empty" role="presentation">찾는 항목이 없어요</li>`;
+      input.removeAttribute("aria-activedescendant");
+      return;
+    }
+    const q = input.value.trim(), ql = q.toLowerCase();
+    list.innerHTML = shown.map((it, i) => {
+      let lb = esc(it.label);
+      const at = q && !/[ㄱ-ㅎ]/.test(q) ? it.label.toLowerCase().indexOf(ql) : -1;
+      if (at >= 0) lb = esc(it.label.slice(0, at)) + "<mark>" + esc(it.label.slice(at, at + q.length))
+                       + "</mark>" + esc(it.label.slice(at + q.length));
+      return `<li role="option" id="fd-${i}" aria-selected="${i === sel}">`
+           + `<span class="fd-ic" aria-hidden="true">${it.ic}</span><span class="fd-lb">${lb}</span>`
+           + `<span class="fd-hint">${esc(it.hint)}</span></li>`;
+    }).join("");
+    input.setAttribute("aria-activedescendant", "fd-" + sel);
+    list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+  };
+
+  const open = () => {
+    if (!dlg.hidden) return;
+    lastFocus = document.activeElement;
+    items = build(); sel = 0; input.value = "";
+    dlg.hidden = false;
+    fab.setAttribute("aria-expanded", "true");
+    document.documentElement.style.overflow = "hidden";   // 뒤 화면이 같이 굴러가지 않게
+    draw();
+    setTimeout(() => input.focus(), 0);
+  };
+  const close = (restore = true) => {
+    if (dlg.hidden) return;
+    dlg.hidden = true;
+    fab.setAttribute("aria-expanded", "false");
+    document.documentElement.style.overflow = "";
+    if (restore && lastFocus?.focus) lastFocus.focus({ preventScroll: true });
+  };
+  const pick = i => { const it = shown[i]; if (!it) return; close(false); it.run(); };
+
+  fab.addEventListener("click", open);
+  dlg.querySelector(".fd-backdrop").addEventListener("click", () => close());
+  dlg.querySelector(".fd-close").addEventListener("click", () => close());
+  input.addEventListener("input", () => { sel = 0; draw(); });
+  input.addEventListener("keydown", ev => {
+    // 한글 조합 중의 Enter·화살표는 IME 몫이다 — 가로채면 마지막 글자가 두 번 들어가거나 사라진다
+    if (ev.isComposing || ev.keyCode === 229) return;
+    if (ev.key === "ArrowDown") { ev.preventDefault(); sel = Math.min(shown.length - 1, sel + 1); draw(); }
+    else if (ev.key === "ArrowUp") { ev.preventDefault(); sel = Math.max(0, sel - 1); draw(); }
+    else if (ev.key === "Enter") { ev.preventDefault(); pick(sel); }
+  });
+  list.addEventListener("click", ev => {
+    const li = ev.target.closest('li[role="option"]');
+    if (li) pick(+li.id.slice(3));
+  });
+  dlg.addEventListener("keydown", ev => {
+    if (ev.key === "Escape") { ev.preventDefault(); close(); return; }
+    if (ev.key !== "Tab") return;            // 포커스 가두기 — 입력칸과 닫기 사이만 돈다
+    const f = [input, dlg.querySelector(".fd-close")];
+    ev.preventDefault();
+    f[(f.indexOf(document.activeElement) + (ev.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+  });
+  // '/' 또는 Ctrl/⌘+K — 글을 쓰는 중이 아닐 때만
+  addEventListener("keydown", ev => {
+    const a = document.activeElement;
+    const typing = a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable);
+    if ((ev.key === "/" && !typing) || ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "k")) {
+      ev.preventDefault(); open();
+    }
+  });
+  fab.hidden = false;
+  document.body.classList.add("has-finder");
+}
+
+// ── 읽기 진행선 — 지금 연 탭에서 어디쯤인가 ──────────────────────────────────
+function initReadProgress(nav) {
+  const prog = document.getElementById("readprog");
+  if (!prog) return;
+  const bar = prog.firstElementChild;
+  let raf = 0;
+  const update = () => {
+    raf = 0;
+    const nb = nav.getBoundingClientRect();
+    const on = nav.querySelector(".tab.on");
+    const pane = on && document.getElementById("tab-" + on.dataset.tab);
+    if (nb.top > 0.5 || !pane) { prog.classList.remove("on"); return; }   // 탭바가 붙어 있을 때만
+    prog.style.top = nb.height + "px";
+    const r = pane.getBoundingClientRect();
+    const total = Math.max(1, r.height - (innerHeight - nb.height));
+    const done = Math.min(1, Math.max(0, (nb.height - r.top) / total));
+    bar.style.transform = `scaleX(${done.toFixed(4)})`;
+    prog.classList.add("on");
+  };
+  const req = () => { if (!raf) raf = requestAnimationFrame(update); };
+  addEventListener("scroll", req, { passive: true });
+  addEventListener("resize", req);
+  nav.addEventListener("click", () => setTimeout(req, 60));
+  req();
+}
+
 function initTabs() {
   const nav = document.getElementById("tabs");
   nav.style.display = "flex";
   if (_tabsInited) return;   // 재렌더(업데이트 버튼) 시 리스너 중복 방지
   _tabsInited = true;
+  initFinder();
+  initReadProgress(nav);
 
   // 넘치는 쪽 가장자리만 흐리게 — 스크롤바를 숨겼으니 이게 유일한 '더 있다' 신호다
   const syncFade = () => {
@@ -548,6 +742,27 @@ function initTabs() {
     nav.classList.toggle("fade-l", nav.scrollLeft > 1);
     nav.classList.toggle("fade-r", nav.scrollLeft < max - 1);
   };
+  // 탭과 패널을 서로 잇는다. role만 있고 연결이 없으면 스크린리더가 '이 탭이 어느 내용을
+  // 여는지' 알 수 없다. 키보드는 WAI-ARIA 탭 패턴(←/→/Home/End, 선택된 탭만 Tab 순서)을 따른다.
+  const tabsAll = [...nav.querySelectorAll(".tab")];
+  for (const t of tabsAll) {
+    const panel = document.getElementById("tab-" + t.dataset.tab);
+    t.id = "tabbtn-" + t.dataset.tab;
+    t.setAttribute("aria-controls", "tab-" + t.dataset.tab);
+    t.tabIndex = t.classList.contains("on") ? 0 : -1;
+    if (panel) { panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", t.id); }
+  }
+  nav.addEventListener("keydown", ev => {
+    const vis = tabsAll.filter(t => t.style.display !== "none");
+    const i = vis.indexOf(document.activeElement);
+    if (i < 0) return;
+    const j = { ArrowRight: (i + 1) % vis.length, ArrowLeft: (i - 1 + vis.length) % vis.length,
+                Home: 0, End: vis.length - 1 }[ev.key];
+    if (j === undefined) return;
+    ev.preventDefault();
+    vis[j].focus();
+    vis[j].click();
+  });
   nav.addEventListener("scroll", syncFade, { passive: true });
   addEventListener("resize", syncFade);
   syncFade();
@@ -560,6 +775,7 @@ function initTabs() {
       t.classList.toggle("on", on);
       // 시각 상태만 바꾸면 스크린리더는 어느 탭이 열렸는지 알 수 없다
       t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
     }
     // 탭 목록을 여기 하드코딩하면 탭을 늘릴 때마다 이 배열을 같이 고쳐야 하고, 잊으면
     // 버튼은 눌리는데 내용이 안 뜬다 ('다음 후보집'을 넣을 때 실제로 그랬다).

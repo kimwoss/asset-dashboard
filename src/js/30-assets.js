@@ -197,7 +197,8 @@ function renderCheckpoint(cp, finBlock) {
     return;
   }
   const pct = v => (v == null || Math.abs(v) < 0.005) ? "0.00%" : (v > 0 ? "+" : "") + v.toFixed(2) + "%";
-  const cls = v => v > 0 ? "delta-up" : v < 0 ? "delta-down" : "";
+  // 시세는 방향으로 칠한다(국내 관례: 상승 빨강·하락 파랑) — 우리 돈의 판정색과 다른 축이다
+  const cls = v => v > 0 ? "rise" : v < 0 ? "fall" : "";
   const px = (v, unit) => v == null ? "—"
     : unit === "pt" ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "pt"
     : unit === "$" ? "$" + v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -222,7 +223,7 @@ function renderCheckpoint(cp, finBlock) {
     if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
     const v = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
     if (k === "d1") {
-      const dir = Math.abs(p) < 0.005 ? "flat" : (p > 0 ? "up" : "dn");
+      const dir = Math.abs(p) < 0.005 ? "flat" : (p > 0 ? "rise" : "fall");
       return `<td><span class="delta-chip ${dir}">${v}</span></td>`;
     }
     return `<td class="${cls(p)}"><b>${v}</b></td>`;

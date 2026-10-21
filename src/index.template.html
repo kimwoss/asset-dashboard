@@ -45,7 +45,7 @@
   <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
      target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
     <span class="ic">👵</span><span class="lb">마음돌봄할머니</span></a>
-  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다">
+  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다" aria-label="업데이트하기">
     <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
 
@@ -84,7 +84,10 @@
   <div class="cover-stack" id="cover-stack" aria-hidden="true"></div>
   <div class="cover-scrim" aria-hidden="true"></div>
   <div class="cover-body">
-    <div class="cover-cap" id="cover-cap"></div>
+    <div class="cover-capline">
+      <div class="cover-cap" id="cover-cap"></div>
+      <button class="cover-pause" id="cover-pause" type="button" hidden aria-pressed="false"></button>
+    </div>
     <section id="heroband" style="display:none"></section>
   </div>
 </section>
@@ -98,15 +101,31 @@
 </script>
 
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
-  <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint">오늘의 브리핑</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="overview">자산 현황</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="financial">투자 포트폴리오</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="spending">월간 생활비</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="cashflow">현금 흐름 계획</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="review">연간 리뷰</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="cities">후보 도시</button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="officetel">다음 후보집</button>
+  <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint" aria-label="오늘의 브리핑"><span class="t-full">오늘의 브리핑</span><span class="t-short" aria-hidden="true">브리핑</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="overview" aria-label="자산 현황"><span class="t-full">자산 현황</span><span class="t-short" aria-hidden="true">자산</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="financial" aria-label="투자 포트폴리오"><span class="t-full">투자 포트폴리오</span><span class="t-short" aria-hidden="true">투자</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="spending" aria-label="월간 생활비"><span class="t-full">월간 생활비</span><span class="t-short" aria-hidden="true">생활비</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cashflow" aria-label="현금 흐름 계획"><span class="t-full">현금 흐름 계획</span><span class="t-short" aria-hidden="true">현금흐름</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="review" aria-label="연간 리뷰"><span class="t-full">연간 리뷰</span><span class="t-short" aria-hidden="true">리뷰</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="officetel" aria-label="다음 후보집"><span class="t-full">다음 후보집</span><span class="t-short" aria-hidden="true">후보집</span></button>
 </nav>
+<div id="readprog" aria-hidden="true"><i></i></div>
+<button id="finder-fab" type="button" hidden aria-haspopup="dialog" aria-expanded="false" aria-controls="finder">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>무엇을 찾고 있나요?</span><kbd>/</kbd></button>
+<div id="finder" role="dialog" aria-modal="true" aria-label="대시보드 찾기" hidden>
+  <div class="fd-backdrop"></div>
+  <div class="fd-panel">
+    <div class="fd-input">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input type="text" role="combobox" aria-expanded="true" aria-controls="fd-list" aria-autocomplete="list"
+             aria-label="찾을 탭이나 섹션" placeholder="탭·섹션 이름, 초성도 돼요 (ㅅㅎㅂ)"
+             autocomplete="off" spellcheck="false" enterkeyhint="go">
+      <button class="fd-close" type="button">닫기</button>
+    </div>
+    <ul class="fd-list" id="fd-list" role="listbox" aria-label="이동할 곳"></ul>
+  </div>
+</div>
 
 <div id="tab-overview" style="display:none">
   <div class="cards" id="kpis"></div>

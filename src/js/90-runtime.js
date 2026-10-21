@@ -167,15 +167,26 @@ async function gate() {
   // 인트로 연출을 끝까지 보여줄 최소 시간 (재방문 자동진입도 이 시간은 머문다)
   const minShow = new Promise(r => setTimeout(r, reduce ? 300 : 2400));
 
+  // 받기 실패(망·서버)와 풀기 실패(비밀번호)를 가른다. fetch가 망에서 끊기면 TypeError,
+  // 서버가 거절하면 우리가 'HTTP'를 넣어 던진다. 나머지는 복호화 실패다.
+  const isNetErr = e => e instanceof TypeError || String(e).includes("HTTP");
   const saved = localStorage.getItem("asset_pw");
   if (saved) {
     autoRow.style.display = "";
     try {
       const [data] = await Promise.all([loadData(saved), minShow]);
       return data;
-    } catch {
-      localStorage.removeItem("asset_pw");
+    } catch (e) {
       autoRow.style.display = "none";
+      if (isNetErr(e)) {
+        // 저장된 비밀번호는 그대로 둔다 — 종전엔 신호가 잠깐 끊겨도 지워서 매번 다시 쳐야 했다.
+        // 입력칸에 미리 넣어 두니 '들어가기'만 다시 누르면 된다.
+        input.value = saved;
+        msg.textContent = "데이터를 받지 못했어요. 연결을 확인하고 '들어가기'를 눌러 주세요.";
+      } else {
+        localStorage.removeItem("asset_pw");
+        msg.textContent = "비밀번호가 바뀌었어요. 새 비밀번호를 입력해 주세요.";
+      }
     }
   }
 
@@ -193,8 +204,8 @@ async function gate() {
         resolve(data);
       } catch (e) {
         btn.disabled = false;
-        msg.textContent = String(e).includes("HTTP")
-          ? "데이터를 불러오지 못했어요 (" + e + ")"
+        msg.textContent = isNetErr(e)
+          ? "데이터를 불러오지 못했어요. 연결을 확인해 주세요."
           : "비밀번호가 맞지 않아요.";
       }
     };
@@ -258,6 +269,13 @@ async function render() {
   // 값인지 판단이 안 됐다. 실시간 여부는 점 있는 배지로 올리고(가장 먼저 눈에 걸림),
   // 스냅샷 시각은 보조로 내린다. 환율은 데이터라 시세 영역에서 따로 보여준다.
   const hdr = document.getElementById("updated");
+  // 오늘 시각이면 날짜를 뺀다 — '2026-10-09 16:06'의 날짜는 오늘인 한 정보가 없다.
+  // (아래 todayKST는 이 함수 뒤쪽에서 const로 선언돼 여기서 쓰면 선언 전 접근 오류다 — 직접 계산)
+  const hdrToday = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const hdrTime = t => {
+    const v = (t || "").replace(" KST", "");
+    return v.startsWith(hdrToday + " ") ? v.slice(11) : v;
+  };
   if (liveAt) {
     // 몇 분 전인지까지 적는다. 시각만 있으면 '지금 값인가'를 사람이 매번 계산해야 한다.
     // 배지 색은 나이로 바꾼다 — 10분 이내가 목표이고, 넘어가면 눈에 걸려야 한다.
@@ -271,8 +289,8 @@ async function render() {
     const ago = mins == null ? "" : mins < 1 ? " · 방금" : ` · ${mins}분 전`;
     hdr.innerHTML = `<span class="hdr-live${stale ? " stale" : ""}" title="${
         esc(freshnessTip(live))}"><span class="dot"></span>실시간 ${
-        liveAt.replace(" KST", "")}${ago}</span>`
-                  + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
+        hdrTime(liveAt)}${ago}</span>`
+                  + `<span class="hdr-snap secondary">스냅샷 ${hdrTime(snap.updated_at)}</span>`;
   } else {
     // 실시간을 못 받았다는 사실을 화면에 남긴다. 종전엔 '스냅샷'만 떠서, 기기마다 순자산이
     // 다르게 보여도 왜 그런지 단서가 없었다 — 폰만 실시간을 못 받으면 반나절 전 값이
@@ -319,6 +337,7 @@ async function render() {
   const curKey = todayKST.slice(0, 7);
   byMonth.set(curKey, { date: todayKST, total: net });
   const histM = [...byMonth.values()].sort((a, b) => a.date < b.date ? -1 : 1);
+  renderHeroSpark(histM);
 
   // 연 단위 보기 — 각 해의 마지막 점 하나. 올해는 '지금' 값이 그 해의 끝점이 된다.
   // 기본을 이쪽으로 두는 이유: 지난 해들은 어차피 연말 1점뿐이라, 올해만 월별로 촘촘하면
