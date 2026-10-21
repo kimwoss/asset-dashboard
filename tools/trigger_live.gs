@@ -1,14 +1,15 @@
 /**
- * 분당부부 대시보드 — live.yml 10분 트리거 (Google Apps Script)
+ * 분당부부 대시보드 — live.yml 5분 트리거 (Google Apps Script)
  *
  * 왜 필요한가
  *   워크플로에 크론을 걸어 두었지만 GitHub의 schedule 이벤트는 공개 레포에서
  *   best-effort다. 실측(2026-07-28) 48시간 26회 = 기대 96회의 27%, 간격 중앙값 100분,
  *   최대 공백 251분. 크론을 아무리 촘촘히 걸어도 GitHub이 주는 만큼만 돈다.
- *   그래서 밖에서 정확히 10분마다 workflow_dispatch로 깨운다.
- *   10분인 이유 — 주식 시세가 10분 넘게 어긋나면 '지금 값'이라 부를 수 없다.
- *   Apps Script 시간 트리거는 1·5·10·15·30분만 되고, 실행당 1초 남짓이라
- *   하루 144회를 써도 소비자 계정 한도(트리거 총 90분/일)의 3%다.
+ *   그래서 밖에서 정확히 5분마다 workflow_dispatch로 깨운다.
+ *   5분인 이유 — 대시보드는 live.enc를 raw.githubusercontent에서 받는데, 그 CDN이
+ *   5분(max-age=300) 캐시한다. 5분보다 자주 발행해도 브라우저엔 안 보인다 — 실효 하한이다.
+ *   Apps Script 시간 트리거는 1·5·10·15·30분만 되고, 실행당 1~2초라 하루 288회를
+ *   써도 소비자 계정 한도(트리거 총 90분/일)의 10% 안쪽이다.
  *
  * 왜 Apps Script인가
  *   이미 쓰는 구글 계정이라 새 서비스 가입이 없고, 시간 기반 트리거가 무료다.
@@ -27,17 +28,20 @@
  *      ※ 스크립트 속성에 두면 코드·공유 링크에 토큰이 노출되지 않는다.
  *   4) 함수 목록에서 triggerLive 실행 → 권한 승인 → GitHub Actions 탭에
  *      "update-live-quotes" 실행이 workflow_dispatch로 뜨는지 확인
- *   5) 함수 목록에서 setUpTrigger 실행 → 10분 트리거 등록 완료
+ *   5) 함수 목록에서 setUpTrigger 실행 → 5분 트리거 등록 완료
  *      ※ 주기를 바꿨으면 반드시 setUpTrigger를 다시 실행해야 한다.
  *        기존 트리거는 지워지고 새 주기로 다시 걸린다.
  *
- * 장 시간에만 10분 (2026-10 개편)
- *   트리거는 여전히 10분마다 깨어나지만, 장이 닫힌 시간엔 30분에 한 번만 디스패치한다.
+ * 장중 5분 · 장외 15분 (2026-10 개편 → 같은 달 다시 당김)
+ *   트리거는 5분마다 깨어나고, 장이 닫힌 시간엔 15분에 한 번만 디스패치한다.
  *     · 한국장  평일 08:50–15:50 KST
  *     · 미국장  평일 09:20–16:20 뉴욕 시각 (서머타임은 뉴욕 시계로 자동 추종)
- *     · 그 밖   30분 간격 — 시트에서 고친 생활비·자산은 30분 안에 반영된다
- *   종전엔 주말·새벽에도 하루 144회 돌았다. 시장이 닫혀 있으면 바뀌는 게 없는데도
- *   시트 API를 읽고 live-data 브랜치를 다시 썼다. 주당 ~1,000회 → ~620회.
+ *     · 그 밖   15분 간격 — 시세는 멈춰 있어도 뉴스·환율(평일 저녁)·시트 수정은
+ *               계속 바뀐다. 30분은 '방금 고친 가계부'가 너무 늦게 보였다.
+ *   종전(장외 30분)의 취지는 유지한다 — 시장이 닫혀 있으면 5분마다 돌 이유는 없다.
+ *   이 워크플로가 도는 asset-dashboard는 공개 레포라 Actions 분이 무제한이다.
+ *   한도는 Actions가 아니라 바깥 API(시트·국토부·RSS)라, 그쪽은 update_live.py의
+ *   TTL_MIN이 블록별로 따로 조절한다 — 실행이 잦아져도 읽기는 그만큼 늘지 않는다.
  *   간격 판단은 '마지막 디스패치 후 경과 시간'으로 한다 — 트리거가 몇 분 흔들려도
  *   30분에 정확히 한 번이 유지된다.
  *
@@ -48,7 +52,7 @@
 const REPO = "kimwoss/asset-dashboard";
 const WORKFLOW = "live.yml";
 const REF = "main";
-const OFF_HOURS_GAP_MIN = 30;   // 장이 닫힌 시간의 디스패치 간격
+const OFF_HOURS_GAP_MIN = 15;   // 장이 닫힌 시간의 디스패치 간격
 
 /** 지금 한국장이나 미국장이 열려 있나 (앞뒤 여유 10~20분 포함). */
 function marketOpen(now) {
@@ -60,7 +64,7 @@ function marketOpen(now) {
 }
 function inRange(m, lo, hi) { return m >= lo && m <= hi; }
 
-/** 10분마다 불린다. 장중이면 매번, 아니면 30분에 한 번만 디스패치. */
+/** 5분마다 불린다. 장중이면 매번, 아니면 15분에 한 번만 디스패치. */
 function tick() {
   const now = new Date();
   const props = PropertiesService.getScriptProperties();
@@ -108,12 +112,12 @@ function triggerLive() {
   console.error(`실패 ${code}${hint ? " — " + hint : ""}: ${res.getContentText()}`);
 }
 
-/** 10분 주기 트리거 등록 (기존 것은 지우고 새로 만든다 — 중복 등록 방지).
+/** 5분 주기 트리거 등록 (기존 것은 지우고 새로 만든다 — 중복 등록 방지).
  *  깨우는 함수는 tick — 장 시간 판단을 거쳐 triggerLive를 부른다. */
 function setUpTrigger() {
   removeTrigger();
-  ScriptApp.newTrigger("tick").timeBased().everyMinutes(10).create();
-  console.log("10분 트리거 등록 완료 — 장중 10분 · 그 외 30분 간격으로 깨웁니다.");
+  ScriptApp.newTrigger("tick").timeBased().everyMinutes(5).create();
+  console.log("5분 트리거 등록 완료 — 장중 5분 · 그 외 15분 간격으로 깨웁니다.");
 }
 
 /** 트리거 해제. 워크플로의 schedule 크론은 그대로라 100분마다는 계속 돈다. */

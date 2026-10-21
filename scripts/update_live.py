@@ -58,31 +58,43 @@ PREV_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/
 #   그 외 = 그 시간이 지나야 다시 읽는다. 그 전에는 직전 발행본 값을 그대로 싣는다.
 # 값이 아니라 '읽기'를 아끼는 것이므로 페이로드는 항상 완전하다.
 TTL_MIN = {
-    # ── T1 실시간 (목표 ≤10분) — 매 실행 ──────────────────────────────────
+    # ── T1 실시간 (목표 ≤5분) — 매 실행 ───────────────────────────────────
     "financial":     0,     # 계좌 평가액. 가격은 quotes.py가 직접 받아 곱한다
     "checkpoint":    0,     # 셀 1개라 저렴 + 모닝 리포트를 늦추지 않으려고
-    # ── T2 반나절 (≤3시간) — 사람이 시트를 고치면 그 안에 반영된다 ─────────
-    "fire":          180,   # ★종합 목표치. 달성률은 프론트가 순자산으로 재계산
-    "simulation":    180,   # 은퇴 지도 — 경기순환 설정을 바꾸면 3시간 내
-    "spending":      180,   # 가계부
-    "annual_flow":   180,   # 연도별 소득·지출
-    "asset_history": 180,
-    "liabilities":   180,
-    "monthly":       180,
-    "baselines":     180,   # 전일·전월·전년 기준 — 달 바뀜을 놓치지 않게
-    # ── T3 반일 (240분) — 바깥이 하루 몇 번 바뀌는 것 ─────────────────────
-    "officetel":     240,   # 국토부 실거래 신고가 수시로 올라온다(API 24콜)
-    # ── T4 주 단위 (720분) — 사람이 손댈 때만 바뀐다 ──────────────────────
-    "cities":        720,   # 🌍이주 대시보드 — 도시를 더할 때만
-    "review":        720,   # 연간 리뷰
+    # 뉴스는 RSS 6곳을 두드린다. 주기를 5분으로 당기면서 그대로 두면 언론사에 가는 요청이
+    # 두 배가 된다 — 기사 갱신 속도로는 10분이면 충분하고, 종전과 같은 부하를 유지한다.
+    "news":          10,
+    # ── T2 30분 — 사람이 시트를 고치면 그 안에 반영된다 ──────────────────────
+    # 종전 180분. 가계부를 고치고 3시간 뒤에야 보이는 건 '실시간 대시보드'가 아니다.
+    # 블록마다 시트 읽기 1회라, 30분이면 하루 8블록 × 48회 = 384회 — 분당 60회 한도에
+    # 비하면 없는 것과 같다. 방금 고친 걸 당장 보려면 live 워크플로를 fresh 입력으로 돌린다.
+    "fire":          30,    # ★종합 목표치. 달성률은 프론트가 순자산으로 재계산
+    "simulation":    30,    # 은퇴 지도 — 경기순환 설정을 바꾸면 30분 내
+    "spending":      30,    # 가계부
+    "annual_flow":   30,    # 연도별 소득·지출
+    "asset_history": 30,
+    "liabilities":   30,
+    "monthly":       30,
+    "baselines":     30,    # 전일·전월·전년 기준 — 달 바뀜을 놓치지 않게
+    # ── T3 1시간 — 바깥이 하루 몇 번 바뀌는 것 ─────────────────────────────
+    "officetel":     60,    # 국토부 실거래 신고. 아래 주석의 API 한도 계산 참고
+    # ── T4 3시간 — 사람이 손댈 때만 바뀐다 ────────────────────────────────
+    "cities":        180,   # 🌍이주 대시보드 — 도시를 더할 때만
+    "review":        180,   # 연간 리뷰
 }
 # 등급을 나누는 기준은 '얼마나 자주 바뀌는가'가 아니라 **'얼마나 어긋나도 되는가'**다.
 # 부동산 KB시세는 주 1회(금)만 바뀌므로 일별 잡(update.yml)이 맡고 여기엔 없다.
 # 값이 아니라 '읽기'를 아끼는 것이라 페이로드는 언제나 완전하다.
 #
-# officetel만 240분인 이유 — 다른 블록은 시트를 읽을 뿐이지만 이 블록은 국토부 실거래
-# API를 24콜(2개 지역 × 12개월) 두드린다. 10분마다면 하루 3,456콜로 개발계정 한도의
-# 3분의 1을 태운다. 4시간이면 하루 6회 · 144콜(1.5%)이고, 신고 반영도 충분히 빠르다.
+# officetel 주기의 상한은 국토부 실거래 API다. 이 블록은 실행마다 24콜(2개 지역 × 12개월)을
+# 두드린다. 개발계정 한도는 하루 10,000콜.
+#   240분(종전) → 하루 144콜 (1.4%)
+#    60분(지금) → 하루 576콜 (5.8%)   ← 신고는 수시로 올라오지만 분 단위로 바뀌진 않는다
+#     5분(매실행)→ 하루 6,912콜 (69%) ← 다른 잡이 같은 키를 쓰면 한도에 닿는다. 하지 않는다
+#
+# 2026-10 주기 조정의 원칙 — 이 잡이 도는 asset-dashboard는 공개 레포라 Actions가 무제한이다.
+# 그래서 당길 수 있는 건 전부 여기서 당겼다. 비공개 bundang-market-report는 계정 전체가
+# 2,000분/월을 나눠 쓰므로 주기를 늘리지 않는다(PLAYBOOK §7).
 
 
 def _load_prev():
@@ -306,13 +318,6 @@ def main():
     if not us and not fx and not accounts:
         raise SystemExit("실시간 데이터가 하나도 없음 — 중단 (빈 live.enc 방지)")
 
-    # 3) 관심 뉴스 — 매 실행 최신으로. 실패해도 시세는 나가야 하니 []로 폴백.
-    try:
-        news = news_feed.fetch_news()
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: 뉴스 조회 실패 ({type(e).__name__}: {e})")
-        news = []
-
     # 4) 직전 발행본 — 수명이 남은 블록은 여기서 그대로 가져다 쓴다.
     prev, meta = _load_prev()
     meta = dict(meta)
@@ -382,6 +387,8 @@ def main():
     liabilities   = _block("liabilities", sheets_yearly.fetch_liabilities, now.date())
     cities        = _block("cities", sheets_cities.fetch_cities, now.date())
     officetel     = _block("officetel", lambda _d: sheets_officetel.fetch_officetel(), now.date())
+    # 관심 뉴스 — TTL을 탄다(위 TTL_MIN 주석). 실패하면 직전 값을 유지해 빈 칸이 뜨지 않는다.
+    news          = _block("news", lambda: news_feed.fetch_news()) or []
     annual_flow   = _block("annual_flow", lambda _d: sheets_annual.fetch_annual_flow(), now.date())
     simulation    = _block("simulation", sheets_sim.fetch_simulation)
     review        = _block("review", sheets_review.fetch_review)
