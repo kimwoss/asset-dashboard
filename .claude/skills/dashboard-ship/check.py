@@ -108,12 +108,7 @@ def main() -> int:
             fk = set()
             for loop in re.findall(r"for \(const k of \[(.*?)\]\)", fn.group(1), re.S):
                 fk |= set(re.findall(r'"([a-z_]+)"', loop))
-            # 루프 밖에서 따로 반영하는 블록도 있다(news·checkpoint는 체크포인트 안으로 들어간다).
-            # 이름을 예외 목록에 하나씩 적는 대신, applyLive가 live.<키>를 실제로 읽는지 본다 —
-            # 그래야 새 블록을 TTL에 넣고 반영을 빠뜨린 경우를 계속 잡는다.
-            fk |= set(re.findall(r"\blive\.([a-z_]+)", fn.group(1)))
-            # baselines는 페이로드에서 prev_day/prev_month/prev_year 세 키로 풀려 나간다
-            gap = {k for k in keys if k not in fk and k != "baselines"}
+            gap = {k for k in keys if k not in fk and k not in ("checkpoint", "baselines")}
             ok("applyLive가 모든 블록을 반영") if not gap else bad(f"applyLive 누락: {gap}")
 
     # ── 결과 ───────────────────────────────────────────────────────────────
