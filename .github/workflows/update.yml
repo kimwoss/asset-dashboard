@@ -30,6 +30,7 @@ concurrency:
 
 jobs:
   update:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       # 월말 크론(28~31일 발화)은 KST 기준 실제 말일에만 진행 — 나머지 날은 여기서 종료.

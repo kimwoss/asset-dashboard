@@ -61,7 +61,7 @@ const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live
 
 async function loadLive(passphrase) {
   try {
-    const r = await fetch(LIVE_URL + "?t=" + Date.now());  // 매 호출 캐시 우회 (업데이트 버튼 대응)
+    const r = await fetch(LIVE_URL + "?t=" + Date.now(), { signal: AbortSignal.timeout(15000) });  // 매 호출 캐시 우회 (업데이트 버튼 대응)
     if (!r.ok) return null;
     return JSON.parse(await decryptEnvelope(await r.text(), passphrase));
   } catch (e) {
@@ -84,9 +84,9 @@ function applyLive(snap, live) {
   if (snap.checkpoint) {
     let applied = false;
     for (const k of ["us", "kr", "fx"])
-      if (live[k] && live[k].length) { snap.checkpoint[k] = live[k]; applied = true; }
+      if (Array.isArray(live[k])) { snap.checkpoint[k] = live[k]; applied = true; }
     // 뉴스도 실시간(30분)으로 덮어쓴다 — 07:00 모닝 뉴스가 온종일 옛것으로 남던 문제 해결
-    if (live.news && live.news.length) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
+    if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; snap.checkpoint.news_at = live._fetched?.news || null; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
     // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
@@ -103,7 +103,7 @@ function applyLive(snap, live) {
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
                    "spending", "cities", "officetel", "simulation", "review", "annual_flow",
                    "prev_day", "prev_month", "prev_year"])
-    if (live[k]) snap[k] = live[k];
+    if (presentValue(live, k)) snap[k] = live[k];
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
@@ -130,7 +130,7 @@ function applyLive(snap, live) {
   // 자산·부채가 갱신됐으면 총자산·총부채·순자산 재계산 (KPI·합계·도넛 반영).
   if (Array.isArray(snap.assets)) {
     snap.gross_krw = snap.assets.reduce((s, a) => s + (a.value_krw || 0), 0);
-    if (live.liabilities && live.liabilities.length)
+    if (Array.isArray(live.liabilities))
       snap.debt_krw = live.liabilities.reduce((s, l) => s + (l.amount_krw || 0), 0);
     if (snap.debt_krw != null) { snap.net_krw = snap.gross_krw - snap.debt_krw; snap.total_krw = snap.net_krw; }
   }
@@ -141,8 +141,8 @@ function applyLive(snap, live) {
 async function loadData(passphrase) {
   const bust = "?t=" + Date.now();
   const [encSnap, encHist] = await Promise.all([
-    fetch("data/latest.enc" + bust).then(r => { if (!r.ok) throw new Error("latest.enc HTTP " + r.status); return r.text(); }),
-    fetch("data/history.enc" + bust).then(r => r.ok ? r.text() : ""),
+    fetch("data/latest.enc" + bust, { signal: AbortSignal.timeout(15000) }).then(r => { if (!r.ok) throw new Error("latest.enc HTTP " + r.status); return r.text(); }),
+    fetch("data/history.enc" + bust, { signal: AbortSignal.timeout(15000) }).then(r => r.ok ? r.text() : ""),
   ]);
   const snap = JSON.parse(await decryptEnvelope(encSnap, passphrase));
   const histText = encHist ? await decryptEnvelope(encHist, passphrase) : "";
@@ -159,54 +159,58 @@ function dismissIntro() {
 
 // 시네마틱 인트로 겸 게이트. 데이터가 준비되면 resolve하되 인트로는 유지 —
 // main()이 render() 후 dismissIntro()로 걷어내 완성된 대시보드가 곧바로 드러난다.
+let appPassphrase = null;
+function readSavedPassword() {
+  try { return sessionStorage.getItem("asset_pw") || localStorage.getItem("asset_pw"); } catch { return null; }
+}
+function retainPassword(value, remember) {
+  appPassphrase = value;
+  try {
+    localStorage.removeItem("asset_pw");
+    sessionStorage.setItem("asset_pw", value);
+    if (remember) { localStorage.setItem("asset_pw", value); localStorage.setItem("asset_remember_v2", "1"); }
+    else localStorage.removeItem("asset_remember_v2");
+  } catch { /* Storage may be blocked; memory-only operation still works. */ }
+}
+function lockDashboard() {
+  appPassphrase = null; baseSnap = null; histText = "";
+  try { sessionStorage.removeItem("asset_pw"); localStorage.removeItem("asset_pw"); localStorage.removeItem("asset_remember_v2"); } catch {}
+  location.reload();
+}
 async function gate() {
   const pwRow = document.getElementById("introPw"), autoRow = document.getElementById("introAuto");
-  const input = document.getElementById("pw"), btn = document.getElementById("pwbtn"),
-        msg = document.getElementById("pwmsg");
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // 인트로 연출을 끝까지 보여줄 최소 시간 (재방문 자동진입도 이 시간은 머문다)
-  const minShow = new Promise(r => setTimeout(r, reduce ? 300 : 2400));
-
-  // 받기 실패(망·서버)와 풀기 실패(비밀번호)를 가른다. fetch가 망에서 끊기면 TypeError,
-  // 서버가 거절하면 우리가 'HTTP'를 넣어 던진다. 나머지는 복호화 실패다.
-  const isNetErr = e => e instanceof TypeError || String(e).includes("HTTP");
-  const saved = localStorage.getItem("asset_pw");
+  const input = document.getElementById("pw"), btn = document.getElementById("pwbtn");
+  const msg = document.getElementById("pwmsg"), remember = document.getElementById("remember-device");
+  const isNetErr = e => e instanceof TypeError || String(e).includes("HTTP") || e?.name === "TimeoutError";
+  const saved = readSavedPassword();
   if (saved) {
     autoRow.style.display = "";
     try {
-      const [data] = await Promise.all([loadData(saved), minShow]);
+      const data = await loadData(saved);
+      let explicitRemember = false;
+      try { explicitRemember = localStorage.getItem("asset_remember_v2") === "1"; } catch {}
+      retainPassword(saved, explicitRemember);
       return data;
     } catch (e) {
       autoRow.style.display = "none";
-      if (isNetErr(e)) {
-        // 저장된 비밀번호는 그대로 둔다 — 종전엔 신호가 잠깐 끊겨도 지워서 매번 다시 쳐야 했다.
-        // 입력칸에 미리 넣어 두니 '들어가기'만 다시 누르면 된다.
-        input.value = saved;
-        msg.textContent = "데이터를 받지 못했어요. 연결을 확인하고 '들어가기'를 눌러 주세요.";
-      } else {
-        localStorage.removeItem("asset_pw");
-        msg.textContent = "비밀번호가 바뀌었어요. 새 비밀번호를 입력해 주세요.";
-      }
+      msg.textContent = isNetErr(e) ? "데이터를 받지 못했어요. 연결을 확인해 주세요." : "비밀번호를 다시 입력해 주세요.";
+      if (!isNetErr(e)) { try { sessionStorage.removeItem("asset_pw"); localStorage.removeItem("asset_pw"); } catch {} }
     }
   }
-
-  // 신규 방문 또는 저장된 비밀번호 실패 — 비밀번호 입력
   pwRow.style.display = "";
-  setTimeout(() => input.focus(), reduce ? 350 : 1750);
+  input.focus();
   return new Promise(resolve => {
     const attempt = async () => {
       const pw = input.value;
-      if (!pw) return;
-      btn.disabled = true; msg.textContent = "확인 중…";
+      if (!pw || btn.disabled) return;
+      btn.disabled = true; msg.textContent = "안전하게 불러오는 중…";
       try {
         const data = await loadData(pw);
-        localStorage.setItem("asset_pw", pw);
-        resolve(data);
+        retainPassword(pw, remember.checked);
+        input.value = ""; resolve(data);
       } catch (e) {
         btn.disabled = false;
-        msg.textContent = isNetErr(e)
-          ? "데이터를 불러오지 못했어요. 연결을 확인해 주세요."
-          : "비밀번호가 맞지 않아요.";
+        msg.textContent = isNetErr(e) ? "데이터를 불러오지 못했어요. 연결을 확인해 주세요." : "비밀번호가 맞지 않거나 파일을 열 수 없어요.";
       }
     };
     btn.addEventListener("click", attempt);
@@ -238,71 +242,12 @@ async function render() {
 
   // 실시간 시세·뉴스·체크포인트 덮어쓰기 (장중 5분 · 장외 15분). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   // live를 이름 있는 변수로 받는다 — 아래 신선도 배지가 _fetched를 들여다봐야 한다.
-  const live = await loadLive(localStorage.getItem("asset_pw"));
+  const live = await loadLive(appPassphrase);
   const liveAt = applyLive(snap, live);
 
   // 등급별로 무엇이 언제 값인지 한 번에 알려 준다. 대시보드에서 가장 자주 나오는
   // 물음이 "이거 지금 값이야?"인데, 지금까지는 답할 방법이 없었다.
-  function freshnessTip(live) {
-    const t = (iso) => {
-      if (!iso) return "—";
-      const d = new Date(iso);
-      if (isNaN(d)) return "—";
-      const m = Math.max(0, Math.round((Date.now() - d) / 60000));
-      return m < 1 ? "방금" : m < 60 ? m + "분 전" : Math.round(m / 60) + "시간 전";
-    };
-    const f = (live && live._fetched) || {};
-    const q = (live && live.financial && live.financial.quotes_asof) || null;
-    return [
-      "T1 실시간 (장중 5분 · 장외 15분)",
-      `  주식·환율  ${t(q)}` + (q ? "  ← 가격을 직접 조회" : ""),
-      `  계좌 평가액 ${t(f.financial)}`,
-      `  뉴스      ${t(f.news)}`,
-      "T2 30분",
-      `  가계부·목표·시뮬  ${t(f.spending)}`,
-      "T3 1시간 · T4 3시간",
-      `  다음 후보집 ${t(f.officetel)} · 도시 ${t(f.cities)}`,
-      "부동산 KB시세는 주 1회(금) 일별 잡이 맡습니다.",
-    ].join("\n");
-  }
-
-  // 헤더 메타 — 종전엔 시세·스냅샷·환율이 같은 크기 회색 글씨로 나열돼, 무엇이 '지금'
-  // 값인지 판단이 안 됐다. 실시간 여부는 점 있는 배지로 올리고(가장 먼저 눈에 걸림),
-  // 스냅샷 시각은 보조로 내린다. 환율은 데이터라 시세 영역에서 따로 보여준다.
-  const hdr = document.getElementById("updated");
-  // 오늘 시각이면 날짜를 뺀다 — '2026-10-09 16:06'의 날짜는 오늘인 한 정보가 없다.
-  // (아래 todayKST는 이 함수 뒤쪽에서 const로 선언돼 여기서 쓰면 선언 전 접근 오류다 — 직접 계산)
-  const hdrToday = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  const hdrTime = t => {
-    const v = (t || "").replace(" KST", "");
-    return v.startsWith(hdrToday + " ") ? v.slice(11) : v;
-  };
-  if (liveAt) {
-    // 몇 분 전인지까지 적는다. 시각만 있으면 '지금 값인가'를 사람이 매번 계산해야 한다.
-    // 배지 색은 나이로 바꾼다 — 10분 이내가 목표이고, 넘어가면 눈에 걸려야 한다.
-    const mins = (() => {
-      const m = liveAt.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
-      if (!m) return null;
-      return Math.max(0, Math.round(
-        (Date.now() - new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])) / 60000));
-    })();
-    // 장중 5분 · 장외 15분 발행에 CDN 캐시 5분과 실행 1분을 더하면, 장외에서도 21분 안에는 온다.
-    // 그보다 늦으면 트리거가 죽었거나 실행이 밀린 것이다.
-    const stale = mins != null && mins > 22;
-    const ago = mins == null ? "" : mins < 1 ? " · 방금" : ` · ${mins}분 전`;
-    hdr.innerHTML = `<span class="hdr-live${stale ? " stale" : ""}" title="${
-        esc(freshnessTip(live))}"><span class="dot"></span>실시간 ${
-        hdrTime(liveAt)}${ago}</span>`
-                  + `<span class="hdr-snap secondary">스냅샷 ${hdrTime(snap.updated_at)}</span>`;
-  } else {
-    // 실시간을 못 받았다는 사실을 화면에 남긴다. 종전엔 '스냅샷'만 떠서, 기기마다 순자산이
-    // 다르게 보여도 왜 그런지 단서가 없었다 — 폰만 실시간을 못 받으면 반나절 전 값이
-    // 조용히 표시된다(2026-08 문의). live.enc는 raw.githubusercontent 한 곳에서만 오므로
-    // 그 호스트가 막힌 망에서는 이 배지가 켜진다.
-    const why = live ? "" :
-      `<span class="hdr-live stale" title="실시간 파일(live.enc)을 받지 못했습니다. 아래 값은 일별 스냅샷 기준입니다. 망에서 raw.githubusercontent.com이 막혀 있으면 이 상태가 됩니다."><span class="dot"></span>실시간 못 받음</span>`;
-    hdr.innerHTML = why + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
-  }
+  // Per-block health is rendered at the end of this transaction.
   document.getElementById("fx").textContent = snap.fx_usdkrw
     ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$" + (liveAt ? "" : " (" + snap.fx_asof + ")")
     : "";
@@ -375,7 +320,7 @@ async function render() {
 
   // 순자산 hero 카드. FIRE 진행 게이지는 바로 아래 'FIRE 목표 달성' 카드가 같은 것을
   // 더 자세히 보여줘서 뺐다 — 같은 숫자를 두 번 읽게 하면 어느 쪽이 진짜인지 헷갈린다.
-  let cards = `<div class="card hero"><div class="label">순자산 <span class="asof">${liveAt ? "지금 " + liveAt.slice(11, 16) : "스냅샷"}</span></div>
+  let cards = `<div class="card hero"><div class="label">순자산 <span class="asof">${liveAt ? "발행 " + ageLabel(liveAt) : "스냅샷"}</span></div>
     <div class="value">${eokMan(net)}</div>
     <div class="sub">${subDeltas("net_krw", net, false) || "총자산 − 부채"}</div></div>`;
   cards += kpiCard("총자산", eokMan(gross), subDeltas("gross_krw", gross, false) || "부채 제외 전");
@@ -393,7 +338,7 @@ async function render() {
   // 기준시점을 화면에 못박는다 — 이 한 줄이 '이 숫자가 언제 것인가'의 유일한 답이다.
   const pd = snap.prev_day;
   document.getElementById("kpi-note").innerHTML =
-    `증감은 <b>지금${liveAt ? " " + liveAt.slice(11, 16) : ""}</b> 값을 아래 시점의 확정치와 비교합니다 — `
+    `증감은 <b>최근 발행본${liveAt ? " · " + ageLabel(liveAt) : ""}</b> 값을 아래 시점의 확정치와 비교합니다 — `
     + [
         pd && `<b>전일</b> ${pd.key} 07:30`,
         pm && `<b>전월</b> ${pm.key} 말${pm.source === "sheet" ? "(★월별자산 소계·부동산 추정가)" : ""}`,
@@ -459,7 +404,7 @@ async function render() {
   // 추이 — 마지막 점은 위 KPI·도넛과 같은 '지금' 값이다 (아래 안내로 명시).
   // 기본은 연 단위. 올해만 월별로 촘촘하면 x축 한 칸의 뜻이 해마다 달라져
   // 기울기를 눈으로 비교할 수 없다. 올해 안을 보고 싶으면 차트를 눌러 펼친다.
-  const asof = liveAt ? `${liveAt} 실시간 평가액` : `${snap.updated_at} 스냅샷`;
+  const asof = liveAt ? `${liveAt} 발행본 평가액` : `${snap.updated_at} 스냅샷`;
   const curY = curKey.slice(0, 4), curM = Number(curKey.slice(5));
   let trendYearly = true;
   const drawTrend = () => {
@@ -568,7 +513,9 @@ async function render() {
   // 렌더가 끝난 뒤 보이는 탭의 카드에 스크롤 진입 연출을 건다 (숨은 탭은 열릴 때 건다)
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
-  return liveAt ? `시세 ${liveAt} 기준` : `${snap.updated_at} 기준`;
+  renderExperience(snap, live, net);
+  renderPlanningLab(snap);
+  return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
 }
 
 /* 라이트/다크 수동 토글 — 버튼 아이콘은 현재 테마를 보여준다. SVG 차트는 CSS 변수를
@@ -631,7 +578,7 @@ async function main() {
     rb.disabled = true; rb.classList.add("spin");
     const t0 = Date.now();
     try {
-      const pw = localStorage.getItem("asset_pw");
+      const pw = appPassphrase;
       [baseSnap, histText] = await loadData(pw);   // 일별 발행본 재수신 (핵심 — 종전엔 live만 받았다)
       const freshness = await render();            // live.enc 재수신 + 전체 재렌더
       lastLoad = Date.now();
@@ -646,6 +593,7 @@ async function main() {
     }
   };
   rb.addEventListener("click", () => refreshAll(false));
+  document.getElementById("lock-dashboard").onclick = lockDashboard;
 
   // 화면에 다시 돌아오면 알아서 최신화한다.
   //
@@ -656,7 +604,7 @@ async function main() {
   //
   // pageshow(persisted)도 함께 듣는다. bfcache로 복원되면 스크립트가 다시 돌지 않고
   // visibilitychange도 오지 않는 경우가 있다(iOS Safari에서 흔하다).
-  const AUTO_REFRESH_GAP = 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
+  const AUTO_REFRESH_GAP = 5 * 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
   const maybeAutoRefresh = () => {
     if (document.visibilityState !== "visible") return;
     if (Date.now() - lastLoad < AUTO_REFRESH_GAP) return;
@@ -665,6 +613,8 @@ async function main() {
   // visibilitychange는 document에서 발생한다. window에 걸면 버블링에 기대게 되므로
   // 표준 대상인 document에 직접 건다.
   document.addEventListener("visibilitychange", maybeAutoRefresh);
+  const refreshTimer = setInterval(maybeAutoRefresh, AUTO_REFRESH_GAP);
+  addEventListener("pagehide", ev => { if (!ev.persisted) clearInterval(refreshTimer); });
   addEventListener("pageshow", e => { if (e.persisted) maybeAutoRefresh(); });
 }
 

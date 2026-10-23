@@ -87,12 +87,14 @@ def _label(grid, r1: int) -> str:
     return str(r[2]).strip() if len(r) > 2 else ""
 
 
-def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
+def fetch_liabilities(today: Optional[date] = None, strict: bool = False) -> List[Dict]:
     """★연도별자산 올해 열에서 대출·전세보증금 잔액을 읽는다. 실패/빈 결과 시 [] → yaml 폴백."""
     today = today or date.today()
     try:
         grid, col, asof = _current(today)
         if grid is None or col is None:
+            if strict:
+                raise RuntimeError("Liability source unavailable")
             return []
         out: List[Dict] = []
         for r, (kind, target) in sm.LIAB_ROWS.items():
@@ -111,6 +113,8 @@ def fetch_liabilities(today: Optional[date] = None) -> List[Dict]:
         print(f"OK: 부채 {len(out)}건 {total/1e8:.2f}억 (★월별자산 {asof})")
         return out
     except Exception as e:  # noqa: BLE001
+        if strict:
+            raise
         print(f"WARN: 부채 읽기 실패 ({type(e).__name__}: {e}) — yaml 폴백")
         return []
 

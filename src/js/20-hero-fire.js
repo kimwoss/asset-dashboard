@@ -194,7 +194,7 @@ function startCover() {
 
 function renderHeroBand(snap, net) {
   const el = document.getElementById("heroband");
-  if (!el || !net) return;
+  if (!el || !Number.isFinite(net)) return;
   el.className = "heroband" + (hbHidden() ? " hb-off" : "");
   el.style.display = "";
   if (!startCover._done) { startCover._done = true; startCover(); }
@@ -287,7 +287,7 @@ function syncHeroBand(el) {
 
 // 카드 아무 데나 눌러도 접히고 펴진다 (버튼은 어디를 눌러야 하는지 알려 주는 표식).
 document.addEventListener("click", (ev) => {
-  const el = ev.target.closest("#heroband");
+  const el = ev.target.closest("#heroband .hb-toggle")?.closest("#heroband");
   if (!el) return;
   const off = el.classList.toggle("hb-off");
   localStorage.setItem(HB_HIDE_KEY, off ? "1" : "0");
@@ -332,7 +332,7 @@ function renderFire(f, net) {
   if (f.target_year) {
     // 목표 시점은 '연도+월'(예: 2028년 4월)의 1일. 예전엔 12월 31일로 잡아 8개월 늦게 셌다.
     const tm = f.target_month || 12;
-    const dday = Math.round((new Date(f.target_year, tm - 1, 1) - new Date()) / 864e5);
+    const dday = Math.round((dataTime(String(f.target_year) + "-" + String(tm).padStart(2, "0") + "-01") - dataTime(kstDay())) / 864e5);
     const when = dday > 0 ? `D-${dday} · ${Math.floor(dday / 365)}년 ${Math.floor(dday % 365 / 30)}개월` : "목표 시점 도래";
     facts.push(["은퇴 목표", f.retire_age ? dual(f.retire_age) : `${f.target_year}년 ${tm}월`,
                 `${f.target_year}년 ${tm}월 · ${when}`, !!f.retire_age]);
@@ -443,4 +443,3 @@ function stackBar(label, pension, liquid) {
     <div class="goal-sub">연금성 ${fmtEok(pension)} · 유동성 ${fmtEok(liquid)}</div>
   </div>`;
 }
-
