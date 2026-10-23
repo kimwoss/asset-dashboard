@@ -3,7 +3,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const { projectSavings } = require('../src/js/65-planning-lab.js');
 const runtime = fs.readFileSync(path.join(__dirname,'../src/js/90-runtime.js'),'utf8');
 const health = fs.readFileSync(path.join(__dirname,'../src/js/05-data-health.js'),'utf8');
 function liveContext() {
@@ -26,16 +25,6 @@ test('unavailable liabilities preserve existing values',()=>{
   const c=liveContext();
   const result=vm.runInContext('const s={assets:[{value_krw:100}],debt_krw:40};applyLive(s,{liabilities:null});JSON.stringify(s)',c);
   assert.equal(JSON.parse(result).debt_krw,40);
-});
-test('zero-return projections separate contributions correctly',()=>{
-  assert.equal(projectSavings(10000000,1000000,0,12),22000000);
-  assert.ok(Math.abs(projectSavings(100,0,5,12)-105)<1e-9);
-  assert.ok(Math.abs(projectSavings(100,0,-10,12)-90)<1e-9);
-});
-test('invalid projections do not produce financial outputs',()=>{
-  assert.equal(projectSavings(100,-1,3,12),null);
-  assert.equal(projectSavings(100,0,-100,12),null);
-  assert.equal(projectSavings(NaN,0,3,12),null);
 });
 function authContext() {
   const storage=()=>{const m=new Map();return {getItem:k=>m.get(k)||null,setItem:(k,v)=>m.set(k,v),removeItem:k=>m.delete(k)};};

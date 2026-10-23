@@ -548,8 +548,7 @@ const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
 // 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
 const FD_ALIAS = {
   checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
-  retirement: "은퇴 준비 FIRE 시뮬레이션 계획 저축 가정",
-  overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
+  overview:   "순자산 fire 은퇴 시뮬레이션 부동산 아파트 부채 대출 추이",
   financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
   spending:   "가계부 소비 지출 생활비 카테고리",
   cashflow:   "연금 세금 건보료 건강보험 현금흐름 은퇴",

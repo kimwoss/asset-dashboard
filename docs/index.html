@@ -1120,51 +1120,10 @@ header .meta { font-size:11px; }
 #cover .delta-chip.up { color:#c7e4d5; background:rgba(132,187,158,.15); }
 #cover .delta-chip.dn { color:#ffd1c6; background:rgba(232,136,119,.15); }
 #cover .hb-spark { color:#e2d5b4; }
-.journey-nav { display:flex; border-bottom:1px solid var(--border); gap:30px; margin-top:20px; position:sticky; top:0;
-  z-index:35; background:var(--nav-bg); backdrop-filter:blur(18px); }
-.journey-nav button { position:relative; border:0; background:none; color:var(--ink-2); font-size:15px;
-  padding:21px 2px 18px; cursor:pointer; white-space:nowrap; font-weight:550; min-height:58px; }
-.journey-nav button span { font-size:10px; color:var(--ink-muted); margin-right:9px; font-weight:450; }
-.journey-nav button[aria-pressed="true"] { color:var(--ink-1); }
-.journey-nav button[aria-pressed="true"]::after { content:""; position:absolute; height:2px; bottom:-1px; left:0; right:0; background:var(--nav-accent); }
 .tabs { margin:0 0 34px; padding:11px 0; position:sticky; top:63px; gap:6px; border-bottom:0; background:var(--nav-bg); z-index:30; }
 .tab { font-size:12px; padding:9px 16px; min-height:38px; border-radius:30px; letter-spacing:0; }
 .tab.on { box-shadow:none; }
-.tab.out-of-group { display:none!important; }
-body[data-section="today"] .tabs { margin-bottom:12px; }
-.daily-heading { display:flex; justify-content:space-between; align-items:center; margin:16px 0 28px; gap:20px; }
 .eyebrow { font-size:10px; font-weight:600; letter-spacing:.2em; color:var(--ink-muted); }
-.daily-heading h2 { font-size:clamp(25px,3vw,35px); font-weight:550; letter-spacing:-.055em; margin:12px 0 9px; line-height:1.3; }
-.daily-heading p { font-size:12px; color:var(--ink-muted); margin:0; }
-.edition { border-left:1px solid var(--border); padding-left:20px; font-size:10px; line-height:1.8; letter-spacing:.2em; color:var(--ink-muted); }
-.daily-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
-.daily-kpi { position:relative; display:flex; flex-direction:column; align-items:flex-start; text-align:left;
-  padding:24px 22px; background:var(--surface-1); border:1px solid var(--border); border-radius:16px; min-height:154px; color:var(--ink-1);
-  cursor:pointer; transition:transform .2s,border-color .2s; }
-.daily-kpi:hover { transform:translateY(-3px); border-color:var(--nav-accent); }
-.daily-kpi>span { font-size:12px; color:var(--ink-2); margin-bottom:20px; }
-.daily-kpi strong { font-size:clamp(20px,2.2vw,29px); font-weight:550; letter-spacing:-.045em; font-variant-numeric:tabular-nums; line-height:1.2; }
-.daily-kpi:first-child strong { color:var(--pos); }
-.daily-kpi.negative strong { color:var(--neg); }
-.daily-kpi small { font-size:10px; color:var(--ink-muted); margin-top:12px; line-height:1.5; }
-.daily-kpi i { position:absolute; top:20px; right:20px; font-style:normal; color:var(--ink-muted); }
-.daily-bottom { display:grid; grid-template-columns:.85fr 1.6fr; gap:24px; margin-bottom:38px; }
-.daily-note { background:var(--premium-tint); border-radius:16px; padding:28px 30px; position:relative; overflow:hidden; }
-.daily-note::after { content:""; width:160px; height:160px; border:1px solid var(--border); border-radius:50%; position:absolute; right:-55px; bottom:-60px; pointer-events:none; }
-.daily-note h3 { font-size:23px; font-weight:550; letter-spacing:-.05em; margin:17px 0 12px; }
-.daily-note p { font-size:12px; line-height:1.9; color:var(--ink-2); margin:0 0 18px; }
-.daily-note button { background:none; border:0; padding:0; color:var(--ink-1); font-size:11px; font-weight:650; cursor:pointer; min-height:34px; }
-.daily-note button span { margin-left:20px; }
-.daily-actions { padding:4px 0; }
-.section-caption { display:flex; align-items:baseline; justify-content:space-between; padding:0 0 12px; gap:12px; }
-.section-caption h3 { font-size:16px; margin:0; font-weight:600; }
-.section-caption>span { font-size:10px; color:var(--ink-muted); }
-.daily-actions>button { display:flex; gap:20px; align-items:center; border:0; border-top:1px solid var(--border);
-  padding:18px 0; width:100%; text-align:left; color:var(--ink-1); background:transparent; cursor:pointer; }
-.daily-actions>button>span:last-child { margin-left:auto; color:var(--ink-muted); }
-.action-index { font-size:11px; color:var(--nav-accent); }
-.daily-actions b { display:block; font-size:13px; font-weight:550; }
-.daily-actions small { display:block; color:var(--ink-muted); font-size:11px; line-height:1.6; margin-top:5px; }
 .card { padding:26px; box-shadow:var(--shadow); border:1px solid var(--border); }
 .card h2 { font-size:18px; font-weight:600; letter-spacing:-.035em; margin-bottom:20px; }
 .cards { gap:14px; }
@@ -1217,9 +1176,6 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 .preview-notice { background:#203b48; color:#fff7e6; text-align:center; font-size:12px; padding:12px; margin:0 calc(-1 * var(--pad)); }
 @media (max-width:1100px) {
   #updated,#granny .lb { display:none; }
-  .daily-kpi { padding:20px 17px; }
-  .daily-kpi strong { font-size:22px; }
-  .daily-kpi small { font-size:10px; }
 }
 @media (max-width:760px) {
   header { min-height:76px; gap:8px; padding:12px 0; }
@@ -1235,26 +1191,8 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   #cover .hb-val { font-size:35px; }
   #cover .hb-gauges { display:none; }
   .cover-capline { margin-bottom:24px; }
-  .journey-nav { gap:0; justify-content:space-between; margin-top:10px; }
-  .journey-nav button { font-size:13px; min-height:56px; padding:18px 2px; }
-  .journey-nav button span { display:none; }
   .tabs { top:56px; margin-bottom:22px; padding:9px 0; }
   .tab { min-height:40px; padding:10px 14px; }
-  .daily-heading { margin:20px 0 24px; }
-  .daily-heading h2 { font-size:28px; }
-  .daily-heading p { font-size:11px; }
-  .edition { display:none; }
-  .daily-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-  .daily-kpi { min-height:146px; padding:20px 16px; }
-  .daily-kpi strong { font-size:21px; }
-  .daily-kpi i { top:17px; right:14px; }
-  .daily-kpi>span { font-size:11px; margin-bottom:18px; }
-  .daily-bottom { grid-template-columns:1fr; gap:22px; margin-bottom:30px; }
-  .daily-note { padding:24px; }
-  .daily-note p br { display:none; }
-  .daily-note h3 { font-size:21px; }
-  .daily-note p { margin-bottom:8px; }
-  .daily-actions>button { min-height:80px; padding:17px 0; }
   .card { padding:21px 18px; border-radius:15px; }
   .card h2 { font-size:17px; }
   .house-cards { display:grid; gap:14px; margin:0 0 24px; }
@@ -1273,35 +1211,26 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 }
 
 
-#planning-lab { margin-bottom:24px; }
-.lab-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
-.lab-header h2 { font-size:26px; margin:12px 0; font-weight:550; }
-.lab-header p,.lab-note { color:var(--ink-2); font-size:12px; line-height:1.9; }
-.lab-tag { background:var(--premium-tint); color:var(--ink-2); padding:7px 11px; border-radius:50px; font-size:10px; white-space:nowrap; }
-.planning-form { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin:28px 0; }
-.planning-form label { font-size:11px; color:var(--ink-2); }
-.planning-form label>span { display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--border); padding:10px 0; margin-top:4px; }
-.planning-form input { min-width:0; width:100%; border:0; background:none; color:var(--ink-1); font-size:24px; font-weight:550; outline-offset:4px; }
-.planning-form em { font-size:11px; font-style:normal; white-space:nowrap; }
-.planning-form button { grid-column:1/-1; justify-self:start; padding:12px 20px; border:0; border-radius:50px; background:var(--ink-1); color:var(--page); cursor:pointer; font-size:12px; }
-.lab-results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--border); border-radius:14px; background:var(--page); padding:22px; gap:20px; }
-.lab-results span { display:block; font-size:11px; color:var(--ink-2); margin-bottom:14px; }
-.lab-results strong { font-weight:550; font-size:24px; letter-spacing:-.04em; }
-.lab-results small { display:block; font-size:10px; color:var(--ink-muted); margin-top:9px; line-height:1.6; }
-.lab-comparison { display:flex; flex-wrap:wrap; gap:12px 24px; margin:18px 0; }
-.lab-comparison span { font-size:11px; color:var(--ink-2); }
-.lab-comparison b { font-weight:600; color:var(--ink-1); margin-left:6px; }
-@media (max-width:760px) {
-  .lab-header { flex-direction:column; gap:8px; }
-  .lab-header h2 { font-size:23px; }
-  .planning-form { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
-  .lab-results { grid-template-columns:1fr; padding:20px; gap:22px; }
-  .lab-results>div+div { border-top:1px solid var(--border); padding-top:18px; }
-}
-
 /* Source-time labels must wrap on narrow screens. */
 .cp-mkt-head { flex-wrap: wrap; }
 .cp-mkt-head .live-badge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* Direct tabs and a shorter, numbers-first home. */
+#cover { height:210px; min-height:0; margin-bottom:18px; }
+.cover-body { padding:22px 34px; }
+.cover-capline { margin-bottom:10px; }
+#cover .hb-val { font-size:clamp(30px,3.5vw,44px); }
+#cover .heroband { gap:24px; }
+.tabs { top:0; margin:0 0 20px; padding:10px 0; border-bottom:1px solid var(--border); }
+.tab { padding:10px 14px; min-height:42px; }
+@media (max-width:760px) {
+  #cover { height:200px; border-radius:18px; margin-bottom:8px; }
+  .cover-body { padding:18px 22px; }
+  .cover-capline { margin-bottom:8px; }
+  #cover .hb-val { font-size:32px; }
+  .tabs { top:0; margin-bottom:18px; padding:8px 0; }
+  .tab { padding:10px 13px; }
+}
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -1384,13 +1313,11 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   })();
 </script>
 
-<nav id="journey-nav" class="journey-nav" aria-label="주요 영역" hidden></nav>
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
   <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint" aria-label="오늘의 브리핑"><span class="t-full">오늘의 브리핑</span><span class="t-short" aria-hidden="true">브리핑</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="overview" aria-label="자산 현황"><span class="t-full">자산 현황</span><span class="t-short" aria-hidden="true">자산</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="financial" aria-label="투자 포트폴리오"><span class="t-full">투자 포트폴리오</span><span class="t-short" aria-hidden="true">투자</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="spending" aria-label="월간 생활비"><span class="t-full">월간 생활비</span><span class="t-short" aria-hidden="true">생활비</span></button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="retirement" aria-label="은퇴 준비"><span class="t-full">은퇴 준비</span><span class="t-short" aria-hidden="true">은퇴 준비</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cashflow" aria-label="현금 흐름 계획"><span class="t-full">현금 흐름 계획</span><span class="t-short" aria-hidden="true">현금흐름</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="review" aria-label="연간 리뷰"><span class="t-full">연간 리뷰</span><span class="t-short" aria-hidden="true">리뷰</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
@@ -1421,6 +1348,26 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 
 
 
+<section class="card" id="fire-section" style="display:none">
+    <h2>FIRE 목표 달성</h2>
+    <div id="fire-body"></div>
+  </section>
+<section class="card" id="sim-section" style="display:none">
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
+      <div class="seg" id="sim-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+        <button class="seg-btn" data-mode="nominal">명목</button>
+      </div>
+    </div>
+    <div class="sim-stats" id="sim-stats"></div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
+    <details class="sim-fold" id="sim-fold">
+      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
+      <div class="tbl-scroll"><table id="sim-table"></table></div>
+      <div class="note" id="sim-table-note"></div>
+    </details>
+  </section>
   <section class="card">
     <h2>자산 구성</h2>
     <div class="donut-row" id="donuts"></div>
@@ -1539,26 +1486,6 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   </section>
 </div>
 
-<div id="tab-retirement" style="display:none"><section id="planning-lab" class="card"></section><section class="card" id="fire-section" style="display:none">
-    <h2>FIRE 목표 달성</h2>
-    <div id="fire-body"></div>
-  </section>
-<section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
-      <div class="seg" id="sim-seg" style="margin-bottom:0">
-        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-        <button class="seg-btn" data-mode="nominal">명목</button>
-      </div>
-    </div>
-    <div class="sim-stats" id="sim-stats"></div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
-    <details class="sim-fold" id="sim-fold">
-      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div class="tbl-scroll"><table id="sim-table"></table></div>
-      <div class="note" id="sim-table-note"></div>
-    </details>
-  </section></div>
 <div id="tab-cashflow" style="display:none">
   <div class="cards" id="cf-kpis"></div>
 
@@ -1639,7 +1566,6 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 </div>
 
 <div id="tab-checkpoint">
-  <section id="daily-overview" aria-label="오늘의 핵심 요약"></section>
   <div id="cp-body"></div>
 </div>
 
@@ -4398,8 +4324,7 @@ const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
 // 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
 const FD_ALIAS = {
   checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
-  retirement: "은퇴 준비 FIRE 시뮬레이션 계획 저축 가정",
-  overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
+  overview:   "순자산 fire 은퇴 시뮬레이션 부동산 아파트 부채 대출 추이",
   financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
   spending:   "가계부 소비 지출 생활비 카테고리",
   cashflow:   "연금 세금 건보료 건강보험 현금흐름 은퇴",
@@ -4669,47 +4594,7 @@ function initTabs() {
     }
   });
 }
-/* Premium dashboard shell. Every metric is derived from the existing snapshot. */
-const JOURNEY_GROUPS = [
-  { id: "today", label: "오늘", number: "01", tabs: ["checkpoint"] },
-  { id: "money", label: "우리 돈", number: "02", tabs: ["overview", "financial", "spending"] },
-  { id: "plan", label: "은퇴 계획", number: "03", tabs: ["retirement", "cashflow"] },
-  { id: "life", label: "다음 삶", number: "04", tabs: ["officetel", "cities", "review"] },
-];
 let currentHealth = null;
-function goDashboardTab(id) {
-  const tab = document.querySelector('#tabs .tab[data-tab="' + id + '"]');
-  if (tab && tab.style.display !== "none") tab.click();
-}
-function initJourney() {
-  const shell = document.getElementById("journey-nav");
-  shell.hidden = false;
-  if (shell.dataset.ready) return;
-  shell.dataset.ready = "1";
-  shell.innerHTML = JOURNEY_GROUPS.map(g => '<button type="button" data-group="' + g.id + '" aria-pressed="false"><span>' + g.number + '</span>' + g.label + '</button>').join("");
-  function selectGroup(id) {
-    const group = JOURNEY_GROUPS.find(g => g.tabs.includes(id)) || JOURNEY_GROUPS[0];
-    for (const b of shell.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.group === group.id));
-    for (const t of document.querySelectorAll("#tabs .tab"))
-      t.classList.toggle("out-of-group", !group.tabs.includes(t.dataset.tab));
-    document.body.dataset.section = group.id;
-  }
-  document.getElementById("tabs").addEventListener("click", ev => {
-    const b = ev.target.closest(".tab"); if (b) selectGroup(b.dataset.tab);
-  }, true);
-  shell.onclick = ev => {
-    const b = ev.target.closest("[data-group]"); if (!b) return;
-    const g = JOURNEY_GROUPS.find(x => x.id === b.dataset.group);
-    const next = g.tabs.find(id => document.querySelector('#tabs .tab[data-tab="' + id + '"]')?.style.display !== "none");
-    if (next) goDashboardTab(next);
-    else showToast("이 영역의 데이터가 아직 없습니다.");
-  };
-  document.addEventListener("click", ev => {
-    const b = ev.target.closest("[data-go-tab]");
-    if (b) goDashboardTab(b.dataset.goTab);
-  });
-  selectGroup(document.querySelector("#tabs .tab.on")?.dataset.tab || "checkpoint");
-}
 function openHealth() {
   const dialog = document.getElementById("data-dialog");
   if (!dialog.open) dialog.showModal();
@@ -4736,37 +4621,6 @@ function renderDataHealth(snap, live) {
   document.getElementById("data-close").onclick = () => document.getElementById("data-dialog").close();
   document.getElementById("data-dialog").onclick = ev => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); };
 }
-function renderDailyOverview(snap, live, net) {
-  const host = document.getElementById("daily-overview");
-  const fin = snap.financial?.holdings || [];
-  const liquid = fin.filter(h => h.group === "유동성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const pension = fin.filter(h => h.group === "연금성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const f = snap.fire || {};
-  const target = Number(f.target_basic) || 0;
-  const gap = target ? Math.max(0, target - net) : null;
-  const delta = snap.prev_day?.net_krw != null ? net - snap.prev_day.net_krw : null;
-  const of = snap.officetel?.items?.filter(x => x.ok) || [];
-  const health = currentHealth;
-  const kpi = (label, value, note, tab, extra = "") =>
-    '<button type="button" class="daily-kpi ' + extra + '" data-go-tab="' + tab + '"><span>' + label + '</span><strong>' + value + '</strong><small>' + note + '</small><i aria-hidden="true">↗</i></button>';
-  const today = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long" }).format(new Date());
-  const actions = [];
-  if (health?.warnings.length) actions.push({ label: "데이터 기준 확인", note: health.warnings.length + "개 항목의 수집 상태를 확인해 주세요.", health: true });
-  if (gap != null) actions.push({ label: gap > 0 ? "은퇴 목표 점검" : "목표 달성 이후 계획", note: gap > 0 ? "기본 목표까지 " + eokMan(gap) + " 남았어요." : "현금흐름과 인출 계획을 함께 확인하세요.", tab: "retirement" });
-  if (of.length) actions.push({ label: "다음 후보집 둘러보기", note: "기준 통과 " + of.length + "건 · 호가와 확인일을 비교해 보세요.", tab: "officetel" });
-  else actions.push({ label: "은퇴 현금흐름 점검", note: "계획값과 실제 입금액을 구분해서 확인하세요.", tab: "cashflow" });
-  host.innerHTML =
-    '<div class="daily-heading"><div><span class="eyebrow">OUR NEXT CHAPTER</span><h2>오늘도, 우리의 속도로.</h2><p>' + today + ' · 우현과 규리의 경제적 자립 여정</p></div><span class="edition">DAILY<br>OVERVIEW</span></div>' +
-    '<div class="daily-kpis">' +
-    kpi("순자산 변화", delta == null ? "비교 기준 없음" : (delta < 0 ? "−" : "+") + eokMan(Math.abs(delta)), "직전 확정 기록 대비 · 수익률과 다름", "overview", delta < 0 ? "negative" : "") +
-    kpi("유동성 투자자산", fin.length ? eokMan(liquid) : "데이터 없음", "연금성 제외 · 세금·출금 조건 별도", "financial") +
-    kpi("연금성 투자자산", fin.length ? eokMan(pension) : "데이터 없음", "계좌 분류 기준 · 즉시 사용 가능액 아님", "financial") +
-    kpi("기본 FIRE 진행", target ? (net / target * 100).toFixed(1) + "%" : "목표 미설정", target ? "목표 " + fmtEok(target) + " · 계획 기준" : "시트에 목표금액을 입력해 주세요", "retirement") +
-    '</div><div class="daily-bottom"><div class="daily-note"><span class="eyebrow">A LITTLE CLOSER</span><h3>숫자 너머의 다음 일상.</h3><p>오늘의 변화는 차분하게,<br>다음 선택은 조금 더 선명하게.</p><button type="button" data-go-tab="cashflow">은퇴 계획 살펴보기 <span aria-hidden="true">↗</span></button></div>' +
-    '<div class="daily-actions"><div class="section-caption"><h3>지금 살펴볼 것</h3><span>우선 확인할 세 가지</span></div>' +
-    actions.slice(0, 3).map((a, i) => '<button type="button" ' + (a.health ? 'data-open-health' : 'data-go-tab="' + a.tab + '"') + '><span class="action-index">0' + (i + 1) + '</span><span><b>' + a.label + '</b><small>' + a.note + '</small></span><span aria-hidden="true">↗</span></button>').join("") + '</div></div>';
-  host.querySelector("[data-open-health]")?.addEventListener("click", openHealth);
-}
 function renderHouseCards(of) {
   const host = document.getElementById("of-mobile-cards");
   if (!host) return;
@@ -4783,58 +4637,10 @@ function safeWebUrl(value) {
   try { const u = new URL(value); return ["https:", "http:"].includes(u.protocol) ? u.href : ""; } catch { return ""; }
 }
 function renderExperience(snap, live, net) {
-  initJourney();
   renderDataHealth(snap, live);
-  renderDailyOverview(snap, live, net);
   renderHouseCards(snap.officetel);
   document.getElementById("lock-dashboard").hidden = false;
 }
-/* A transparent, deterministic planning aid, separate from the sheet projection. */
-function projectSavings(start, monthly, annualPercent, months) {
-  if (![start, monthly, annualPercent, months].every(Number.isFinite) || start < 0 || monthly < 0 || annualPercent <= -100 || months < 0 || months > 1200) return null;
-  const rate = Math.pow(1 + annualPercent / 100, 1 / 12) - 1;
-  if (Math.abs(rate) < 1e-12) return start + monthly * months;
-  const factor = Math.pow(1 + rate, months);
-  return start * factor + monthly * (factor - 1) / rate;
-}
-function renderPlanningLab(snap) {
-  const host = document.getElementById("planning-lab");
-  if (!host) return;
-  const holdings = snap.financial?.holdings || [];
-  const liquid = holdings.filter(h => h.group === "유동성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const pension = holdings.filter(h => h.group === "연금성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const today = kstDay();
-  const f = snap.fire || {};
-  const targetMonths = f.target_year ? (f.target_year - Number(today.slice(0, 4))) * 12 + (f.target_month || 12) - Number(today.slice(5, 7)) : 24;
-  const defaults = { months: Math.min(360, Math.max(1, targetMonths)), saving: 0, rate: 3, expense: Math.round((f.monthly_expense || 5000000) / 10000) };
-  const values = renderPlanningLab.values || defaults;
-  const field = (id, label, value, min, max, step, unit) => '<label for="plan-' + id + '">' + label + '<span><input type="number" id="plan-' + id + '" name="' + id + '" value="' + value + '" min="' + min + '" max="' + max + '" step="' + step + '" inputmode="decimal" required><em>' + unit + '</em></span></label>';
-  host.innerHTML = '<div class="lab-header"><div><span class="eyebrow">WHAT IF, TOGETHER</span><h2>우리의 선택을 바꿔보면.</h2><p>월 저축과 수익률을 바꿔 투자자산의 준비 정도를 비교해 보세요.</p></div><span class="lab-tag">가정 기반 계산</span></div>' +
-    '<form id="planning-form" class="planning-form">' +
-    field("months","준비 기간",values.months,1,360,1,"개월") +
-    field("saving","월 추가저축",values.saving,0,100000,1,"만원") +
-    field("rate","연 수익률 가정",values.rate,-50,50,.1,"%") +
-    field("expense","은퇴 후 월 지출",values.expense,1,100000,1,"만원") +
-    '<button type="submit">다시 계산하기 ↗</button></form><div id="planning-output" aria-live="polite"></div>' +
-    '<p class="lab-note">최근 수집 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
-  function draw() {
-    const form = document.getElementById("planning-form");
-    if (!form.reportValidity()) return;
-    const get = key => Number(form.elements.namedItem(key).value);
-    const v = { months: get("months"), saving: get("saving"), rate: get("rate"), expense: get("expense") };
-    renderPlanningLab.values = v;
-    const lv = projectSavings(liquid, v.saving * 10000, v.rate, v.months);
-    const pv = projectSavings(pension, 0, v.rate, v.months);
-    const out = document.getElementById("planning-output");
-    if (!holdings.length) { out.textContent = "계산에 필요한 투자 보유내역이 없습니다."; return; }
-    if (lv == null || pv == null) { out.textContent = "가정값을 다시 확인해 주세요."; return; }
-    out.innerHTML = '<div class="lab-results"><div><span>준비 기간 후 유동성 투자자산</span><strong>' + eokMan(lv) + '</strong><small>현재 ' + eokMan(liquid) + ' + 저축·가정 수익</small></div><div><span>연금성 투자자산 · 별도</span><strong>' + eokMan(pv) + '</strong><small>인출 시기·조건은 계좌별로 다름</small></div><div><span>유동성 자산의 생활비 충당기간</span><strong>' + (lv / (v.expense * 10000) / 12).toFixed(1) + '년</strong><small>월 ' + v.expense.toLocaleString("ko-KR") + '만원 지출 가정</small></div></div>' +
-      '<div class="lab-comparison">' + [0, 3, 5].map(rate => '<span>연 ' + rate + '% 가정 <b>' + fmtEok(projectSavings(liquid, v.saving * 10000, rate, v.months)) + '</b></span>').join("") + '</div>';
-  }
-  document.getElementById("planning-form").onsubmit = ev => { ev.preventDefault(); draw(); };
-  draw();
-}
-if (typeof module !== "undefined" && module.exports) module.exports = { projectSavings };
 /* ---- 스크롤 진입 연출 -------------------------------------------------------
    화면에 들어오는 카드를 한 번만 떠오르게 한다. IntersectionObserver라 스크롤마다
    계산하지 않아 부드럽고, 한 번 본 카드는 관찰을 끊어 되돌아와도 다시 움직이지 않는다.
@@ -5351,7 +5157,6 @@ async function render() {
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
   renderExperience(snap, live, net);
-  renderPlanningLab(snap);
   return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
 }
 

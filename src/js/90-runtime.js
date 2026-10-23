@@ -514,7 +514,6 @@ async function render() {
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
   renderExperience(snap, live, net);
-  renderPlanningLab(snap);
   return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
 }
 
