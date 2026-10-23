@@ -303,7 +303,7 @@ function renderCheckpoint(cp, finBlock) {
     ? (cp.market_closed
         // 장이 닫혔는데 '실시간'이라 적으면, 값이 안 변하는 것을 고장으로 읽게 된다.
         ? `<span class="live-badge off">장 마감 · 종가 기준 (${esc(cp.live_at)} 확인)</span>`
-        : `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`)
+        : `<span class="live-badge on"><span class="dot"></span>시세 발행본 ${esc(cp.live_at)} · 가격 지연 가능</span>`)
     : `<span class="live-badge off">오늘 아침 스냅샷${cp.generated_at ? ` · ${esc((cp.generated_at).slice(11,16))}` : ""}</span>`;
   const fg = cp.fear_greed || {};
   const fgLine = fg.score != null
@@ -341,7 +341,7 @@ function renderCheckpoint(cp, finBlock) {
 
   // 뉴스 — 30분마다 관심 주제(보유 ETF·미국증시·환율금리·FIRE)로 갱신되는 실시간 피드.
   if ((cp.news || []).length) h += `<section class="card">
-    <div class="cp-mkt-head"><h2>관심 뉴스</h2>${cp.news_live ? badge : ""}</div>
+    <div class="cp-mkt-head"><h2>관심 뉴스</h2>${cp.news_live ? `<span class="live-badge off">${cp.news_at ? `수집 ${esc(ageLabel(cp.news_at))}` : "수집 시각 미제공"} · 기사 발행은 원문 기준</span>` : ""}</div>
     ${cp.news.map((n, i) => `<div class="news-item">
       <div class="news-title">${i + 1}. ${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>` : esc(n.title)}</div>
       <div class="news-meta">${n.tag ? `<span class="news-tag">${esc(n.tag)}</span>` : ""}${n.source ? esc(n.source) : ""}${n.published ? ` · ${esc(n.published)}` : ""}</div>
@@ -561,7 +561,7 @@ function renderFinancial(fin) {
       <td><b>${fmtEok(a.value)}</b></td>
       <td style="color:var(--ink-muted)">${a.div > 0 ? fmtMan(a.div) : "—"}</td>
       <td>${a.div > 0 ? `<b>${fmtMan(a.divNet)}</b>` : "—"}</td>
-      <td style="color:var(--ink-muted)">${a.div > 0 ? a.note : "—"}</td></tr>`).join("");
+      <td style="color:var(--ink-muted)">${a.div > 0 ? esc(a.note || "설명 미제공") : "—"}</td></tr>`).join("");
   document.getElementById("fin-detail").innerHTML =
     `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>${year}년 배당(세전)</th><th>${year}년 배당(세후)</th><th>세율 적용</th></tr></thead><tbody>${rows}</tbody>`;
 }

@@ -60,3 +60,11 @@ test('all production modules compile together without global name collisions',()
   const source=fs.readdirSync(folder).filter(f=>f.endsWith('.js')).sort().map(f=>fs.readFileSync(path.join(folder,f),'utf8')).join('\n');
   assert.doesNotThrow(()=>new vm.Script(source));
 });
+
+test('news retrieval time is independent from market publication',()=>{
+  const c=liveContext();
+  const result=vm.runInContext('const s={checkpoint:{}};applyLive(s,{news:[],us:[],updated_at:"2026-10-23T04:00:00Z",_fetched:{news:"2026-10-23T03:00:00Z"}});JSON.stringify(s)',c);
+  const cp=JSON.parse(result).checkpoint;
+  assert.equal(cp.news_at,'2026-10-23T03:00:00Z');
+  assert.equal(cp.live_at,'2026-10-23T04:00:00Z');
+});

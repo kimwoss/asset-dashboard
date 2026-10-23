@@ -86,7 +86,7 @@ function applyLive(snap, live) {
     for (const k of ["us", "kr", "fx"])
       if (Array.isArray(live[k])) { snap.checkpoint[k] = live[k]; applied = true; }
     // 뉴스도 실시간(30분)으로 덮어쓴다 — 07:00 모닝 뉴스가 온종일 옛것으로 남던 문제 해결
-    if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
+    if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; snap.checkpoint.news_at = live._fetched?.news || null; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
     // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
@@ -320,7 +320,7 @@ async function render() {
 
   // 순자산 hero 카드. FIRE 진행 게이지는 바로 아래 'FIRE 목표 달성' 카드가 같은 것을
   // 더 자세히 보여줘서 뺐다 — 같은 숫자를 두 번 읽게 하면 어느 쪽이 진짜인지 헷갈린다.
-  let cards = `<div class="card hero"><div class="label">순자산 <span class="asof">${liveAt ? "지금 " + liveAt.slice(11, 16) : "스냅샷"}</span></div>
+  let cards = `<div class="card hero"><div class="label">순자산 <span class="asof">${liveAt ? "발행 " + ageLabel(liveAt) : "스냅샷"}</span></div>
     <div class="value">${eokMan(net)}</div>
     <div class="sub">${subDeltas("net_krw", net, false) || "총자산 − 부채"}</div></div>`;
   cards += kpiCard("총자산", eokMan(gross), subDeltas("gross_krw", gross, false) || "부채 제외 전");
@@ -338,7 +338,7 @@ async function render() {
   // 기준시점을 화면에 못박는다 — 이 한 줄이 '이 숫자가 언제 것인가'의 유일한 답이다.
   const pd = snap.prev_day;
   document.getElementById("kpi-note").innerHTML =
-    `증감은 <b>지금${liveAt ? " " + liveAt.slice(11, 16) : ""}</b> 값을 아래 시점의 확정치와 비교합니다 — `
+    `증감은 <b>최근 발행본${liveAt ? " · " + ageLabel(liveAt) : ""}</b> 값을 아래 시점의 확정치와 비교합니다 — `
     + [
         pd && `<b>전일</b> ${pd.key} 07:30`,
         pm && `<b>전월</b> ${pm.key} 말${pm.source === "sheet" ? "(★월별자산 소계·부동산 추정가)" : ""}`,
@@ -404,7 +404,7 @@ async function render() {
   // 추이 — 마지막 점은 위 KPI·도넛과 같은 '지금' 값이다 (아래 안내로 명시).
   // 기본은 연 단위. 올해만 월별로 촘촘하면 x축 한 칸의 뜻이 해마다 달라져
   // 기울기를 눈으로 비교할 수 없다. 올해 안을 보고 싶으면 차트를 눌러 펼친다.
-  const asof = liveAt ? `${liveAt} 실시간 평가액` : `${snap.updated_at} 스냅샷`;
+  const asof = liveAt ? `${liveAt} 발행본 평가액` : `${snap.updated_at} 스냅샷`;
   const curY = curKey.slice(0, 4), curM = Number(curKey.slice(5));
   let trendYearly = true;
   const drawTrend = () => {

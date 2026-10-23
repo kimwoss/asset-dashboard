@@ -2797,7 +2797,7 @@ function renderCheckpoint(cp, finBlock) {
     ? (cp.market_closed
         // 장이 닫혔는데 '실시간'이라 적으면, 값이 안 변하는 것을 고장으로 읽게 된다.
         ? `<span class="live-badge off">장 마감 · 종가 기준 (${esc(cp.live_at)} 확인)</span>`
-        : `<span class="live-badge on"><span class="dot"></span>실시간 ${esc(cp.live_at)} 기준</span>`)
+        : `<span class="live-badge on"><span class="dot"></span>시세 발행본 ${esc(cp.live_at)} · 가격 지연 가능</span>`)
     : `<span class="live-badge off">오늘 아침 스냅샷${cp.generated_at ? ` · ${esc((cp.generated_at).slice(11,16))}` : ""}</span>`;
   const fg = cp.fear_greed || {};
   const fgLine = fg.score != null
@@ -2835,7 +2835,7 @@ function renderCheckpoint(cp, finBlock) {
 
   // 뉴스 — 30분마다 관심 주제(보유 ETF·미국증시·환율금리·FIRE)로 갱신되는 실시간 피드.
   if ((cp.news || []).length) h += `<section class="card">
-    <div class="cp-mkt-head"><h2>관심 뉴스</h2>${cp.news_live ? badge : ""}</div>
+    <div class="cp-mkt-head"><h2>관심 뉴스</h2>${cp.news_live ? `<span class="live-badge off">${cp.news_at ? `수집 ${esc(ageLabel(cp.news_at))}` : "수집 시각 미제공"} · 기사 발행은 원문 기준</span>` : ""}</div>
     ${cp.news.map((n, i) => `<div class="news-item">
       <div class="news-title">${i + 1}. ${n.link ? `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>` : esc(n.title)}</div>
       <div class="news-meta">${n.tag ? `<span class="news-tag">${esc(n.tag)}</span>` : ""}${n.source ? esc(n.source) : ""}${n.published ? ` · ${esc(n.published)}` : ""}</div>
@@ -3055,7 +3055,7 @@ function renderFinancial(fin) {
       <td><b>${fmtEok(a.value)}</b></td>
       <td style="color:var(--ink-muted)">${a.div > 0 ? fmtMan(a.div) : "—"}</td>
       <td>${a.div > 0 ? `<b>${fmtMan(a.divNet)}</b>` : "—"}</td>
-      <td style="color:var(--ink-muted)">${a.div > 0 ? a.note : "—"}</td></tr>`).join("");
+      <td style="color:var(--ink-muted)">${a.div > 0 ? esc(a.note || "설명 미제공") : "—"}</td></tr>`).join("");
   document.getElementById("fin-detail").innerHTML =
     `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>${year}년 배당(세전)</th><th>${year}년 배당(세후)</th><th>세율 적용</th></tr></thead><tbody>${rows}</tbody>`;
 }
@@ -4134,8 +4134,8 @@ function renderCities(ct, net) {
       <div class="ct-facts">
         <div class="fact"><div class="l">월 생활비</div><div class="v">${fmtMan(c.avg_monthly)}</div><div class="s">서울 대비 ${vsSeoul(c).toFixed(0)}%</div></div>
         <div class="fact"><div class="l">연간 사용예산</div><div class="v">${fmtMan(c.annual_budget)}</div><div class="s">월 생활비×12 + 연 고정비</div></div>
-        <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${fmtMan(c.monthly_total)}</div><div class="s">현지 물가 연동 항목</div></div>
-        <div class="fact"><div class="l">연 고정비</div><div class="v">${fmtMan(c.annual_fixed)}</div><div class="s">한국 귀속·수동 항목</div></div>
+        <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${Number.isFinite(c.monthly_total) ? fmtMan(c.monthly_total) : "자료 없음"}</div><div class="s">현지 물가 연동 항목</div></div>
+        <div class="fact"><div class="l">연 고정비</div><div class="v">${Number.isFinite(c.annual_fixed) ? fmtMan(c.annual_fixed) : "자료 없음"}</div><div class="s">한국 귀속·수동 항목</div></div>
       </div>
       <div class="tbl-scroll" style="margin-top:14px"><table class="mkt">
         <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
@@ -4336,7 +4336,7 @@ function renderSim(sim, net) {
       "순자산은 억, 나머지는 만원 단위 · 출처는 시뮬레이션 시트이고 연도별 예측은 시트가 계산합니다."
       + ` 전망 출발점은 시트 기록 기준이며 현재 평가액은 <b>${eok(net)}</b>입니다`
       + (Math.abs(gap) >= 1e6
-          ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 실시간 평가액입니다).`
+          ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 최근 수집 평가액입니다).`
           : ".")
       + (sim.depletion_age ? ` 소진(${sim.depletion_age}세) 이후 줄은 흐리게 뒀습니다 — 모델이 빚을 계속 굴리는 비현실 구간입니다.` : "");
   }
@@ -4812,7 +4812,7 @@ function renderPlanningLab(snap) {
     field("rate","연 수익률 가정",values.rate,-50,50,.1,"%") +
     field("expense","은퇴 후 월 지출",values.expense,1,100000,1,"만원") +
     '<button type="submit">다시 계산하기 ↗</button></form><div id="planning-output" aria-live="polite"></div>' +
-    '<p class="lab-note">실시간 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
+    '<p class="lab-note">최근 수집 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
   function draw() {
     const form = document.getElementById("planning-form");
     if (!form.reportValidity()) return;
@@ -4919,7 +4919,7 @@ function applyLive(snap, live) {
     for (const k of ["us", "kr", "fx"])
       if (Array.isArray(live[k])) { snap.checkpoint[k] = live[k]; applied = true; }
     // 뉴스도 실시간(30분)으로 덮어쓴다 — 07:00 모닝 뉴스가 온종일 옛것으로 남던 문제 해결
-    if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
+    if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; snap.checkpoint.news_at = live._fetched?.news || null; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
     // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
@@ -5153,7 +5153,7 @@ async function render() {
 
   // 순자산 hero 카드. FIRE 진행 게이지는 바로 아래 'FIRE 목표 달성' 카드가 같은 것을
   // 더 자세히 보여줘서 뺐다 — 같은 숫자를 두 번 읽게 하면 어느 쪽이 진짜인지 헷갈린다.
-  let cards = `<div class="card hero"><div class="label">순자산 <span class="asof">${liveAt ? "지금 " + liveAt.slice(11, 16) : "스냅샷"}</span></div>
+  let cards = `<div class="card hero"><div class="label">순자산 <span class="asof">${liveAt ? "발행 " + ageLabel(liveAt) : "스냅샷"}</span></div>
     <div class="value">${eokMan(net)}</div>
     <div class="sub">${subDeltas("net_krw", net, false) || "총자산 − 부채"}</div></div>`;
   cards += kpiCard("총자산", eokMan(gross), subDeltas("gross_krw", gross, false) || "부채 제외 전");
@@ -5171,7 +5171,7 @@ async function render() {
   // 기준시점을 화면에 못박는다 — 이 한 줄이 '이 숫자가 언제 것인가'의 유일한 답이다.
   const pd = snap.prev_day;
   document.getElementById("kpi-note").innerHTML =
-    `증감은 <b>지금${liveAt ? " " + liveAt.slice(11, 16) : ""}</b> 값을 아래 시점의 확정치와 비교합니다 — `
+    `증감은 <b>최근 발행본${liveAt ? " · " + ageLabel(liveAt) : ""}</b> 값을 아래 시점의 확정치와 비교합니다 — `
     + [
         pd && `<b>전일</b> ${pd.key} 07:30`,
         pm && `<b>전월</b> ${pm.key} 말${pm.source === "sheet" ? "(★월별자산 소계·부동산 추정가)" : ""}`,
@@ -5237,7 +5237,7 @@ async function render() {
   // 추이 — 마지막 점은 위 KPI·도넛과 같은 '지금' 값이다 (아래 안내로 명시).
   // 기본은 연 단위. 올해만 월별로 촘촘하면 x축 한 칸의 뜻이 해마다 달라져
   // 기울기를 눈으로 비교할 수 없다. 올해 안을 보고 싶으면 차트를 눌러 펼친다.
-  const asof = liveAt ? `${liveAt} 실시간 평가액` : `${snap.updated_at} 스냅샷`;
+  const asof = liveAt ? `${liveAt} 발행본 평가액` : `${snap.updated_at} 스냅샷`;
   const curY = curKey.slice(0, 4), curM = Number(curKey.slice(5));
   let trendYearly = true;
   const drawTrend = () => {

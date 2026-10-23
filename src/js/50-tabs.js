@@ -288,8 +288,8 @@ function renderCities(ct, net) {
       <div class="ct-facts">
         <div class="fact"><div class="l">월 생활비</div><div class="v">${fmtMan(c.avg_monthly)}</div><div class="s">서울 대비 ${vsSeoul(c).toFixed(0)}%</div></div>
         <div class="fact"><div class="l">연간 사용예산</div><div class="v">${fmtMan(c.annual_budget)}</div><div class="s">월 생활비×12 + 연 고정비</div></div>
-        <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${fmtMan(c.monthly_total)}</div><div class="s">현지 물가 연동 항목</div></div>
-        <div class="fact"><div class="l">연 고정비</div><div class="v">${fmtMan(c.annual_fixed)}</div><div class="s">한국 귀속·수동 항목</div></div>
+        <div class="fact"><div class="l">월 변동 생활비</div><div class="v">${Number.isFinite(c.monthly_total) ? fmtMan(c.monthly_total) : "자료 없음"}</div><div class="s">현지 물가 연동 항목</div></div>
+        <div class="fact"><div class="l">연 고정비</div><div class="v">${Number.isFinite(c.annual_fixed) ? fmtMan(c.annual_fixed) : "자료 없음"}</div><div class="s">한국 귀속·수동 항목</div></div>
       </div>
       <div class="tbl-scroll" style="margin-top:14px"><table class="mkt">
         <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
@@ -490,7 +490,7 @@ function renderSim(sim, net) {
       "순자산은 억, 나머지는 만원 단위 · 출처는 시뮬레이션 시트이고 연도별 예측은 시트가 계산합니다."
       + ` 전망 출발점은 시트 기록 기준이며 현재 평가액은 <b>${eok(net)}</b>입니다`
       + (Math.abs(gap) >= 1e6
-          ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 실시간 평가액입니다).`
+          ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 최근 수집 평가액입니다).`
           : ".")
       + (sim.depletion_age ? ` 소진(${sim.depletion_age}세) 이후 줄은 흐리게 뒀습니다 — 모델이 빚을 계속 굴리는 비현실 구간입니다.` : "");
   }

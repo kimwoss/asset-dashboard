@@ -25,7 +25,7 @@ function renderPlanningLab(snap) {
     field("rate","연 수익률 가정",values.rate,-50,50,.1,"%") +
     field("expense","은퇴 후 월 지출",values.expense,1,100000,1,"만원") +
     '<button type="submit">다시 계산하기 ↗</button></form><div id="planning-output" aria-live="polite"></div>' +
-    '<p class="lab-note">실시간 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
+    '<p class="lab-note">최근 수집 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
   function draw() {
     const form = document.getElementById("planning-form");
     if (!form.reportValidity()) return;
