@@ -1053,6 +1053,251 @@
   .finder-hit { animation: finderHit 1.4s var(--ease-out); }
   @keyframes finderHit { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
   @media (prefers-reduced-motion: reduce) { .finder-hit { animation: none; outline: 2px solid var(--accent); } }
+
+/* 2026 premium system — warm paper, navy ink, restrained brass. */
+:root {
+  --page:#f5f3ee; --surface-1:#fffefa; --ink-1:#192b36; --ink-2:#52616a;
+  --ink-muted:#6e777a; --border:rgba(25,43,54,.12); --grid:#e4e2da;
+  --accent:#294f5b; --accent-bg:rgba(41,79,91,.075); --nav-accent:#9b7846;
+  --nav-bg:rgba(245,243,238,.96); --nav-on-bg:#e9e6dc; --nav-on-line:transparent;
+  --pos:#277360; --neg:#b35248; --warn:#8c681e; --pos-bg:#e6efe9; --neg-bg:#f7e9e5;
+  --r:18px; --r-sm:10px; --shadow:0 2px 4px rgba(25,43,54,.025);
+  --c-re:#355d6a; --c-us:#427f6d; --c-kr:#b48b49; --c-vi:#817394; --c-cash:#7f9f8c;
+  --cmp-ret:#355d6a; --fs-h2:20px; --fs-body:15px; --fs-cap:13px;
+  --premium-gold:#c8ac78; --premium-tint:#eae8de; --premium-inverse:#f6f3eb;
+}
+@media (prefers-color-scheme:dark) { :root:not([data-theme]) {
+  --page:#111c22; --surface-1:#19282f; --ink-1:#f1eee5; --ink-2:#b9c3c4; --ink-muted:#9eacad;
+  --border:rgba(240,237,224,.13); --grid:#314048; --accent:#b6ceca; --accent-bg:#253d42;
+  --nav-bg:rgba(17,28,34,.96); --nav-on-bg:#304248; --nav-on-line:transparent;
+  --pos:#9ccbb5; --neg:#e5a59b; --warn:#dfbd80; --pos-bg:#243c34; --neg-bg:#422e2b;
+  --premium-tint:#22343c; --premium-inverse:#15232c;
+} }
+:root[data-theme="dark"] {
+  --page:#111c22; --surface-1:#19282f; --ink-1:#f1eee5; --ink-2:#b9c3c4; --ink-muted:#9eacad;
+  --border:rgba(240,237,224,.13); --grid:#314048; --accent:#b6ceca; --accent-bg:#253d42;
+  --nav-bg:rgba(17,28,34,.96); --nav-on-bg:#304248; --nav-on-line:transparent;
+  --pos:#9ccbb5; --neg:#e5a59b; --warn:#dfbd80; --pos-bg:#243c34; --neg-bg:#422e2b;
+  --premium-tint:#22343c; --premium-inverse:#15232c;
+}
+html { scroll-padding-top:140px; }
+body { max-width:1440px; --pad:clamp(20px,4vw,64px); padding:0 var(--pad) 90px; }
+[hidden] { display:none!important; }
+button,input,select { font:inherit; }
+button,a { -webkit-tap-highlight-color:transparent; }
+header { min-height:88px; margin:0; gap:12px; }
+header h1 { display:flex; flex-direction:column; gap:3px; margin:0 auto 0 0; font-size:17px; letter-spacing:-.035em; }
+header h1::before { content:"BUNDANG COUPLE"; font-size:10px; font-weight:650; letter-spacing:.22em; color:var(--ink-muted); }
+header .meta { font-size:11px; }
+#fx { display:none; }
+#theme { margin-left:0; font-size:14px; }
+#theme,#granny,#refresh,#lock-dashboard { min-height:40px; height:40px; border-radius:50px; background:transparent; }
+#granny .ic { font-size:14px; }
+#refresh .lb { font-size:12px; }
+#lock-dashboard { padding:0 14px; border:1px solid var(--border); color:var(--ink-2); cursor:pointer; }
+#data-status { display:inline-flex; align-items:center; gap:8px; border:0; background:var(--premium-tint);
+  padding:9px 12px; border-radius:50px; color:var(--ink-2); font-size:11px; cursor:pointer; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--pos); flex:none; }
+#data-status[data-state="attention"] .status-dot,#data-status[data-state="snapshot"] .status-dot { background:var(--warn); }
+#cover { height:370px; min-height:0; max-height:none; margin:0; border-radius:24px; align-items:flex-end; }
+.cover-body { padding:32px 38px; }
+.cover-scrim { background:linear-gradient(90deg,rgba(8,25,35,.8),rgba(8,25,35,.27) 75%),linear-gradient(0deg,rgba(8,25,35,.45),transparent 70%); }
+.cover-cap { font-size:10px; letter-spacing:.2em; margin:0; }
+.cover-capline { margin-bottom:20px; }
+.cover-pause { border:1px solid rgba(255,255,255,.35); color:#fff; }
+#cover .heroband { background:none; border:0; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;
+  padding:0; margin:0; gap:32px; grid-template-columns:1.3fr 1fr; align-items:end; }
+#cover .hb-val { font-size:clamp(30px,4vw,54px); letter-spacing:-.045em; font-weight:550; line-height:1.25; }
+#cover .u-label { font-size:12px; letter-spacing:.04em; color:#e6e6dc; }
+#cover .hb-gauges { padding:0; max-width:320px; justify-self:end; width:100%; }
+#cover .hb-g-head { font-size:11px; }
+#cover .hb-track { height:3px; }
+#cover .hb-fill { background:#d3bb88!important; }
+#cover .hb-toggle { top:0; right:0; border:1px solid rgba(255,255,255,.35); background:rgba(8,25,35,.2); padding:7px 12px; border-radius:40px; }
+#cover .hb-gauges>:first-child .hb-g-head { padding-right:78px; }
+#cover .hb-eye { font-size:13px; }
+#cover .hb-deltas { margin-top:9px; }
+#cover .delta-chip.up { color:#c7e4d5; background:rgba(132,187,158,.15); }
+#cover .delta-chip.dn { color:#ffd1c6; background:rgba(232,136,119,.15); }
+#cover .hb-spark { color:#e2d5b4; }
+.journey-nav { display:flex; border-bottom:1px solid var(--border); gap:30px; margin-top:20px; position:sticky; top:0;
+  z-index:35; background:var(--nav-bg); backdrop-filter:blur(18px); }
+.journey-nav button { position:relative; border:0; background:none; color:var(--ink-2); font-size:15px;
+  padding:21px 2px 18px; cursor:pointer; white-space:nowrap; font-weight:550; min-height:58px; }
+.journey-nav button span { font-size:10px; color:var(--ink-muted); margin-right:9px; font-weight:450; }
+.journey-nav button[aria-pressed="true"] { color:var(--ink-1); }
+.journey-nav button[aria-pressed="true"]::after { content:""; position:absolute; height:2px; bottom:-1px; left:0; right:0; background:var(--nav-accent); }
+.tabs { margin:0 0 34px; padding:11px 0; position:sticky; top:63px; gap:6px; border-bottom:0; background:var(--nav-bg); z-index:30; }
+.tab { font-size:12px; padding:9px 16px; min-height:38px; border-radius:30px; letter-spacing:0; }
+.tab.on { box-shadow:none; }
+.tab.out-of-group { display:none!important; }
+body[data-section="today"] .tabs { margin-bottom:12px; }
+.daily-heading { display:flex; justify-content:space-between; align-items:center; margin:16px 0 28px; gap:20px; }
+.eyebrow { font-size:10px; font-weight:600; letter-spacing:.2em; color:var(--ink-muted); }
+.daily-heading h2 { font-size:clamp(25px,3vw,35px); font-weight:550; letter-spacing:-.055em; margin:12px 0 9px; line-height:1.3; }
+.daily-heading p { font-size:12px; color:var(--ink-muted); margin:0; }
+.edition { border-left:1px solid var(--border); padding-left:20px; font-size:10px; line-height:1.8; letter-spacing:.2em; color:var(--ink-muted); }
+.daily-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
+.daily-kpi { position:relative; display:flex; flex-direction:column; align-items:flex-start; text-align:left;
+  padding:24px 22px; background:var(--surface-1); border:1px solid var(--border); border-radius:16px; min-height:154px; color:var(--ink-1);
+  cursor:pointer; transition:transform .2s,border-color .2s; }
+.daily-kpi:hover { transform:translateY(-3px); border-color:var(--nav-accent); }
+.daily-kpi>span { font-size:12px; color:var(--ink-2); margin-bottom:20px; }
+.daily-kpi strong { font-size:clamp(20px,2.2vw,29px); font-weight:550; letter-spacing:-.045em; font-variant-numeric:tabular-nums; line-height:1.2; }
+.daily-kpi:first-child strong { color:var(--pos); }
+.daily-kpi.negative strong { color:var(--neg); }
+.daily-kpi small { font-size:10px; color:var(--ink-muted); margin-top:12px; line-height:1.5; }
+.daily-kpi i { position:absolute; top:20px; right:20px; font-style:normal; color:var(--ink-muted); }
+.daily-bottom { display:grid; grid-template-columns:.85fr 1.6fr; gap:24px; margin-bottom:38px; }
+.daily-note { background:var(--premium-tint); border-radius:16px; padding:28px 30px; position:relative; overflow:hidden; }
+.daily-note::after { content:""; width:160px; height:160px; border:1px solid var(--border); border-radius:50%; position:absolute; right:-55px; bottom:-60px; pointer-events:none; }
+.daily-note h3 { font-size:23px; font-weight:550; letter-spacing:-.05em; margin:17px 0 12px; }
+.daily-note p { font-size:12px; line-height:1.9; color:var(--ink-2); margin:0 0 18px; }
+.daily-note button { background:none; border:0; padding:0; color:var(--ink-1); font-size:11px; font-weight:650; cursor:pointer; min-height:34px; }
+.daily-note button span { margin-left:20px; }
+.daily-actions { padding:4px 0; }
+.section-caption { display:flex; align-items:baseline; justify-content:space-between; padding:0 0 12px; gap:12px; }
+.section-caption h3 { font-size:16px; margin:0; font-weight:600; }
+.section-caption>span { font-size:10px; color:var(--ink-muted); }
+.daily-actions>button { display:flex; gap:20px; align-items:center; border:0; border-top:1px solid var(--border);
+  padding:18px 0; width:100%; text-align:left; color:var(--ink-1); background:transparent; cursor:pointer; }
+.daily-actions>button>span:last-child { margin-left:auto; color:var(--ink-muted); }
+.action-index { font-size:11px; color:var(--nav-accent); }
+.daily-actions b { display:block; font-size:13px; font-weight:550; }
+.daily-actions small { display:block; color:var(--ink-muted); font-size:11px; line-height:1.6; margin-top:5px; }
+.card { padding:26px; box-shadow:var(--shadow); border:1px solid var(--border); }
+.card h2 { font-size:18px; font-weight:600; letter-spacing:-.035em; margin-bottom:20px; }
+.cards { gap:14px; }
+.card .label { font-size:12px; }
+.card .value { letter-spacing:-.04em; font-weight:550; }
+table { font-size:13px; }
+td,th { padding-top:15px; padding-bottom:15px; }
+th { font-size:11px; color:var(--ink-muted); font-weight:550; }
+#finder-fab { border-radius:50px; background:var(--surface-1); box-shadow:0 8px 30px rgba(10,25,35,.12); font-size:12px; }
+#intro .title { font-weight:550; letter-spacing:-.05em; font-size:clamp(35px,5vw,64px); }
+#intro .cap { font-size:11px; letter-spacing:.22em; }
+#intro .sub { font-size:16px; color:#e2e1d8; }
+#intro .wrap { padding-bottom:8svh; }
+#intro .pwrow { flex-wrap:wrap; max-width:460px; }
+#intro .pwrow input { border-radius:10px; min-height:50px; }
+#intro .pwrow button { border-radius:10px; min-height:50px; background:#e9dfc9; color:#203640; }
+.remember-row { display:flex; align-items:center; gap:8px; width:100%; color:#e8e6df; font-size:12px; margin-top:10px; }
+#intro .remember-row input { width:16px; min-height:16px; height:16px; flex:none; accent-color:#c8ac78; }
+#intro .login-note { display:block; width:100%; font-size:10px; color:#cececa; margin-top:4px; }
+.data-dialog { width:min(620px,calc(100% - 32px)); max-height:85svh; padding:28px; border:1px solid var(--border);
+  border-radius:22px; background:var(--surface-1); color:var(--ink-1); box-shadow:0 30px 100px rgba(0,0,0,.25); }
+.data-dialog::backdrop { background:rgba(9,23,31,.48); backdrop-filter:blur(4px); }
+.dialog-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.dialog-heading h2 { font-size:22px; font-weight:550; margin:8px 0; }
+.dialog-heading button { background:var(--page); border:1px solid var(--border); color:var(--ink-1); border-radius:50%; width:40px; height:40px; cursor:pointer; }
+.health-intro,.health-foot { font-size:12px; color:var(--ink-2); line-height:1.8; margin:16px 0; }
+.health-publication { display:flex; gap:16px; justify-content:space-between; background:var(--page); border-radius:10px; padding:14px; font-size:11px; margin-bottom:16px; }
+.health-publication b { font-weight:550; overflow-wrap:anywhere; }
+.health-row { display:flex; justify-content:space-between; gap:20px; padding:15px 0; border-bottom:1px solid var(--border); }
+.health-row b { font-size:13px; font-weight:550; }
+.health-row small { display:block; font-size:10px; color:var(--ink-muted); margin-top:5px; line-height:1.6; }
+.health-row>div:last-child { text-align:right; flex:none; }
+.health-pill { font-size:10px; border-radius:50px; background:var(--warn-bg); color:var(--warn); padding:5px 9px; display:inline-block; }
+.health-pill.ok { color:var(--pos); background:var(--pos-bg); }
+.house-cards { display:none; }
+.house-card { padding:24px; border:1px solid var(--border); border-radius:16px; background:var(--surface-1); }
+.house-top { display:flex; justify-content:space-between; font-size:10px; color:var(--ink-muted); gap:10px; }
+.house-top .house-old { color:var(--warn); }
+.house-card h3 { font-size:20px; font-weight:600; letter-spacing:-.04em; margin:18px 0 6px; }
+.house-card p { font-size:12px; color:var(--ink-2); margin:0 0 22px; }
+.house-card>strong { display:block; font-size:24px; font-weight:550; letter-spacing:-.04em; }
+.house-card dl { display:flex; gap:30px; margin:22px 0; }
+.house-card dt { font-size:10px; color:var(--ink-muted); }
+.house-card dd { font-size:12px; margin:7px 0 0; font-weight:550; }
+.house-foot { border-top:1px solid var(--border); padding-top:16px; display:flex; justify-content:space-between; gap:12px; font-size:10px; color:var(--ink-muted); }
+.house-foot a { color:var(--accent); font-weight:600; white-space:nowrap; }
+.empty-state { font-size:13px; line-height:1.8; color:var(--ink-2); padding:24px; border:1px dashed var(--border); border-radius:12px; }
+.site-footer { margin:48px 0 0; padding:24px 0; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:20px; color:var(--ink-muted); font-size:10px; line-height:1.8; }
+.site-footer b { font-weight:550; letter-spacing:.12em; }
+.preview-notice { background:#203b48; color:#fff7e6; text-align:center; font-size:12px; padding:12px; margin:0 calc(-1 * var(--pad)); }
+@media (max-width:1100px) {
+  #updated,#granny .lb { display:none; }
+  .daily-kpi { padding:20px 17px; }
+  .daily-kpi strong { font-size:22px; }
+  .daily-kpi small { font-size:10px; }
+}
+@media (max-width:760px) {
+  header { min-height:76px; gap:8px; padding:12px 0; }
+  header h1 { font-size:15px; }
+  #granny { display:none; }
+  #data-status { order:5; width:100%; justify-content:center; padding:8px; }
+  #theme,#refresh,#lock-dashboard { min-height:36px; height:36px; }
+  #refresh .lb { display:none; }
+  #lock-dashboard { font-size:11px; padding:0 11px; }
+  #cover { height:290px; border-radius:18px; }
+  .cover-body { padding:24px; }
+  #cover .heroband { grid-template-columns:1fr; gap:18px; }
+  #cover .hb-val { font-size:35px; }
+  #cover .hb-gauges { display:none; }
+  .cover-capline { margin-bottom:24px; }
+  .journey-nav { gap:0; justify-content:space-between; margin-top:10px; }
+  .journey-nav button { font-size:13px; min-height:56px; padding:18px 2px; }
+  .journey-nav button span { display:none; }
+  .tabs { top:56px; margin-bottom:22px; padding:9px 0; }
+  .tab { min-height:40px; padding:10px 14px; }
+  .daily-heading { margin:20px 0 24px; }
+  .daily-heading h2 { font-size:28px; }
+  .daily-heading p { font-size:11px; }
+  .edition { display:none; }
+  .daily-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .daily-kpi { min-height:146px; padding:20px 16px; }
+  .daily-kpi strong { font-size:21px; }
+  .daily-kpi i { top:17px; right:14px; }
+  .daily-kpi>span { font-size:11px; margin-bottom:18px; }
+  .daily-bottom { grid-template-columns:1fr; gap:22px; margin-bottom:30px; }
+  .daily-note { padding:24px; }
+  .daily-note p br { display:none; }
+  .daily-note h3 { font-size:21px; }
+  .daily-note p { margin-bottom:8px; }
+  .daily-actions>button { min-height:80px; padding:17px 0; }
+  .card { padding:21px 18px; border-radius:15px; }
+  .card h2 { font-size:17px; }
+  .house-cards { display:grid; gap:14px; margin:0 0 24px; }
+  #of-live { display:none; }
+  #tab-officetel>.card:first-of-type { padding-bottom:16px; }
+  .site-footer { flex-direction:column; gap:5px; }
+  #intro .wrap { padding-bottom:7svh; }
+  #intro .title { font-size:36px; }
+  #intro .sub { font-size:13px; }
+  #intro .pwrow input { min-width:0; width:0; flex:1; }
+  #intro .pwrow .remember-row input { width:16px; flex:none; }
+  .data-dialog { padding:22px 18px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }
+}
+
+
+#planning-lab { margin-bottom:24px; }
+.lab-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
+.lab-header h2 { font-size:26px; margin:12px 0; font-weight:550; }
+.lab-header p,.lab-note { color:var(--ink-2); font-size:12px; line-height:1.9; }
+.lab-tag { background:var(--premium-tint); color:var(--ink-2); padding:7px 11px; border-radius:50px; font-size:10px; white-space:nowrap; }
+.planning-form { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin:28px 0; }
+.planning-form label { font-size:11px; color:var(--ink-2); }
+.planning-form label>span { display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--border); padding:10px 0; margin-top:4px; }
+.planning-form input { min-width:0; width:100%; border:0; background:none; color:var(--ink-1); font-size:24px; font-weight:550; outline-offset:4px; }
+.planning-form em { font-size:11px; font-style:normal; white-space:nowrap; }
+.planning-form button { grid-column:1/-1; justify-self:start; padding:12px 20px; border:0; border-radius:50px; background:var(--ink-1); color:var(--page); cursor:pointer; font-size:12px; }
+.lab-results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--border); border-radius:14px; background:var(--page); padding:22px; gap:20px; }
+.lab-results span { display:block; font-size:11px; color:var(--ink-2); margin-bottom:14px; }
+.lab-results strong { font-weight:550; font-size:24px; letter-spacing:-.04em; }
+.lab-results small { display:block; font-size:10px; color:var(--ink-muted); margin-top:9px; line-height:1.6; }
+.lab-comparison { display:flex; flex-wrap:wrap; gap:12px 24px; margin:18px 0; }
+.lab-comparison span { font-size:11px; color:var(--ink-2); }
+.lab-comparison b { font-weight:600; color:var(--ink-1); margin-left:6px; }
+@media (max-width:760px) {
+  .lab-header { flex-direction:column; gap:8px; }
+  .lab-header h2 { font-size:23px; }
+  .planning-form { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  .lab-results { grid-template-columns:1fr; padding:20px; gap:22px; }
+  .lab-results>div+div { border-top:1px solid var(--border); padding-top:18px; }
+}
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -1069,14 +1314,16 @@
   </div>
 </noscript>
 <header>
-  <h1>분당부부 대시보드</h1>
+  <h1>분당부부의 다음 챕터</h1>
   <span class="meta" id="updated" role="status" aria-live="polite" aria-label="데이터 갱신 시각"></span>
   <span class="meta" id="fx" aria-label="환율"></span>
+  <button id="data-status" type="button" hidden aria-haspopup="dialog" aria-controls="data-dialog"></button>
+  <button id="lock-dashboard" type="button" hidden title="현재 기기에서 잠그고 저장된 로그인 정보를 지웁니다">잠금</button>
   <button id="theme" title="라이트/다크 전환" aria-label="테마 전환">🌙</button>
   <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
      target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
     <span class="ic">👵</span><span class="lb">마음돌봄할머니</span></a>
-  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다" aria-label="업데이트하기">
+  <button id="refresh" style="display:none" title="최신 발행본을 다시 불러옵니다. 원자료 수집을 즉시 실행하지는 않습니다." aria-label="업데이트하기">
     <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
 
@@ -1094,6 +1341,8 @@
         <input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"
                aria-describedby="pwmsg" enterkeyhint="go">
         <button id="pwbtn">들어가기</button>
+        <label class="remember-row"><input id="remember-device" type="checkbox"> 이 기기에서 로그인 유지</label>
+        <small class="login-note">기본은 탭을 닫으면 잠겨요. 공용 기기에서는 로그인 유지를 선택하지 마세요.</small>
       </div>
       <div class="enter" id="introAuto" style="display:none"><span>들어가는 중</span><span class="load"><i></i></span></div>
       <div class="msg" id="pwmsg" role="alert" aria-live="assertive"></div>
@@ -1131,11 +1380,13 @@
   })();
 </script>
 
+<nav id="journey-nav" class="journey-nav" aria-label="주요 영역" hidden></nav>
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
   <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint" aria-label="오늘의 브리핑"><span class="t-full">오늘의 브리핑</span><span class="t-short" aria-hidden="true">브리핑</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="overview" aria-label="자산 현황"><span class="t-full">자산 현황</span><span class="t-short" aria-hidden="true">자산</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="financial" aria-label="투자 포트폴리오"><span class="t-full">투자 포트폴리오</span><span class="t-short" aria-hidden="true">투자</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="spending" aria-label="월간 생활비"><span class="t-full">월간 생활비</span><span class="t-short" aria-hidden="true">생활비</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="retirement" aria-label="은퇴 준비"><span class="t-full">은퇴 준비</span><span class="t-short" aria-hidden="true">은퇴 준비</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cashflow" aria-label="현금 흐름 계획"><span class="t-full">현금 흐름 계획</span><span class="t-short" aria-hidden="true">현금흐름</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="review" aria-label="연간 리뷰"><span class="t-full">연간 리뷰</span><span class="t-short" aria-hidden="true">리뷰</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
@@ -1162,27 +1413,9 @@
   <div class="cards" id="kpis"></div>
   <div class="goal-sub" id="kpi-note" style="margin:-4px 0 14px"></div>
 
-  <section class="card" id="fire-section" style="display:none">
-    <h2>FIRE 목표 달성</h2>
-    <div id="fire-body"></div>
-  </section>
 
-  <section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
-      <div class="seg" id="sim-seg" style="margin-bottom:0">
-        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-        <button class="seg-btn" data-mode="nominal">명목</button>
-      </div>
-    </div>
-    <div class="sim-stats" id="sim-stats"></div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
-    <details class="sim-fold" id="sim-fold">
-      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div class="tbl-scroll"><table id="sim-table"></table></div>
-      <div class="note" id="sim-table-note"></div>
-    </details>
-  </section>
+
+
 
   <section class="card">
     <h2>자산 구성</h2>
@@ -1302,11 +1535,31 @@
   </section>
 </div>
 
+<div id="tab-retirement" style="display:none"><section id="planning-lab" class="card"></section><section class="card" id="fire-section" style="display:none">
+    <h2>FIRE 목표 달성</h2>
+    <div id="fire-body"></div>
+  </section>
+<section class="card" id="sim-section" style="display:none">
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
+      <div class="seg" id="sim-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+        <button class="seg-btn" data-mode="nominal">명목</button>
+      </div>
+    </div>
+    <div class="sim-stats" id="sim-stats"></div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
+    <details class="sim-fold" id="sim-fold">
+      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
+      <div class="tbl-scroll"><table id="sim-table"></table></div>
+      <div class="note" id="sim-table-note"></div>
+    </details>
+  </section></div>
 <div id="tab-cashflow" style="display:none">
   <div class="cards" id="cf-kpis"></div>
 
   <section class="card">
-    <h2>파이프라인 — 세금·건보료 없이 만드는 현금</h2>
+    <h2>은퇴 현금흐름 — 계획과 적용 조건</h2>
     <div id="cf-pipes"></div>
     <div class="goal-sub" id="cf-pipes-note" style="margin-top:12px"></div>
   </section>
@@ -1337,6 +1590,7 @@
   <section class="card">
     <div class="cp-mkt-head"><h2>기준 통과 매물</h2><span class="u-mono" id="of-asof"></span></div>
     <div style="overflow-x:auto"><table class="mkt" id="of-live"></table></div>
+    <div id="of-mobile-cards" class="house-cards" aria-label="후보집 요약 카드"></div>
     <div class="note" id="of-criteria"></div>
   </section>
   <section class="card">
@@ -1381,9 +1635,12 @@
 </div>
 
 <div id="tab-checkpoint">
+  <section id="daily-overview" aria-label="오늘의 핵심 요약"></section>
   <div id="cp-body"></div>
 </div>
 
+<dialog id="data-dialog" class="data-dialog" aria-labelledby="data-dialog-title"><div class="dialog-heading"><div><span class="eyebrow">DATA TRANSPARENCY</span><h2 id="data-dialog-title">데이터의 기준</h2></div><button id="data-close" type="button" aria-label="데이터 상태 닫기">×</button></div><div id="data-health-body"></div></dialog>
+<footer class="site-footer"><b>BUNDANG COUPLE · OUR NEXT CHAPTER</b><span>함께 쌓아가는 자산, 함께 그려가는 일상.<br>평가액·계획값·예측값은 서로 다른 기준입니다.</span></footer>
 <div id="tooltip"></div>
 
 <script>
@@ -1445,6 +1702,58 @@ function el(tag, attrs = {}, parent) {
   return n;
 }
 
+/* Source time, publication time and retrieval are different clocks. */
+function dataTime(value) {
+  if (!value) return null;
+  let text = String(value).trim().replace(/ KST$/, "+09:00");
+  if (/^\d{4}-\d\d-\d\d$/.test(text)) text += "T00:00:00+09:00";
+  else if (/^\d{4}-\d\d-\d\d[ T]\d\d:\d\d(?::\d\d)?$/.test(text)) text = text.replace(" ", "T") + "+09:00";
+  else text = text.replace(/^(\d{4}-\d\d-\d\d) /, "$1T");
+  const result = Date.parse(text);
+  return Number.isFinite(result) ? result : null;
+}
+function dataAge(value, now = Date.now()) {
+  const time = dataTime(value);
+  return time == null ? null : Math.max(0, Math.floor((now - time) / 60000));
+}
+function ageLabel(value, now = Date.now()) {
+  const age = dataAge(value, now);
+  if (age == null) return "기준 시각 미제공";
+  if (age < 1) return "방금";
+  if (age < 60) return age + "분 전";
+  if (age < 1440) return Math.floor(age / 60) + "시간 전";
+  return Math.floor(age / 1440) + "일 전";
+}
+function kstDay(now = Date.now()) { return new Date(now + 9 * 3600e3).toISOString().slice(0, 10); }
+const HEALTH_BLOCKS = [
+  ["financial", "투자 평가액", 22, "시세 조회·시트 보유수량 기준"],
+  ["news", "관심 뉴스", 30, "기사 발행 시각은 원문에서 확인"],
+  ["checkpoint", "오늘의 브리핑", 1500, "아침 리포트 생성 기준"],
+  ["spending", "생활비", 75, "시트 수집 기준 · 입력 마감과 다름"],
+  ["fire", "은퇴 목표", 75, "시트 수집 기준 · 계획값"],
+  ["simulation", "은퇴 전망", 75, "시트 계산 기준 · 예측값"],
+  ["liabilities", "부채", 75, "시트 수집 기준"],
+  ["officetel", "후보집", 135, "시트 수집 기준 · 매물 확인일은 별도"],
+  ["cities", "후보 도시", 375, "시트 수집 기준 · 현지 조사일은 별도"],
+];
+function dataHealth(snap, live, now = Date.now()) {
+  const published = live?.updated_iso || live?.updated_at;
+  const publicationAge = dataAge(published, now);
+  const blocks = HEALTH_BLOCKS.map(([key, label, limit, note]) => {
+    const meta = live?._status?.[key];
+    const available = live && Object.hasOwn(live, key) && live[key] != null;
+    const time = key === "checkpoint" ? (live?.checkpoint?.generated_at || snap.checkpoint?.generated_at) : live?._fetched?.[key];
+    const age = dataAge(time, now);
+    const state = meta?.state === "error" ? "error" : !available ? "snapshot" : age == null ? "unknown" : age > limit ? "stale" : "ok";
+    return { key, label, time, age, state, note, sourceTime: key === "financial" ? live?.financial?.quotes_asof : null };
+  });
+  const warnings = blocks.filter(b => b.state !== "ok");
+  return { published, publicationAge, blocks, warnings,
+    state: !live ? "snapshot" : publicationAge == null || publicationAge > 22 || warnings.length ? "attention" : "ok" };
+}
+function presentValue(object, key) { return object != null && Object.hasOwn(object, key) && object[key] != null; }
+if (typeof module !== "undefined" && module.exports)
+  module.exports = { dataTime, dataAge, ageLabel, kstDay, dataHealth, presentValue };
 /* ---- 도넛 차트 (중앙 합계 + 범례 + 툴팁) ---- */
 function arcPath(cx, cy, rO, rI, a0, a1) {
   const pt = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -1934,7 +2243,7 @@ function startCover() {
 
 function renderHeroBand(snap, net) {
   const el = document.getElementById("heroband");
-  if (!el || !net) return;
+  if (!el || !Number.isFinite(net)) return;
   el.className = "heroband" + (hbHidden() ? " hb-off" : "");
   el.style.display = "";
   if (!startCover._done) { startCover._done = true; startCover(); }
@@ -2027,7 +2336,7 @@ function syncHeroBand(el) {
 
 // 카드 아무 데나 눌러도 접히고 펴진다 (버튼은 어디를 눌러야 하는지 알려 주는 표식).
 document.addEventListener("click", (ev) => {
-  const el = ev.target.closest("#heroband");
+  const el = ev.target.closest("#heroband .hb-toggle")?.closest("#heroband");
   if (!el) return;
   const off = el.classList.toggle("hb-off");
   localStorage.setItem(HB_HIDE_KEY, off ? "1" : "0");
@@ -2072,7 +2381,7 @@ function renderFire(f, net) {
   if (f.target_year) {
     // 목표 시점은 '연도+월'(예: 2028년 4월)의 1일. 예전엔 12월 31일로 잡아 8개월 늦게 셌다.
     const tm = f.target_month || 12;
-    const dday = Math.round((new Date(f.target_year, tm - 1, 1) - new Date()) / 864e5);
+    const dday = Math.round((dataTime(String(f.target_year) + "-" + String(tm).padStart(2, "0") + "-01") - dataTime(kstDay())) / 864e5);
     const when = dday > 0 ? `D-${dday} · ${Math.floor(dday / 365)}년 ${Math.floor(dday % 365 / 30)}개월` : "목표 시점 도래";
     facts.push(["은퇴 목표", f.retire_age ? dual(f.retire_age) : `${f.target_year}년 ${tm}월`,
                 `${f.target_year}년 ${tm}월 · ${when}`, !!f.retire_age]);
@@ -2183,7 +2492,6 @@ function stackBar(label, pension, liquid) {
     <div class="goal-sub">연금성 ${fmtEok(pension)} · 유동성 ${fmtEok(liquid)}</div>
   </div>`;
 }
-
 /* ---- 월별 흐름 (스택 영역 + 크로스헤어) ---- */
 function stackedArea(container, periods, series) {
   // series: [{label, color, values:[...]}]  values는 periods와 같은 길이
@@ -2263,10 +2571,10 @@ function renderMonthly(mon) {
   const draw = mode => stackedArea(document.getElementById("fin-trend"), periods, SERIES[mode]);
   draw("owner");
   document.querySelectorAll("#fin-trend-seg .seg-btn").forEach(b =>
-    b.addEventListener("click", () => {
+    b.onclick = () => {
       document.querySelectorAll("#fin-trend-seg .seg-btn").forEach(x => x.classList.toggle("on", x === b));
       draw(b.dataset.mode);
-    }));
+    });
 }
 
 /* ---- 오늘의 체크포인트 (분당부부 모닝 리포트) ---- */
@@ -2427,7 +2735,7 @@ function renderCheckpoint(cp, finBlock) {
     // '어제 것'이라는 사실이 분명히 보여야 오늘 일진으로 착각하지 않는다.
     const when = cp.age_days === 1 ? "어제" : `${cp.age_days}일 전`;
     h += `<div class="cp-stale">⚠️ ${when}(${esc(cp.date_label)}) 리포트입니다 —`
-       + ` 오늘 발송이 밀렸어요. <b>운세·날씨는 어제 기준</b>이고 시세·뉴스는 실시간입니다.</div>`;
+       + ` 오늘 발송이 밀렸어요. <b>운세·날씨는 어제 기준</b>이고 시세·뉴스는 별도 기준 시각을 확인해 주세요.</div>`;
   }
 
   // 브리핑(인사말·날씨·운세)은 모닝 리포트가 하루 한 번 만든다 — 시세·뉴스(실시간)와 달리
@@ -2452,7 +2760,7 @@ function renderCheckpoint(cp, finBlock) {
     ? `<div class="cp-pending">${beforeSend
         ? `오늘 브리핑은 <b>오전 ${sendHour}시경</b> 도착합니다`
         : `오늘 브리핑이 아직 도착하지 않았습니다 <b>(예정 오전 ${sendHour}시)</b>`
-      } · 아래는 ${esc(cp.date_label)} 내용입니다. 시세·뉴스는 실시간입니다.</div>`
+      } · 아래는 ${esc(cp.date_label)} 내용입니다. 시세·뉴스는 별도 기준 시각을 확인해 주세요.</div>`
     : "";
 
   // 인사 + 날씨 — 날씨는 한 덩어리 텍스트로 오지만 그대로 흘리면 읽히지 않는다.
@@ -2654,10 +2962,10 @@ function renderDivMonthly(H, year) {
   };
   draw("net");
   document.querySelectorAll("#fin-divmo-seg .seg-btn").forEach(b =>
-    b.addEventListener("click", () => {
+    b.onclick = () => {
       document.querySelectorAll("#fin-divmo-seg .seg-btn").forEach(x => x.classList.toggle("on", x === b));
       draw(b.dataset.mode);
-    }));
+    });
 
   const notes = [...new Set(list.map(a => a.note))];
   document.getElementById("fin-divmo-note").innerHTML =
@@ -2669,11 +2977,11 @@ function renderDivMonthly(H, year) {
 function renderFinancial(fin) {
   const H = (fin && fin.holdings) || [];
   if (!H.length) {
-    document.getElementById("tab-financial").innerHTML =
-      `<section class="card"><h2>금융자산</h2>
-       <div class="goal-sub">★주식계좌 시트를 불러오지 못했어요.</div></section>`;
+    document.getElementById("fin-kpis").innerHTML = kpiCard("투자자산", "데이터 없음", "보유내역이 없거나 수집되지 않았어요.");
+    for (const section of document.querySelectorAll("#tab-financial > section")) section.hidden = true;
     return;
   }
+  for (const section of document.querySelectorAll("#tab-financial > section")) section.hidden = false;
   const uh = H.filter(h => h.owner === "우현"), gr = H.filter(h => h.owner === "규리");
   const totAll = sum(H), divAll = sum(H, h => h.div_krw);
   const pens = sum(H.filter(h => h.group === "연금성")), liq = totAll - pens;
@@ -2751,7 +3059,6 @@ function renderFinancial(fin) {
   document.getElementById("fin-detail").innerHTML =
     `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>${year}년 배당(세전)</th><th>${year}년 배당(세후)</th><th>세율 적용</th></tr></thead><tbody>${rows}</tbody>`;
 }
-
 /* ---- 월간 생활비 (시각화 탭 '상세항목별 지출 금액') ---- */
 const SP_COLORS = {
   "생활": "#3182F6", "외식": "#FF6B6B", "교통": "#12B886", "쇼핑": "#F76707",
@@ -3546,7 +3853,8 @@ const ctCountry = n => { const p = String(n || "").split(","); return p.slice(1)
    환산전세는 시트 수식과 같은 식(보증금 + 월세/40 × 1억)이라 두 화면 숫자가 어긋나지 않는다. */
 function renderOfficetel(of) {
   const tabBtn = document.querySelector('.tab[data-tab="officetel"]');
-  if (!of || !of.items || !of.items.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (!of || !Array.isArray(of.items)) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (tabBtn) tabBtn.style.display = "";
 
   const eok = v => v == null ? "\u2014" : (v / 10000).toFixed(2) + "\uc5b5";
   const won = v => v == null ? "" : Number(v).toLocaleString();
@@ -3662,14 +3970,14 @@ function renderOfficetel(of) {
                                             : { key, dir: OF_SORT[key].dir };
     paintLive();
   };
-  ofTable.addEventListener("click", ev => {
+  ofTable.onclick = ev => {
     const th = ev.target.closest("th.of-sort"); if (th) ofPick(th.dataset.sort);
-  });
-  ofTable.addEventListener("keydown", ev => {
+  };
+  ofTable.onkeydown = ev => {
     if (ev.key !== "Enter" && ev.key !== " ") return;
     const th = ev.target.closest("th.of-sort");
     if (th) { ev.preventDefault(); ofPick(th.dataset.sort); }
-  });
+  };
 
   const groups = new Map();
   for (const x of of.items) {
@@ -3834,11 +4142,11 @@ function renderCities(ct, net) {
         <tbody>${catRows}</tbody></table></div>`;
   };
   drawDetail(byCost[0]);
-  pick.addEventListener("click", ev => {
+  pick.onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     for (const x of pick.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);
     drawDetail(byCost[+b.dataset.i]);
-  });
+  };
 
   // 전체 표
   const trow = c => {
@@ -3961,7 +4269,7 @@ function renderSim(sim, net) {
   const series = sim.series.map(r => ({ ...r }));
   const nowRow = series.find(r => (r.phase || "").includes("현재"));
   const sheetNow = nowRow ? nowRow.net : null;
-  if (nowRow && net > 0) { nowRow.net = net; nowRow.real_net = net; }
+  // Preserve the sheet scenario as one coherent projection; current valuation stays in the KPI.
   const s = sim.summary || {};
   // FIRE 섹션과 나란히 놓이므로 큰 KPI 카드 대신 얇은 스탯 한 줄로 (소진 나이는 FIRE와도 겹침)
   const stat = (l, v) => `<span><em>${l}</em> <b>${v}</b></span>`;
@@ -3984,11 +4292,11 @@ function renderSim(sim, net) {
   let mode = "real";
   const draw = () => { simChart(document.getElementById("sim-chart"), series, mode, sim.retire_age, sim.depletion_age); paintTable(); };
   draw();
-  document.getElementById("sim-seg").addEventListener("click", ev => {
+  document.getElementById("sim-seg").onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     for (const x of document.querySelectorAll("#sim-seg .seg-btn")) x.classList.toggle("on", x === b);
     mode = b.dataset.mode; draw();
-  });
+  };
   document.getElementById("sim-note").textContent =
     "소진 이후 구간은 표시에서 제외 · 실질 = 물가 반영 후 오늘 돈 가치"
     + (s.cycle_on
@@ -4026,7 +4334,7 @@ function renderSim(sim, net) {
     const gap = sheetNow != null && net > 0 ? net - sheetNow : 0;
     document.getElementById("sim-table-note").innerHTML =
       "순자산은 억, 나머지는 만원 단위 · 출처는 시뮬레이션 시트이고 연도별 예측은 시트가 계산합니다."
-      + ` 맨 윗줄 '지금'은 위 KPI·자산 배분과 같은 <b>${eok(net)}</b>으로 맞췄습니다`
+      + ` 전망 출발점은 시트 기록 기준이며 현재 평가액은 <b>${eok(net)}</b>입니다`
       + (Math.abs(gap) >= 1e6
           ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 실시간 평가액입니다).`
           : ".")
@@ -4066,10 +4374,10 @@ function renderReview(rv) {
     document.getElementById("review-months").innerHTML = d.months.map(m =>
       `<div class="rv-month"><div class="rv-m">${esc(m.label)}</div><div class="rv-mtxt">${esc(m.text)}</div></div>`).join("");
   };
-  seg.addEventListener("click", ev => {
+  seg.onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     draw(+b.dataset.y);
-  });
+  };
   // 기본 선택 — 베스트가 채워진 가장 최근 연도 (진행 중이라 빈 올해는 건너뜀)
   const rich = rv.years.find(y => (rv.byYear[String(y)]?.best || []).length >= 3);
   draw(rich || rv.years[0]);
@@ -4086,6 +4394,7 @@ const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
 // 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
 const FD_ALIAS = {
   checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
+  retirement: "은퇴 준비 FIRE 시뮬레이션 계획 저축 가정",
   overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
   financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
   spending:   "가계부 소비 지출 생활비 카테고리",
@@ -4292,7 +4601,7 @@ function initTabs() {
     if (panel) { panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", t.id); }
   }
   nav.addEventListener("keydown", ev => {
-    const vis = tabsAll.filter(t => t.style.display !== "none");
+    const vis = tabsAll.filter(t => getComputedStyle(t).display !== "none");
     const i = vis.indexOf(document.activeElement);
     if (i < 0) return;
     const j = { ArrowRight: (i + 1) % vis.length, ArrowLeft: (i - 1 + vis.length) % vis.length,
@@ -4356,7 +4665,172 @@ function initTabs() {
     }
   });
 }
-
+/* Premium dashboard shell. Every metric is derived from the existing snapshot. */
+const JOURNEY_GROUPS = [
+  { id: "today", label: "오늘", number: "01", tabs: ["checkpoint"] },
+  { id: "money", label: "우리 돈", number: "02", tabs: ["overview", "financial", "spending"] },
+  { id: "plan", label: "은퇴 계획", number: "03", tabs: ["retirement", "cashflow"] },
+  { id: "life", label: "다음 삶", number: "04", tabs: ["officetel", "cities", "review"] },
+];
+let currentHealth = null;
+function goDashboardTab(id) {
+  const tab = document.querySelector('#tabs .tab[data-tab="' + id + '"]');
+  if (tab && tab.style.display !== "none") tab.click();
+}
+function initJourney() {
+  const shell = document.getElementById("journey-nav");
+  shell.hidden = false;
+  if (shell.dataset.ready) return;
+  shell.dataset.ready = "1";
+  shell.innerHTML = JOURNEY_GROUPS.map(g => '<button type="button" data-group="' + g.id + '" aria-pressed="false"><span>' + g.number + '</span>' + g.label + '</button>').join("");
+  function selectGroup(id) {
+    const group = JOURNEY_GROUPS.find(g => g.tabs.includes(id)) || JOURNEY_GROUPS[0];
+    for (const b of shell.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.group === group.id));
+    for (const t of document.querySelectorAll("#tabs .tab"))
+      t.classList.toggle("out-of-group", !group.tabs.includes(t.dataset.tab));
+    document.body.dataset.section = group.id;
+  }
+  document.getElementById("tabs").addEventListener("click", ev => {
+    const b = ev.target.closest(".tab"); if (b) selectGroup(b.dataset.tab);
+  }, true);
+  shell.onclick = ev => {
+    const b = ev.target.closest("[data-group]"); if (!b) return;
+    const g = JOURNEY_GROUPS.find(x => x.id === b.dataset.group);
+    const next = g.tabs.find(id => document.querySelector('#tabs .tab[data-tab="' + id + '"]')?.style.display !== "none");
+    if (next) goDashboardTab(next);
+    else showToast("이 영역의 데이터가 아직 없습니다.");
+  };
+  document.addEventListener("click", ev => {
+    const b = ev.target.closest("[data-go-tab]");
+    if (b) goDashboardTab(b.dataset.goTab);
+  });
+  selectGroup(document.querySelector("#tabs .tab.on")?.dataset.tab || "checkpoint");
+}
+function openHealth() {
+  const dialog = document.getElementById("data-dialog");
+  if (!dialog.open) dialog.showModal();
+}
+function renderDataHealth(snap, live) {
+  currentHealth = dataHealth(snap, live);
+  const h = currentHealth;
+  const label = h.state === "snapshot" ? "일별 기록 표시 중" : h.state === "ok" ? "데이터 상태 확인" : "일부 데이터 확인 필요";
+  const button = document.getElementById("data-status");
+  button.hidden = false;
+  button.dataset.state = h.state;
+  button.innerHTML = '<span class="status-dot"></span><span>' + label + '</span><span aria-hidden="true">↗</span>';
+  button.onclick = openHealth;
+  const short = h.published ? "발행 " + ageLabel(h.published) : "일별 기록 기준";
+  document.getElementById("updated").textContent = short;
+  const labels = { ok: "정상", stale: "갱신 지연", error: "이전 값 유지", unknown: "시각 미제공", snapshot: "일별 기록" };
+  document.getElementById("data-health-body").innerHTML =
+    '<p class="health-intro">파일 발행과 원자료 기준은 다릅니다. 각 항목의 마지막 정상 수집과 현재 상태를 확인하세요.</p>' +
+    '<div class="health-publication"><span>파일 발행</span><b>' + esc(h.published || snap.updated_at || "미제공") + '</b></div>' +
+    h.blocks.map(b => '<div class="health-row"><div><b>' + b.label + '</b><small>' + esc(b.note) + '</small>' +
+      (b.sourceTime ? '<small>가격 조회 ' + esc(ageLabel(b.sourceTime)) + ' · 거래 시각과 다를 수 있음</small>' : '') +
+      '</div><div><span class="health-pill ' + b.state + '">' + labels[b.state] + '</span><small>' + esc(ageLabel(b.time)) + '</small></div></div>').join("") +
+    '<p class="health-foot">부동산 KB시세는 주간 기준입니다. 가격 제공사의 지연, 휴장, 시트 입력 시점은 수집 주기와 별개입니다. 새로고침은 최신 발행본을 다시 불러옵니다.</p>';
+  document.getElementById("data-close").onclick = () => document.getElementById("data-dialog").close();
+  document.getElementById("data-dialog").onclick = ev => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); };
+}
+function renderDailyOverview(snap, live, net) {
+  const host = document.getElementById("daily-overview");
+  const fin = snap.financial?.holdings || [];
+  const liquid = fin.filter(h => h.group === "유동성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
+  const pension = fin.filter(h => h.group === "연금성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
+  const f = snap.fire || {};
+  const target = Number(f.target_basic) || 0;
+  const gap = target ? Math.max(0, target - net) : null;
+  const delta = snap.prev_day?.net_krw != null ? net - snap.prev_day.net_krw : null;
+  const of = snap.officetel?.items?.filter(x => x.ok) || [];
+  const health = currentHealth;
+  const kpi = (label, value, note, tab, extra = "") =>
+    '<button type="button" class="daily-kpi ' + extra + '" data-go-tab="' + tab + '"><span>' + label + '</span><strong>' + value + '</strong><small>' + note + '</small><i aria-hidden="true">↗</i></button>';
+  const today = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long" }).format(new Date());
+  const actions = [];
+  if (health?.warnings.length) actions.push({ label: "데이터 기준 확인", note: health.warnings.length + "개 항목의 수집 상태를 확인해 주세요.", health: true });
+  if (gap != null) actions.push({ label: gap > 0 ? "은퇴 목표 점검" : "목표 달성 이후 계획", note: gap > 0 ? "기본 목표까지 " + eokMan(gap) + " 남았어요." : "현금흐름과 인출 계획을 함께 확인하세요.", tab: "retirement" });
+  if (of.length) actions.push({ label: "다음 후보집 둘러보기", note: "기준 통과 " + of.length + "건 · 호가와 확인일을 비교해 보세요.", tab: "officetel" });
+  else actions.push({ label: "은퇴 현금흐름 점검", note: "계획값과 실제 입금액을 구분해서 확인하세요.", tab: "cashflow" });
+  host.innerHTML =
+    '<div class="daily-heading"><div><span class="eyebrow">OUR NEXT CHAPTER</span><h2>오늘도, 우리의 속도로.</h2><p>' + today + ' · 우현과 규리의 경제적 자립 여정</p></div><span class="edition">DAILY<br>OVERVIEW</span></div>' +
+    '<div class="daily-kpis">' +
+    kpi("순자산 변화", delta == null ? "비교 기준 없음" : (delta < 0 ? "−" : "+") + eokMan(Math.abs(delta)), "직전 확정 기록 대비 · 수익률과 다름", "overview", delta < 0 ? "negative" : "") +
+    kpi("유동성 투자자산", fin.length ? eokMan(liquid) : "데이터 없음", "연금성 제외 · 세금·출금 조건 별도", "financial") +
+    kpi("연금성 투자자산", fin.length ? eokMan(pension) : "데이터 없음", "계좌 분류 기준 · 즉시 사용 가능액 아님", "financial") +
+    kpi("기본 FIRE 진행", target ? (net / target * 100).toFixed(1) + "%" : "목표 미설정", target ? "목표 " + fmtEok(target) + " · 계획 기준" : "시트에 목표금액을 입력해 주세요", "retirement") +
+    '</div><div class="daily-bottom"><div class="daily-note"><span class="eyebrow">A LITTLE CLOSER</span><h3>숫자 너머의 다음 일상.</h3><p>오늘의 변화는 차분하게,<br>다음 선택은 조금 더 선명하게.</p><button type="button" data-go-tab="cashflow">은퇴 계획 살펴보기 <span aria-hidden="true">↗</span></button></div>' +
+    '<div class="daily-actions"><div class="section-caption"><h3>지금 살펴볼 것</h3><span>우선 확인할 세 가지</span></div>' +
+    actions.slice(0, 3).map((a, i) => '<button type="button" ' + (a.health ? 'data-open-health' : 'data-go-tab="' + a.tab + '"') + '><span class="action-index">0' + (i + 1) + '</span><span><b>' + a.label + '</b><small>' + a.note + '</small></span><span aria-hidden="true">↗</span></button>').join("") + '</div></div>';
+  host.querySelector("[data-open-health]")?.addEventListener("click", openHealth);
+}
+function renderHouseCards(of) {
+  const host = document.getElementById("of-mobile-cards");
+  if (!host) return;
+  const listings = (of?.items || []).filter(x => x.ok).sort((a, b) => (a.converted || 0) - (b.converted || 0));
+  if (!listings.length) { host.innerHTML = '<p class="empty-state">현재 기준을 통과한 매물이 없어요. 아래 타입 카탈로그를 확인해 주세요.</p>'; return; }
+  host.innerHTML = listings.map(x => {
+    const days = dataAge(x.asof);
+    const terms = x.monthly ? Number(x.deposit).toLocaleString("ko-KR") + " / " + Number(x.monthly).toLocaleString("ko-KR") + "만원" : "전세 " + Number(x.deposit).toLocaleString("ko-KR") + "만원";
+    const link = safeWebUrl(x.link);
+    return '<article class="house-card"><div class="house-top"><span>' + esc(x.region || "후보집") + '</span><span class="' + (days == null || days > 14 * 1440 ? "house-old" : "") + '">' + esc(x.asof ? ageLabel(x.asof) + " 확인" : "확인일 미제공") + '</span></div><h3>' + esc(x.name) + '</h3><p>' + esc([x.type, x.area ? x.area.toFixed(2) + "평" : "", x.rooms].filter(Boolean).join(" · ")) + '</p><strong>' + terms + '</strong><dl><div><dt>환산전세</dt><dd>' + (x.converted == null ? "미제공" : (x.converted / 10000).toFixed(2) + "억") + '</dd></div><div><dt>층·향</dt><dd>' + esc([x.floor, x.facing].filter(Boolean).join(" · ") || "미제공") + '</dd></div></dl><div class="house-foot"><span>관리비·대출·전입 조건 별도 확인</span>' + (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">매물 보기 ↗</a>' : '<span>원문 링크 없음</span>') + '</div></article>';
+  }).join("");
+}
+function safeWebUrl(value) {
+  try { const u = new URL(value); return ["https:", "http:"].includes(u.protocol) ? u.href : ""; } catch { return ""; }
+}
+function renderExperience(snap, live, net) {
+  initJourney();
+  renderDataHealth(snap, live);
+  renderDailyOverview(snap, live, net);
+  renderHouseCards(snap.officetel);
+  document.getElementById("lock-dashboard").hidden = false;
+}
+/* A transparent, deterministic planning aid, separate from the sheet projection. */
+function projectSavings(start, monthly, annualPercent, months) {
+  if (![start, monthly, annualPercent, months].every(Number.isFinite) || start < 0 || monthly < 0 || annualPercent <= -100 || months < 0 || months > 1200) return null;
+  const rate = Math.pow(1 + annualPercent / 100, 1 / 12) - 1;
+  if (Math.abs(rate) < 1e-12) return start + monthly * months;
+  const factor = Math.pow(1 + rate, months);
+  return start * factor + monthly * (factor - 1) / rate;
+}
+function renderPlanningLab(snap) {
+  const host = document.getElementById("planning-lab");
+  if (!host) return;
+  const holdings = snap.financial?.holdings || [];
+  const liquid = holdings.filter(h => h.group === "유동성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
+  const pension = holdings.filter(h => h.group === "연금성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
+  const today = kstDay();
+  const f = snap.fire || {};
+  const targetMonths = f.target_year ? (f.target_year - Number(today.slice(0, 4))) * 12 + (f.target_month || 12) - Number(today.slice(5, 7)) : 24;
+  const defaults = { months: Math.min(360, Math.max(1, targetMonths)), saving: 0, rate: 3, expense: Math.round((f.monthly_expense || 5000000) / 10000) };
+  const values = renderPlanningLab.values || defaults;
+  const field = (id, label, value, min, max, step, unit) => '<label for="plan-' + id + '">' + label + '<span><input type="number" id="plan-' + id + '" name="' + id + '" value="' + value + '" min="' + min + '" max="' + max + '" step="' + step + '" inputmode="decimal" required><em>' + unit + '</em></span></label>';
+  host.innerHTML = '<div class="lab-header"><div><span class="eyebrow">WHAT IF, TOGETHER</span><h2>우리의 선택을 바꿔보면.</h2><p>월 저축과 수익률을 바꿔 투자자산의 준비 정도를 비교해 보세요.</p></div><span class="lab-tag">가정 기반 계산</span></div>' +
+    '<form id="planning-form" class="planning-form">' +
+    field("months","준비 기간",values.months,1,360,1,"개월") +
+    field("saving","월 추가저축",values.saving,0,100000,1,"만원") +
+    field("rate","연 수익률 가정",values.rate,-50,50,.1,"%") +
+    field("expense","은퇴 후 월 지출",values.expense,1,100000,1,"만원") +
+    '<button type="submit">다시 계산하기 ↗</button></form><div id="planning-output" aria-live="polite"></div>' +
+    '<p class="lab-note">실시간 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
+  function draw() {
+    const form = document.getElementById("planning-form");
+    if (!form.reportValidity()) return;
+    const get = key => Number(form.elements.namedItem(key).value);
+    const v = { months: get("months"), saving: get("saving"), rate: get("rate"), expense: get("expense") };
+    renderPlanningLab.values = v;
+    const lv = projectSavings(liquid, v.saving * 10000, v.rate, v.months);
+    const pv = projectSavings(pension, 0, v.rate, v.months);
+    const out = document.getElementById("planning-output");
+    if (!holdings.length) { out.textContent = "계산에 필요한 투자 보유내역이 없습니다."; return; }
+    if (lv == null || pv == null) { out.textContent = "가정값을 다시 확인해 주세요."; return; }
+    out.innerHTML = '<div class="lab-results"><div><span>준비 기간 후 유동성 투자자산</span><strong>' + eokMan(lv) + '</strong><small>현재 ' + eokMan(liquid) + ' + 저축·가정 수익</small></div><div><span>연금성 투자자산 · 별도</span><strong>' + eokMan(pv) + '</strong><small>인출 시기·조건은 계좌별로 다름</small></div><div><span>유동성 자산의 생활비 충당기간</span><strong>' + (lv / (v.expense * 10000) / 12).toFixed(1) + '년</strong><small>월 ' + v.expense.toLocaleString("ko-KR") + '만원 지출 가정</small></div></div>' +
+      '<div class="lab-comparison">' + [0, 3, 5].map(rate => '<span>연 ' + rate + '% 가정 <b>' + fmtEok(projectSavings(liquid, v.saving * 10000, rate, v.months)) + '</b></span>').join("") + '</div>';
+  }
+  document.getElementById("planning-form").onsubmit = ev => { ev.preventDefault(); draw(); };
+  draw();
+}
+if (typeof module !== "undefined" && module.exports) module.exports = { projectSavings };
 /* ---- 스크롤 진입 연출 -------------------------------------------------------
    화면에 들어오는 카드를 한 번만 떠오르게 한다. IntersectionObserver라 스크롤마다
    계산하지 않아 부드럽고, 한 번 본 카드는 관찰을 끊어 되돌아와도 다시 움직이지 않는다.
@@ -4420,7 +4894,7 @@ const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live
 
 async function loadLive(passphrase) {
   try {
-    const r = await fetch(LIVE_URL + "?t=" + Date.now());  // 매 호출 캐시 우회 (업데이트 버튼 대응)
+    const r = await fetch(LIVE_URL + "?t=" + Date.now(), { signal: AbortSignal.timeout(15000) });  // 매 호출 캐시 우회 (업데이트 버튼 대응)
     if (!r.ok) return null;
     return JSON.parse(await decryptEnvelope(await r.text(), passphrase));
   } catch (e) {
@@ -4443,9 +4917,9 @@ function applyLive(snap, live) {
   if (snap.checkpoint) {
     let applied = false;
     for (const k of ["us", "kr", "fx"])
-      if (live[k] && live[k].length) { snap.checkpoint[k] = live[k]; applied = true; }
+      if (Array.isArray(live[k])) { snap.checkpoint[k] = live[k]; applied = true; }
     // 뉴스도 실시간(30분)으로 덮어쓴다 — 07:00 모닝 뉴스가 온종일 옛것으로 남던 문제 해결
-    if (live.news && live.news.length) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
+    if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
     // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
@@ -4462,7 +4936,7 @@ function applyLive(snap, live) {
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
                    "spending", "cities", "officetel", "simulation", "review", "annual_flow",
                    "prev_day", "prev_month", "prev_year"])
-    if (live[k]) snap[k] = live[k];
+    if (presentValue(live, k)) snap[k] = live[k];
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
@@ -4489,7 +4963,7 @@ function applyLive(snap, live) {
   // 자산·부채가 갱신됐으면 총자산·총부채·순자산 재계산 (KPI·합계·도넛 반영).
   if (Array.isArray(snap.assets)) {
     snap.gross_krw = snap.assets.reduce((s, a) => s + (a.value_krw || 0), 0);
-    if (live.liabilities && live.liabilities.length)
+    if (Array.isArray(live.liabilities))
       snap.debt_krw = live.liabilities.reduce((s, l) => s + (l.amount_krw || 0), 0);
     if (snap.debt_krw != null) { snap.net_krw = snap.gross_krw - snap.debt_krw; snap.total_krw = snap.net_krw; }
   }
@@ -4500,8 +4974,8 @@ function applyLive(snap, live) {
 async function loadData(passphrase) {
   const bust = "?t=" + Date.now();
   const [encSnap, encHist] = await Promise.all([
-    fetch("data/latest.enc" + bust).then(r => { if (!r.ok) throw new Error("latest.enc HTTP " + r.status); return r.text(); }),
-    fetch("data/history.enc" + bust).then(r => r.ok ? r.text() : ""),
+    fetch("data/latest.enc" + bust, { signal: AbortSignal.timeout(15000) }).then(r => { if (!r.ok) throw new Error("latest.enc HTTP " + r.status); return r.text(); }),
+    fetch("data/history.enc" + bust, { signal: AbortSignal.timeout(15000) }).then(r => r.ok ? r.text() : ""),
   ]);
   const snap = JSON.parse(await decryptEnvelope(encSnap, passphrase));
   const histText = encHist ? await decryptEnvelope(encHist, passphrase) : "";
@@ -4518,54 +4992,58 @@ function dismissIntro() {
 
 // 시네마틱 인트로 겸 게이트. 데이터가 준비되면 resolve하되 인트로는 유지 —
 // main()이 render() 후 dismissIntro()로 걷어내 완성된 대시보드가 곧바로 드러난다.
+let appPassphrase = null;
+function readSavedPassword() {
+  try { return sessionStorage.getItem("asset_pw") || localStorage.getItem("asset_pw"); } catch { return null; }
+}
+function retainPassword(value, remember) {
+  appPassphrase = value;
+  try {
+    localStorage.removeItem("asset_pw");
+    sessionStorage.setItem("asset_pw", value);
+    if (remember) { localStorage.setItem("asset_pw", value); localStorage.setItem("asset_remember_v2", "1"); }
+    else localStorage.removeItem("asset_remember_v2");
+  } catch { /* Storage may be blocked; memory-only operation still works. */ }
+}
+function lockDashboard() {
+  appPassphrase = null; baseSnap = null; histText = "";
+  try { sessionStorage.removeItem("asset_pw"); localStorage.removeItem("asset_pw"); localStorage.removeItem("asset_remember_v2"); } catch {}
+  location.reload();
+}
 async function gate() {
   const pwRow = document.getElementById("introPw"), autoRow = document.getElementById("introAuto");
-  const input = document.getElementById("pw"), btn = document.getElementById("pwbtn"),
-        msg = document.getElementById("pwmsg");
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // 인트로 연출을 끝까지 보여줄 최소 시간 (재방문 자동진입도 이 시간은 머문다)
-  const minShow = new Promise(r => setTimeout(r, reduce ? 300 : 2400));
-
-  // 받기 실패(망·서버)와 풀기 실패(비밀번호)를 가른다. fetch가 망에서 끊기면 TypeError,
-  // 서버가 거절하면 우리가 'HTTP'를 넣어 던진다. 나머지는 복호화 실패다.
-  const isNetErr = e => e instanceof TypeError || String(e).includes("HTTP");
-  const saved = localStorage.getItem("asset_pw");
+  const input = document.getElementById("pw"), btn = document.getElementById("pwbtn");
+  const msg = document.getElementById("pwmsg"), remember = document.getElementById("remember-device");
+  const isNetErr = e => e instanceof TypeError || String(e).includes("HTTP") || e?.name === "TimeoutError";
+  const saved = readSavedPassword();
   if (saved) {
     autoRow.style.display = "";
     try {
-      const [data] = await Promise.all([loadData(saved), minShow]);
+      const data = await loadData(saved);
+      let explicitRemember = false;
+      try { explicitRemember = localStorage.getItem("asset_remember_v2") === "1"; } catch {}
+      retainPassword(saved, explicitRemember);
       return data;
     } catch (e) {
       autoRow.style.display = "none";
-      if (isNetErr(e)) {
-        // 저장된 비밀번호는 그대로 둔다 — 종전엔 신호가 잠깐 끊겨도 지워서 매번 다시 쳐야 했다.
-        // 입력칸에 미리 넣어 두니 '들어가기'만 다시 누르면 된다.
-        input.value = saved;
-        msg.textContent = "데이터를 받지 못했어요. 연결을 확인하고 '들어가기'를 눌러 주세요.";
-      } else {
-        localStorage.removeItem("asset_pw");
-        msg.textContent = "비밀번호가 바뀌었어요. 새 비밀번호를 입력해 주세요.";
-      }
+      msg.textContent = isNetErr(e) ? "데이터를 받지 못했어요. 연결을 확인해 주세요." : "비밀번호를 다시 입력해 주세요.";
+      if (!isNetErr(e)) { try { sessionStorage.removeItem("asset_pw"); localStorage.removeItem("asset_pw"); } catch {} }
     }
   }
-
-  // 신규 방문 또는 저장된 비밀번호 실패 — 비밀번호 입력
   pwRow.style.display = "";
-  setTimeout(() => input.focus(), reduce ? 350 : 1750);
+  input.focus();
   return new Promise(resolve => {
     const attempt = async () => {
       const pw = input.value;
-      if (!pw) return;
-      btn.disabled = true; msg.textContent = "확인 중…";
+      if (!pw || btn.disabled) return;
+      btn.disabled = true; msg.textContent = "안전하게 불러오는 중…";
       try {
         const data = await loadData(pw);
-        localStorage.setItem("asset_pw", pw);
-        resolve(data);
+        retainPassword(pw, remember.checked);
+        input.value = ""; resolve(data);
       } catch (e) {
         btn.disabled = false;
-        msg.textContent = isNetErr(e)
-          ? "데이터를 불러오지 못했어요. 연결을 확인해 주세요."
-          : "비밀번호가 맞지 않아요.";
+        msg.textContent = isNetErr(e) ? "데이터를 불러오지 못했어요. 연결을 확인해 주세요." : "비밀번호가 맞지 않거나 파일을 열 수 없어요.";
       }
     };
     btn.addEventListener("click", attempt);
@@ -4597,71 +5075,12 @@ async function render() {
 
   // 실시간 시세·뉴스·체크포인트 덮어쓰기 (장중 5분 · 장외 15분). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   // live를 이름 있는 변수로 받는다 — 아래 신선도 배지가 _fetched를 들여다봐야 한다.
-  const live = await loadLive(localStorage.getItem("asset_pw"));
+  const live = await loadLive(appPassphrase);
   const liveAt = applyLive(snap, live);
 
   // 등급별로 무엇이 언제 값인지 한 번에 알려 준다. 대시보드에서 가장 자주 나오는
   // 물음이 "이거 지금 값이야?"인데, 지금까지는 답할 방법이 없었다.
-  function freshnessTip(live) {
-    const t = (iso) => {
-      if (!iso) return "—";
-      const d = new Date(iso);
-      if (isNaN(d)) return "—";
-      const m = Math.max(0, Math.round((Date.now() - d) / 60000));
-      return m < 1 ? "방금" : m < 60 ? m + "분 전" : Math.round(m / 60) + "시간 전";
-    };
-    const f = (live && live._fetched) || {};
-    const q = (live && live.financial && live.financial.quotes_asof) || null;
-    return [
-      "T1 실시간 (장중 5분 · 장외 15분)",
-      `  주식·환율  ${t(q)}` + (q ? "  ← 가격을 직접 조회" : ""),
-      `  계좌 평가액 ${t(f.financial)}`,
-      `  뉴스      ${t(f.news)}`,
-      "T2 30분",
-      `  가계부·목표·시뮬  ${t(f.spending)}`,
-      "T3 1시간 · T4 3시간",
-      `  다음 후보집 ${t(f.officetel)} · 도시 ${t(f.cities)}`,
-      "부동산 KB시세는 주 1회(금) 일별 잡이 맡습니다.",
-    ].join("\n");
-  }
-
-  // 헤더 메타 — 종전엔 시세·스냅샷·환율이 같은 크기 회색 글씨로 나열돼, 무엇이 '지금'
-  // 값인지 판단이 안 됐다. 실시간 여부는 점 있는 배지로 올리고(가장 먼저 눈에 걸림),
-  // 스냅샷 시각은 보조로 내린다. 환율은 데이터라 시세 영역에서 따로 보여준다.
-  const hdr = document.getElementById("updated");
-  // 오늘 시각이면 날짜를 뺀다 — '2026-10-09 16:06'의 날짜는 오늘인 한 정보가 없다.
-  // (아래 todayKST는 이 함수 뒤쪽에서 const로 선언돼 여기서 쓰면 선언 전 접근 오류다 — 직접 계산)
-  const hdrToday = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  const hdrTime = t => {
-    const v = (t || "").replace(" KST", "");
-    return v.startsWith(hdrToday + " ") ? v.slice(11) : v;
-  };
-  if (liveAt) {
-    // 몇 분 전인지까지 적는다. 시각만 있으면 '지금 값인가'를 사람이 매번 계산해야 한다.
-    // 배지 색은 나이로 바꾼다 — 10분 이내가 목표이고, 넘어가면 눈에 걸려야 한다.
-    const mins = (() => {
-      const m = liveAt.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
-      if (!m) return null;
-      return Math.max(0, Math.round(
-        (Date.now() - new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5])) / 60000));
-    })();
-    // 장중 5분 · 장외 15분 발행에 CDN 캐시 5분과 실행 1분을 더하면, 장외에서도 21분 안에는 온다.
-    // 그보다 늦으면 트리거가 죽었거나 실행이 밀린 것이다.
-    const stale = mins != null && mins > 22;
-    const ago = mins == null ? "" : mins < 1 ? " · 방금" : ` · ${mins}분 전`;
-    hdr.innerHTML = `<span class="hdr-live${stale ? " stale" : ""}" title="${
-        esc(freshnessTip(live))}"><span class="dot"></span>실시간 ${
-        hdrTime(liveAt)}${ago}</span>`
-                  + `<span class="hdr-snap secondary">스냅샷 ${hdrTime(snap.updated_at)}</span>`;
-  } else {
-    // 실시간을 못 받았다는 사실을 화면에 남긴다. 종전엔 '스냅샷'만 떠서, 기기마다 순자산이
-    // 다르게 보여도 왜 그런지 단서가 없었다 — 폰만 실시간을 못 받으면 반나절 전 값이
-    // 조용히 표시된다(2026-08 문의). live.enc는 raw.githubusercontent 한 곳에서만 오므로
-    // 그 호스트가 막힌 망에서는 이 배지가 켜진다.
-    const why = live ? "" :
-      `<span class="hdr-live stale" title="실시간 파일(live.enc)을 받지 못했습니다. 아래 값은 일별 스냅샷 기준입니다. 망에서 raw.githubusercontent.com이 막혀 있으면 이 상태가 됩니다."><span class="dot"></span>실시간 못 받음</span>`;
-    hdr.innerHTML = why + `<span class="hdr-snap">스냅샷 ${(snap.updated_at || "").replace(" KST", "")}</span>`;
-  }
+  // Per-block health is rendered at the end of this transaction.
   document.getElementById("fx").textContent = snap.fx_usdkrw
     ? "환율 " + Number(snap.fx_usdkrw).toLocaleString() + "원/$" + (liveAt ? "" : " (" + snap.fx_asof + ")")
     : "";
@@ -4927,7 +5346,9 @@ async function render() {
   // 렌더가 끝난 뒤 보이는 탭의 카드에 스크롤 진입 연출을 건다 (숨은 탭은 열릴 때 건다)
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
-  return liveAt ? `시세 ${liveAt} 기준` : `${snap.updated_at} 기준`;
+  renderExperience(snap, live, net);
+  renderPlanningLab(snap);
+  return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
 }
 
 /* 라이트/다크 수동 토글 — 버튼 아이콘은 현재 테마를 보여준다. SVG 차트는 CSS 변수를
@@ -4990,7 +5411,7 @@ async function main() {
     rb.disabled = true; rb.classList.add("spin");
     const t0 = Date.now();
     try {
-      const pw = localStorage.getItem("asset_pw");
+      const pw = appPassphrase;
       [baseSnap, histText] = await loadData(pw);   // 일별 발행본 재수신 (핵심 — 종전엔 live만 받았다)
       const freshness = await render();            // live.enc 재수신 + 전체 재렌더
       lastLoad = Date.now();
@@ -5005,6 +5426,7 @@ async function main() {
     }
   };
   rb.addEventListener("click", () => refreshAll(false));
+  document.getElementById("lock-dashboard").onclick = lockDashboard;
 
   // 화면에 다시 돌아오면 알아서 최신화한다.
   //
@@ -5015,7 +5437,7 @@ async function main() {
   //
   // pageshow(persisted)도 함께 듣는다. bfcache로 복원되면 스크립트가 다시 돌지 않고
   // visibilitychange도 오지 않는 경우가 있다(iOS Safari에서 흔하다).
-  const AUTO_REFRESH_GAP = 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
+  const AUTO_REFRESH_GAP = 5 * 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
   const maybeAutoRefresh = () => {
     if (document.visibilityState !== "visible") return;
     if (Date.now() - lastLoad < AUTO_REFRESH_GAP) return;
@@ -5024,6 +5446,8 @@ async function main() {
   // visibilitychange는 document에서 발생한다. window에 걸면 버블링에 기대게 되므로
   // 표준 대상인 document에 직접 건다.
   document.addEventListener("visibilitychange", maybeAutoRefresh);
+  const refreshTimer = setInterval(maybeAutoRefresh, AUTO_REFRESH_GAP);
+  addEventListener("pagehide", ev => { if (!ev.persisted) clearInterval(refreshTimer); });
   addEventListener("pageshow", e => { if (e.persisted) maybeAutoRefresh(); });
 }
 

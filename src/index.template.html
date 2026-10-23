@@ -38,14 +38,16 @@
   </div>
 </noscript>
 <header>
-  <h1>분당부부 대시보드</h1>
+  <h1>분당부부의 다음 챕터</h1>
   <span class="meta" id="updated" role="status" aria-live="polite" aria-label="데이터 갱신 시각"></span>
   <span class="meta" id="fx" aria-label="환율"></span>
+  <button id="data-status" type="button" hidden aria-haspopup="dialog" aria-controls="data-dialog"></button>
+  <button id="lock-dashboard" type="button" hidden title="현재 기기에서 잠그고 저장된 로그인 정보를 지웁니다">잠금</button>
   <button id="theme" title="라이트/다크 전환" aria-label="테마 전환">🌙</button>
   <a id="granny" href="https://gemini.google.com/gem/1ZhFSkbzeTiqtYj4DMGrE095wpRHq8eem?usp=sharing"
      target="_blank" rel="noopener noreferrer" title="마음돌봄할머니와 이야기하기 (새 창)">
     <span class="ic">👵</span><span class="lb">마음돌봄할머니</span></a>
-  <button id="refresh" style="display:none" title="최신 시세·뉴스·체크포인트를 다시 불러옵니다" aria-label="업데이트하기">
+  <button id="refresh" style="display:none" title="최신 발행본을 다시 불러옵니다. 원자료 수집을 즉시 실행하지는 않습니다." aria-label="업데이트하기">
     <span class="ic">↻</span><span class="lb">업데이트하기</span></button>
 </header>
 
@@ -63,6 +65,8 @@
         <input type="password" id="pw" placeholder="비밀번호" autocomplete="current-password"
                aria-describedby="pwmsg" enterkeyhint="go">
         <button id="pwbtn">들어가기</button>
+        <label class="remember-row"><input id="remember-device" type="checkbox"> 이 기기에서 로그인 유지</label>
+        <small class="login-note">기본은 탭을 닫으면 잠겨요. 공용 기기에서는 로그인 유지를 선택하지 마세요.</small>
       </div>
       <div class="enter" id="introAuto" style="display:none"><span>들어가는 중</span><span class="load"><i></i></span></div>
       <div class="msg" id="pwmsg" role="alert" aria-live="assertive"></div>
@@ -100,11 +104,13 @@
   })();
 </script>
 
+<nav id="journey-nav" class="journey-nav" aria-label="주요 영역" hidden></nav>
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
   <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint" aria-label="오늘의 브리핑"><span class="t-full">오늘의 브리핑</span><span class="t-short" aria-hidden="true">브리핑</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="overview" aria-label="자산 현황"><span class="t-full">자산 현황</span><span class="t-short" aria-hidden="true">자산</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="financial" aria-label="투자 포트폴리오"><span class="t-full">투자 포트폴리오</span><span class="t-short" aria-hidden="true">투자</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="spending" aria-label="월간 생활비"><span class="t-full">월간 생활비</span><span class="t-short" aria-hidden="true">생활비</span></button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="retirement" aria-label="은퇴 준비"><span class="t-full">은퇴 준비</span><span class="t-short" aria-hidden="true">은퇴 준비</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cashflow" aria-label="현금 흐름 계획"><span class="t-full">현금 흐름 계획</span><span class="t-short" aria-hidden="true">현금흐름</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="review" aria-label="연간 리뷰"><span class="t-full">연간 리뷰</span><span class="t-short" aria-hidden="true">리뷰</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
@@ -131,27 +137,9 @@
   <div class="cards" id="kpis"></div>
   <div class="goal-sub" id="kpi-note" style="margin:-4px 0 14px"></div>
 
-  <section class="card" id="fire-section" style="display:none">
-    <h2>FIRE 목표 달성</h2>
-    <div id="fire-body"></div>
-  </section>
 
-  <section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
-      <div class="seg" id="sim-seg" style="margin-bottom:0">
-        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-        <button class="seg-btn" data-mode="nominal">명목</button>
-      </div>
-    </div>
-    <div class="sim-stats" id="sim-stats"></div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
-    <details class="sim-fold" id="sim-fold">
-      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div class="tbl-scroll"><table id="sim-table"></table></div>
-      <div class="note" id="sim-table-note"></div>
-    </details>
-  </section>
+
+
 
   <section class="card">
     <h2>자산 구성</h2>
@@ -271,11 +259,31 @@
   </section>
 </div>
 
+<div id="tab-retirement" style="display:none"><section id="planning-lab" class="card"></section><section class="card" id="fire-section" style="display:none">
+    <h2>FIRE 목표 달성</h2>
+    <div id="fire-body"></div>
+  </section>
+<section class="card" id="sim-section" style="display:none">
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
+      <div class="seg" id="sim-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+        <button class="seg-btn" data-mode="nominal">명목</button>
+      </div>
+    </div>
+    <div class="sim-stats" id="sim-stats"></div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
+    <details class="sim-fold" id="sim-fold">
+      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
+      <div class="tbl-scroll"><table id="sim-table"></table></div>
+      <div class="note" id="sim-table-note"></div>
+    </details>
+  </section></div>
 <div id="tab-cashflow" style="display:none">
   <div class="cards" id="cf-kpis"></div>
 
   <section class="card">
-    <h2>파이프라인 — 세금·건보료 없이 만드는 현금</h2>
+    <h2>은퇴 현금흐름 — 계획과 적용 조건</h2>
     <div id="cf-pipes"></div>
     <div class="goal-sub" id="cf-pipes-note" style="margin-top:12px"></div>
   </section>
@@ -306,6 +314,7 @@
   <section class="card">
     <div class="cp-mkt-head"><h2>기준 통과 매물</h2><span class="u-mono" id="of-asof"></span></div>
     <div style="overflow-x:auto"><table class="mkt" id="of-live"></table></div>
+    <div id="of-mobile-cards" class="house-cards" aria-label="후보집 요약 카드"></div>
     <div class="note" id="of-criteria"></div>
   </section>
   <section class="card">
@@ -350,9 +359,12 @@
 </div>
 
 <div id="tab-checkpoint">
+  <section id="daily-overview" aria-label="오늘의 핵심 요약"></section>
   <div id="cp-body"></div>
 </div>
 
+<dialog id="data-dialog" class="data-dialog" aria-labelledby="data-dialog-title"><div class="dialog-heading"><div><span class="eyebrow">DATA TRANSPARENCY</span><h2 id="data-dialog-title">데이터의 기준</h2></div><button id="data-close" type="button" aria-label="데이터 상태 닫기">×</button></div><div id="data-health-body"></div></dialog>
+<footer class="site-footer"><b>BUNDANG COUPLE · OUR NEXT CHAPTER</b><span>함께 쌓아가는 자산, 함께 그려가는 일상.<br>평가액·계획값·예측값은 서로 다른 기준입니다.</span></footer>
 <div id="tooltip"></div>
 
 <script>@@APP@@</script>

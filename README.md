@@ -44,7 +44,7 @@ best-effort라 실측 중앙값이 100분이었고, 정확한 30분이 필요해
 평문(`portfolio.yaml`, `latest.json`, `history.csv`)은 gitignore.
 
 - 비밀번호는 GitHub Actions Secret `ASSET_PASSPHRASE`에 저장
-- 대시보드는 접속 시 같은 비밀번호를 입력하면 브라우저에서 복호화 (기기에 저장됨)
+- 대시보드는 접속 시 같은 비밀번호를 입력하면 브라우저에서 복호화 (기본 탭 세션 보관, 로그인 유지를 선택한 기기만 지속 저장)
 - 비밀번호 변경: Settings → Secrets → `ASSET_PASSPHRASE` 수정 후,
   로컬에서 새 비밀번호로 `.enc` 3개를 재암호화해 커밋
 
@@ -85,3 +85,14 @@ python -m http.server -d docs 8788   # http://localhost:8788 에서 대시보드
 | `docs/data/history.enc` | 자산별 일별 평가액 이력 (암호화, 자동 누적) |
 | `config/portfolio.enc` | 보유내역 (암호화) |
 | `scripts/sheets_fire.py` | ★종합 탭 FIRE 결과 요약 읽기 (읽기 전용, 실패 시 그레이스풀) |
+
+
+## 2026-10 redesign development
+
+- Build: `node tools/build.mjs` (equivalent to `python build.py`).
+- Check build: `node tools/build.mjs --check`.
+- JavaScript regression checks: `node --test tests/*.test.cjs`.
+- Python checks: `PYTHONPATH=scripts python -m pytest tests/test_block_cache.py tests/test_market_hours.py -q`.
+- Self-contained synthetic preview: `node tools/write-preview.mjs`; open `docs/preview.local.html` manually.
+- Local preview server: `node tools/preview.mjs`.
+- Scope and outstanding QA: `docs/redesign_2026-10.md`.

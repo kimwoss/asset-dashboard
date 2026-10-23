@@ -7,7 +7,8 @@ const ctCountry = n => { const p = String(n || "").split(","); return p.slice(1)
    환산전세는 시트 수식과 같은 식(보증금 + 월세/40 × 1억)이라 두 화면 숫자가 어긋나지 않는다. */
 function renderOfficetel(of) {
   const tabBtn = document.querySelector('.tab[data-tab="officetel"]');
-  if (!of || !of.items || !of.items.length) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (!of || !Array.isArray(of.items)) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (tabBtn) tabBtn.style.display = "";
 
   const eok = v => v == null ? "\u2014" : (v / 10000).toFixed(2) + "\uc5b5";
   const won = v => v == null ? "" : Number(v).toLocaleString();
@@ -123,14 +124,14 @@ function renderOfficetel(of) {
                                             : { key, dir: OF_SORT[key].dir };
     paintLive();
   };
-  ofTable.addEventListener("click", ev => {
+  ofTable.onclick = ev => {
     const th = ev.target.closest("th.of-sort"); if (th) ofPick(th.dataset.sort);
-  });
-  ofTable.addEventListener("keydown", ev => {
+  };
+  ofTable.onkeydown = ev => {
     if (ev.key !== "Enter" && ev.key !== " ") return;
     const th = ev.target.closest("th.of-sort");
     if (th) { ev.preventDefault(); ofPick(th.dataset.sort); }
-  });
+  };
 
   const groups = new Map();
   for (const x of of.items) {
@@ -295,11 +296,11 @@ function renderCities(ct, net) {
         <tbody>${catRows}</tbody></table></div>`;
   };
   drawDetail(byCost[0]);
-  pick.addEventListener("click", ev => {
+  pick.onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     for (const x of pick.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);
     drawDetail(byCost[+b.dataset.i]);
-  });
+  };
 
   // 전체 표
   const trow = c => {
@@ -422,7 +423,7 @@ function renderSim(sim, net) {
   const series = sim.series.map(r => ({ ...r }));
   const nowRow = series.find(r => (r.phase || "").includes("현재"));
   const sheetNow = nowRow ? nowRow.net : null;
-  if (nowRow && net > 0) { nowRow.net = net; nowRow.real_net = net; }
+  // Preserve the sheet scenario as one coherent projection; current valuation stays in the KPI.
   const s = sim.summary || {};
   // FIRE 섹션과 나란히 놓이므로 큰 KPI 카드 대신 얇은 스탯 한 줄로 (소진 나이는 FIRE와도 겹침)
   const stat = (l, v) => `<span><em>${l}</em> <b>${v}</b></span>`;
@@ -445,11 +446,11 @@ function renderSim(sim, net) {
   let mode = "real";
   const draw = () => { simChart(document.getElementById("sim-chart"), series, mode, sim.retire_age, sim.depletion_age); paintTable(); };
   draw();
-  document.getElementById("sim-seg").addEventListener("click", ev => {
+  document.getElementById("sim-seg").onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     for (const x of document.querySelectorAll("#sim-seg .seg-btn")) x.classList.toggle("on", x === b);
     mode = b.dataset.mode; draw();
-  });
+  };
   document.getElementById("sim-note").textContent =
     "소진 이후 구간은 표시에서 제외 · 실질 = 물가 반영 후 오늘 돈 가치"
     + (s.cycle_on
@@ -487,7 +488,7 @@ function renderSim(sim, net) {
     const gap = sheetNow != null && net > 0 ? net - sheetNow : 0;
     document.getElementById("sim-table-note").innerHTML =
       "순자산은 억, 나머지는 만원 단위 · 출처는 시뮬레이션 시트이고 연도별 예측은 시트가 계산합니다."
-      + ` 맨 윗줄 '지금'은 위 KPI·자산 배분과 같은 <b>${eok(net)}</b>으로 맞췄습니다`
+      + ` 전망 출발점은 시트 기록 기준이며 현재 평가액은 <b>${eok(net)}</b>입니다`
       + (Math.abs(gap) >= 1e6
           ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 실시간 평가액입니다).`
           : ".")
@@ -527,10 +528,10 @@ function renderReview(rv) {
     document.getElementById("review-months").innerHTML = d.months.map(m =>
       `<div class="rv-month"><div class="rv-m">${esc(m.label)}</div><div class="rv-mtxt">${esc(m.text)}</div></div>`).join("");
   };
-  seg.addEventListener("click", ev => {
+  seg.onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     draw(+b.dataset.y);
-  });
+  };
   // 기본 선택 — 베스트가 채워진 가장 최근 연도 (진행 중이라 빈 올해는 건너뜀)
   const rich = rv.years.find(y => (rv.byYear[String(y)]?.best || []).length >= 3);
   draw(rich || rv.years[0]);
@@ -547,6 +548,7 @@ const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
 // 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
 const FD_ALIAS = {
   checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
+  retirement: "은퇴 준비 FIRE 시뮬레이션 계획 저축 가정",
   overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
   financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
   spending:   "가계부 소비 지출 생활비 카테고리",
@@ -753,7 +755,7 @@ function initTabs() {
     if (panel) { panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", t.id); }
   }
   nav.addEventListener("keydown", ev => {
-    const vis = tabsAll.filter(t => t.style.display !== "none");
+    const vis = tabsAll.filter(t => getComputedStyle(t).display !== "none");
     const i = vis.indexOf(document.activeElement);
     if (i < 0) return;
     const j = { ArrowRight: (i + 1) % vis.length, ArrowLeft: (i - 1 + vis.length) % vis.length,
@@ -817,4 +819,3 @@ function initTabs() {
     }
   });
 }
-

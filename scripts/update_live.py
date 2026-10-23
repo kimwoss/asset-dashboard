@@ -29,6 +29,7 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
 import crypto_util
+from block_cache import read_block
 import news_feed
 import sheets_checkpoint
 import sheets_holdings
@@ -343,28 +344,13 @@ def main():
         meta = {}
     reused, refetched = [], []
 
-    def _block(key, fn, *a):
-        """수명이 남았으면 직전 값 재사용, 아니면 새로 읽는다. 읽기 실패 시에도 직전 값 유지.
+    statuses = {}
 
-        종전에는 실패하면 None을 실어 보내 프론트가 아침 스냅샷(최대 12시간 전)으로
-        후퇴했다. 직전 성공값이 있는데 버릴 이유가 없다.
-        """
-        # 물려받을 값이 실제로 있을 때만 재사용한다. 스탬프만 보고 넘기면, 값이 빈 채
-        # 스탬프만 찍힌 상태에서 수명이 다할 때까지 계속 빈 값을 실어 나른다
-        # (2026-08-02 baselines가 이 상태로 몇 시간씩 null이었다).
-        if not _fresh(key, meta, now) and prev.get(key):
-            reused.append(key)
-            return prev.get(key)
-        try:
-            v = fn(*a)
-        except Exception as e:  # noqa: BLE001
-            print(f"WARN: {key} 조회 실패 ({type(e).__name__}: {e}) — 직전 값 유지")
-            return prev.get(key)
-        if not v:
-            return prev.get(key)
-        meta[key] = now.isoformat()
-        refetched.append(key)
-        return v
+    def _block(key, fn, *a):
+        value, changed = read_block(key, fn, a, prev, meta, statuses, now,
+                                    reuse=not _fresh(key, meta, now))
+        (refetched if changed else reused).append(key)
+        return value
 
     # 오늘의 체크포인트(인사말·날씨·운세) — 셀 1개 읽기라 매 실행 확인한다.
     # 모닝 리포트가 이른 아침(≈06:00) 시트에 올리면 무거운 일별 잡(07:30)을 기다리지 않고
@@ -376,6 +362,7 @@ def main():
     #    financial은 2)에서 이미 읽었다(TTL 0 = 매 실행이라 어차피 지금 읽을 차례다).
     #    여기서 또 읽으면 GOOGLEFINANCE가 호출마다 값을 미세하게 달리 주기 때문에
     #    accounts(2번 결과)와 financial(5번 결과)이 어긋난다 — 그 한 번을 그대로 쓴다.
+    financial_read_ok = bool(financial)
     if financial:
         meta["financial"] = now.isoformat()
         refetched.append("financial")
@@ -384,7 +371,7 @@ def main():
     fire          = _block("fire", sheets_fire.fetch_fire_summary)
     monthly       = _block("monthly", sheets_monthly.fetch_monthly, now.date())
     asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
-    liabilities   = _block("liabilities", sheets_yearly.fetch_liabilities, now.date())
+    liabilities   = _block("liabilities", lambda d: sheets_yearly.fetch_liabilities(d, strict=True), now.date())
     cities        = _block("cities", sheets_cities.fetch_cities, now.date())
     officetel     = _block("officetel", lambda _d: sheets_officetel.fetch_officetel(), now.date())
     # 관심 뉴스 — TTL을 탄다(위 TTL_MIN 주석). 실패하면 직전 값을 유지해 빈 칸이 뜨지 않는다.
@@ -405,6 +392,7 @@ def main():
     # 근거는 일별 잡과 완전히 같은 함수를 쓴다 — 두 벌로 갈라져 어긋나는 일을 만들지 않는다.
     baselines = _block("baselines", lambda d: _delta_baselines(d), now.date()) or {}
 
+    statuses["financial"] = {"state": "ok" if financial_read_ok else "error", "attempted_at": now.isoformat()}
     live = {
         "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
         "updated_iso": now.isoformat(),
@@ -425,7 +413,7 @@ def main():
         "fire": fire or None,
         "monthly": monthly or None,
         "asset_history": asset_history or None,
-        "liabilities": liabilities or None,
+        "liabilities": liabilities,
         "spending": spending or None,
         "annual_flow": annual_flow or None,
         "cities": cities or None,
@@ -444,6 +432,7 @@ def main():
         "prev_year": baselines.get("prev_year") or None,
         # 블록별 마지막 '실제 조회' 시각 — 다음 실행이 수명을 재는 기준이자, 화면에 신선도를 밝히는 근거
         "_fetched": meta,
+        "_status": statuses,
         # 이 페이로드를 만든 파싱 코드의 지문 — 다음 실행이 캐시 무효화 판단에 쓴다
         "_code": code,
     }

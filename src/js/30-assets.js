@@ -77,10 +77,10 @@ function renderMonthly(mon) {
   const draw = mode => stackedArea(document.getElementById("fin-trend"), periods, SERIES[mode]);
   draw("owner");
   document.querySelectorAll("#fin-trend-seg .seg-btn").forEach(b =>
-    b.addEventListener("click", () => {
+    b.onclick = () => {
       document.querySelectorAll("#fin-trend-seg .seg-btn").forEach(x => x.classList.toggle("on", x === b));
       draw(b.dataset.mode);
-    }));
+    });
 }
 
 /* ---- 오늘의 체크포인트 (분당부부 모닝 리포트) ---- */
@@ -241,7 +241,7 @@ function renderCheckpoint(cp, finBlock) {
     // '어제 것'이라는 사실이 분명히 보여야 오늘 일진으로 착각하지 않는다.
     const when = cp.age_days === 1 ? "어제" : `${cp.age_days}일 전`;
     h += `<div class="cp-stale">⚠️ ${when}(${esc(cp.date_label)}) 리포트입니다 —`
-       + ` 오늘 발송이 밀렸어요. <b>운세·날씨는 어제 기준</b>이고 시세·뉴스는 실시간입니다.</div>`;
+       + ` 오늘 발송이 밀렸어요. <b>운세·날씨는 어제 기준</b>이고 시세·뉴스는 별도 기준 시각을 확인해 주세요.</div>`;
   }
 
   // 브리핑(인사말·날씨·운세)은 모닝 리포트가 하루 한 번 만든다 — 시세·뉴스(실시간)와 달리
@@ -266,7 +266,7 @@ function renderCheckpoint(cp, finBlock) {
     ? `<div class="cp-pending">${beforeSend
         ? `오늘 브리핑은 <b>오전 ${sendHour}시경</b> 도착합니다`
         : `오늘 브리핑이 아직 도착하지 않았습니다 <b>(예정 오전 ${sendHour}시)</b>`
-      } · 아래는 ${esc(cp.date_label)} 내용입니다. 시세·뉴스는 실시간입니다.</div>`
+      } · 아래는 ${esc(cp.date_label)} 내용입니다. 시세·뉴스는 별도 기준 시각을 확인해 주세요.</div>`
     : "";
 
   // 인사 + 날씨 — 날씨는 한 덩어리 텍스트로 오지만 그대로 흘리면 읽히지 않는다.
@@ -468,10 +468,10 @@ function renderDivMonthly(H, year) {
   };
   draw("net");
   document.querySelectorAll("#fin-divmo-seg .seg-btn").forEach(b =>
-    b.addEventListener("click", () => {
+    b.onclick = () => {
       document.querySelectorAll("#fin-divmo-seg .seg-btn").forEach(x => x.classList.toggle("on", x === b));
       draw(b.dataset.mode);
-    }));
+    });
 
   const notes = [...new Set(list.map(a => a.note))];
   document.getElementById("fin-divmo-note").innerHTML =
@@ -483,11 +483,11 @@ function renderDivMonthly(H, year) {
 function renderFinancial(fin) {
   const H = (fin && fin.holdings) || [];
   if (!H.length) {
-    document.getElementById("tab-financial").innerHTML =
-      `<section class="card"><h2>금융자산</h2>
-       <div class="goal-sub">★주식계좌 시트를 불러오지 못했어요.</div></section>`;
+    document.getElementById("fin-kpis").innerHTML = kpiCard("투자자산", "데이터 없음", "보유내역이 없거나 수집되지 않았어요.");
+    for (const section of document.querySelectorAll("#tab-financial > section")) section.hidden = true;
     return;
   }
+  for (const section of document.querySelectorAll("#tab-financial > section")) section.hidden = false;
   const uh = H.filter(h => h.owner === "우현"), gr = H.filter(h => h.owner === "규리");
   const totAll = sum(H), divAll = sum(H, h => h.div_krw);
   const pens = sum(H.filter(h => h.group === "연금성")), liq = totAll - pens;
@@ -565,4 +565,3 @@ function renderFinancial(fin) {
   document.getElementById("fin-detail").innerHTML =
     `<thead><tr><th>계좌</th><th>소유</th><th>성격</th><th>평가액</th><th>${year}년 배당(세전)</th><th>${year}년 배당(세후)</th><th>세율 적용</th></tr></thead><tbody>${rows}</tbody>`;
 }
-

@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { build, root } from './build.mjs';
+import { fixture } from '../tests/preview-fixture.mjs';
+const d=fixture();
+const photo='data:image/webp;base64,'+fs.readFileSync(path.join(root,'docs/assets/hero-sm.webp')).toString('base64');
+const boot='const previewFixture='+JSON.stringify(d)+'; gate=async()=>[previewFixture.snap,previewFixture.history]; loadLive=async()=>previewFixture.live; startCover=()=>{document.getElementById("cover").hidden=false;const s=document.getElementById("cover-stack");s.style.backgroundImage="url('+photo+')";s.style.backgroundSize="cover";s.style.backgroundPosition="center 60%";document.getElementById("cover-cap").textContent="PORTO · DOURO 2022";};document.body.insertAdjacentHTML("afterbegin", '+JSON.stringify('<div class="preview-notice">디자인 미리보기 · 모든 재무 수치와 매물 조건은 가상 데이터입니다</div>')+');main();';
+let html=build().replace(/\nmain\(\);\s*(?=<\/script>)/,'\n'+boot+'\n');
+html=html.replace(/url\("assets\/([^"\)]+)"\)/g,(match,file)=>{const full=path.join(root,'docs/assets',file);if(!fs.existsSync(full))return match;const ext=path.extname(file);const mime=ext==='.woff2'?'font/woff2':ext==='.webp'?'image/webp':'image/jpeg';return 'url("data:'+mime+';base64,'+fs.readFileSync(full).toString('base64')+'")';});
+for(const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g))new vm.Script(m[1]);
+fs.writeFileSync(path.join(root,'docs/preview.local.html'),html);
+console.log('Self-contained synthetic preview generated and scripts compiled');
