@@ -1120,51 +1120,10 @@ header .meta { font-size:11px; }
 #cover .delta-chip.up { color:#c7e4d5; background:rgba(132,187,158,.15); }
 #cover .delta-chip.dn { color:#ffd1c6; background:rgba(232,136,119,.15); }
 #cover .hb-spark { color:#e2d5b4; }
-.journey-nav { display:flex; border-bottom:1px solid var(--border); gap:30px; margin-top:20px; position:sticky; top:0;
-  z-index:35; background:var(--nav-bg); backdrop-filter:blur(18px); }
-.journey-nav button { position:relative; border:0; background:none; color:var(--ink-2); font-size:15px;
-  padding:21px 2px 18px; cursor:pointer; white-space:nowrap; font-weight:550; min-height:58px; }
-.journey-nav button span { font-size:10px; color:var(--ink-muted); margin-right:9px; font-weight:450; }
-.journey-nav button[aria-pressed="true"] { color:var(--ink-1); }
-.journey-nav button[aria-pressed="true"]::after { content:""; position:absolute; height:2px; bottom:-1px; left:0; right:0; background:var(--nav-accent); }
 .tabs { margin:0 0 34px; padding:11px 0; position:sticky; top:63px; gap:6px; border-bottom:0; background:var(--nav-bg); z-index:30; }
 .tab { font-size:12px; padding:9px 16px; min-height:38px; border-radius:30px; letter-spacing:0; }
 .tab.on { box-shadow:none; }
-.tab.out-of-group { display:none!important; }
-body[data-section="today"] .tabs { margin-bottom:12px; }
-.daily-heading { display:flex; justify-content:space-between; align-items:center; margin:16px 0 28px; gap:20px; }
 .eyebrow { font-size:10px; font-weight:600; letter-spacing:.2em; color:var(--ink-muted); }
-.daily-heading h2 { font-size:clamp(25px,3vw,35px); font-weight:550; letter-spacing:-.055em; margin:12px 0 9px; line-height:1.3; }
-.daily-heading p { font-size:12px; color:var(--ink-muted); margin:0; }
-.edition { border-left:1px solid var(--border); padding-left:20px; font-size:10px; line-height:1.8; letter-spacing:.2em; color:var(--ink-muted); }
-.daily-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
-.daily-kpi { position:relative; display:flex; flex-direction:column; align-items:flex-start; text-align:left;
-  padding:24px 22px; background:var(--surface-1); border:1px solid var(--border); border-radius:16px; min-height:154px; color:var(--ink-1);
-  cursor:pointer; transition:transform .2s,border-color .2s; }
-.daily-kpi:hover { transform:translateY(-3px); border-color:var(--nav-accent); }
-.daily-kpi>span { font-size:12px; color:var(--ink-2); margin-bottom:20px; }
-.daily-kpi strong { font-size:clamp(20px,2.2vw,29px); font-weight:550; letter-spacing:-.045em; font-variant-numeric:tabular-nums; line-height:1.2; }
-.daily-kpi:first-child strong { color:var(--pos); }
-.daily-kpi.negative strong { color:var(--neg); }
-.daily-kpi small { font-size:10px; color:var(--ink-muted); margin-top:12px; line-height:1.5; }
-.daily-kpi i { position:absolute; top:20px; right:20px; font-style:normal; color:var(--ink-muted); }
-.daily-bottom { display:grid; grid-template-columns:.85fr 1.6fr; gap:24px; margin-bottom:38px; }
-.daily-note { background:var(--premium-tint); border-radius:16px; padding:28px 30px; position:relative; overflow:hidden; }
-.daily-note::after { content:""; width:160px; height:160px; border:1px solid var(--border); border-radius:50%; position:absolute; right:-55px; bottom:-60px; pointer-events:none; }
-.daily-note h3 { font-size:23px; font-weight:550; letter-spacing:-.05em; margin:17px 0 12px; }
-.daily-note p { font-size:12px; line-height:1.9; color:var(--ink-2); margin:0 0 18px; }
-.daily-note button { background:none; border:0; padding:0; color:var(--ink-1); font-size:11px; font-weight:650; cursor:pointer; min-height:34px; }
-.daily-note button span { margin-left:20px; }
-.daily-actions { padding:4px 0; }
-.section-caption { display:flex; align-items:baseline; justify-content:space-between; padding:0 0 12px; gap:12px; }
-.section-caption h3 { font-size:16px; margin:0; font-weight:600; }
-.section-caption>span { font-size:10px; color:var(--ink-muted); }
-.daily-actions>button { display:flex; gap:20px; align-items:center; border:0; border-top:1px solid var(--border);
-  padding:18px 0; width:100%; text-align:left; color:var(--ink-1); background:transparent; cursor:pointer; }
-.daily-actions>button>span:last-child { margin-left:auto; color:var(--ink-muted); }
-.action-index { font-size:11px; color:var(--nav-accent); }
-.daily-actions b { display:block; font-size:13px; font-weight:550; }
-.daily-actions small { display:block; color:var(--ink-muted); font-size:11px; line-height:1.6; margin-top:5px; }
 .card { padding:26px; box-shadow:var(--shadow); border:1px solid var(--border); }
 .card h2 { font-size:18px; font-weight:600; letter-spacing:-.035em; margin-bottom:20px; }
 .cards { gap:14px; }
@@ -1217,9 +1176,6 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 .preview-notice { background:#203b48; color:#fff7e6; text-align:center; font-size:12px; padding:12px; margin:0 calc(-1 * var(--pad)); }
 @media (max-width:1100px) {
   #updated,#granny .lb { display:none; }
-  .daily-kpi { padding:20px 17px; }
-  .daily-kpi strong { font-size:22px; }
-  .daily-kpi small { font-size:10px; }
 }
 @media (max-width:760px) {
   header { min-height:76px; gap:8px; padding:12px 0; }
@@ -1235,26 +1191,8 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   #cover .hb-val { font-size:35px; }
   #cover .hb-gauges { display:none; }
   .cover-capline { margin-bottom:24px; }
-  .journey-nav { gap:0; justify-content:space-between; margin-top:10px; }
-  .journey-nav button { font-size:13px; min-height:56px; padding:18px 2px; }
-  .journey-nav button span { display:none; }
   .tabs { top:56px; margin-bottom:22px; padding:9px 0; }
   .tab { min-height:40px; padding:10px 14px; }
-  .daily-heading { margin:20px 0 24px; }
-  .daily-heading h2 { font-size:28px; }
-  .daily-heading p { font-size:11px; }
-  .edition { display:none; }
-  .daily-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-  .daily-kpi { min-height:146px; padding:20px 16px; }
-  .daily-kpi strong { font-size:21px; }
-  .daily-kpi i { top:17px; right:14px; }
-  .daily-kpi>span { font-size:11px; margin-bottom:18px; }
-  .daily-bottom { grid-template-columns:1fr; gap:22px; margin-bottom:30px; }
-  .daily-note { padding:24px; }
-  .daily-note p br { display:none; }
-  .daily-note h3 { font-size:21px; }
-  .daily-note p { margin-bottom:8px; }
-  .daily-actions>button { min-height:80px; padding:17px 0; }
   .card { padding:21px 18px; border-radius:15px; }
   .card h2 { font-size:17px; }
   .house-cards { display:grid; gap:14px; margin:0 0 24px; }
@@ -1273,35 +1211,26 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 }
 
 
-#planning-lab { margin-bottom:24px; }
-.lab-header { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
-.lab-header h2 { font-size:26px; margin:12px 0; font-weight:550; }
-.lab-header p,.lab-note { color:var(--ink-2); font-size:12px; line-height:1.9; }
-.lab-tag { background:var(--premium-tint); color:var(--ink-2); padding:7px 11px; border-radius:50px; font-size:10px; white-space:nowrap; }
-.planning-form { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin:28px 0; }
-.planning-form label { font-size:11px; color:var(--ink-2); }
-.planning-form label>span { display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--border); padding:10px 0; margin-top:4px; }
-.planning-form input { min-width:0; width:100%; border:0; background:none; color:var(--ink-1); font-size:24px; font-weight:550; outline-offset:4px; }
-.planning-form em { font-size:11px; font-style:normal; white-space:nowrap; }
-.planning-form button { grid-column:1/-1; justify-self:start; padding:12px 20px; border:0; border-radius:50px; background:var(--ink-1); color:var(--page); cursor:pointer; font-size:12px; }
-.lab-results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--border); border-radius:14px; background:var(--page); padding:22px; gap:20px; }
-.lab-results span { display:block; font-size:11px; color:var(--ink-2); margin-bottom:14px; }
-.lab-results strong { font-weight:550; font-size:24px; letter-spacing:-.04em; }
-.lab-results small { display:block; font-size:10px; color:var(--ink-muted); margin-top:9px; line-height:1.6; }
-.lab-comparison { display:flex; flex-wrap:wrap; gap:12px 24px; margin:18px 0; }
-.lab-comparison span { font-size:11px; color:var(--ink-2); }
-.lab-comparison b { font-weight:600; color:var(--ink-1); margin-left:6px; }
-@media (max-width:760px) {
-  .lab-header { flex-direction:column; gap:8px; }
-  .lab-header h2 { font-size:23px; }
-  .planning-form { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
-  .lab-results { grid-template-columns:1fr; padding:20px; gap:22px; }
-  .lab-results>div+div { border-top:1px solid var(--border); padding-top:18px; }
-}
-
 /* Source-time labels must wrap on narrow screens. */
 .cp-mkt-head { flex-wrap: wrap; }
 .cp-mkt-head .live-badge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+
+/* Direct tabs and a shorter, numbers-first home. */
+#cover { height:210px; min-height:0; margin-bottom:18px; }
+.cover-body { padding:22px 34px; }
+.cover-capline { margin-bottom:10px; }
+#cover .hb-val { font-size:clamp(30px,3.5vw,44px); }
+#cover .heroband { gap:24px; }
+.tabs { top:0; margin:0 0 20px; padding:10px 0; border-bottom:1px solid var(--border); }
+.tab { padding:10px 14px; min-height:42px; }
+@media (max-width:760px) {
+  #cover { height:200px; border-radius:18px; margin-bottom:8px; }
+  .cover-body { padding:18px 22px; }
+  .cover-capline { margin-bottom:8px; }
+  #cover .hb-val { font-size:32px; }
+  .tabs { top:0; margin-bottom:18px; padding:8px 0; }
+  .tab { padding:10px 13px; }
+}
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -1384,13 +1313,11 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   })();
 </script>
 
-<nav id="journey-nav" class="journey-nav" aria-label="주요 영역" hidden></nav>
 <nav class="tabs" id="tabs" style="display:none" role="tablist" aria-label="대시보드 화면">
   <button class="tab on" role="tab" aria-selected="true" data-tab="checkpoint" aria-label="오늘의 브리핑"><span class="t-full">오늘의 브리핑</span><span class="t-short" aria-hidden="true">브리핑</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="overview" aria-label="자산 현황"><span class="t-full">자산 현황</span><span class="t-short" aria-hidden="true">자산</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="financial" aria-label="투자 포트폴리오"><span class="t-full">투자 포트폴리오</span><span class="t-short" aria-hidden="true">투자</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="spending" aria-label="월간 생활비"><span class="t-full">월간 생활비</span><span class="t-short" aria-hidden="true">생활비</span></button>
-  <button class="tab" role="tab" aria-selected="false" data-tab="retirement" aria-label="은퇴 준비"><span class="t-full">은퇴 준비</span><span class="t-short" aria-hidden="true">은퇴 준비</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cashflow" aria-label="현금 흐름 계획"><span class="t-full">현금 흐름 계획</span><span class="t-short" aria-hidden="true">현금흐름</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="review" aria-label="연간 리뷰"><span class="t-full">연간 리뷰</span><span class="t-short" aria-hidden="true">리뷰</span></button>
   <button class="tab" role="tab" aria-selected="false" data-tab="cities" aria-label="후보 도시"><span class="t-full">후보 도시</span><span class="t-short" aria-hidden="true">도시</span></button>
@@ -1421,6 +1348,26 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 
 
 
+<section class="card" id="fire-section" style="display:none">
+    <h2>FIRE 목표 달성</h2>
+    <div id="fire-body"></div>
+  </section>
+<section class="card" id="sim-section" style="display:none">
+    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
+      <div class="seg" id="sim-seg" style="margin-bottom:0">
+        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
+        <button class="seg-btn" data-mode="nominal">명목</button>
+      </div>
+    </div>
+    <div class="sim-stats" id="sim-stats"></div>
+    <div id="sim-chart"></div>
+    <div class="note" id="sim-note"></div>
+    <details class="sim-fold" id="sim-fold">
+      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
+      <div class="tbl-scroll"><table id="sim-table"></table></div>
+      <div class="note" id="sim-table-note"></div>
+    </details>
+  </section>
   <section class="card">
     <h2>자산 구성</h2>
     <div class="donut-row" id="donuts"></div>
@@ -1539,26 +1486,6 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   </section>
 </div>
 
-<div id="tab-retirement" style="display:none"><section id="planning-lab" class="card"></section><section class="card" id="fire-section" style="display:none">
-    <h2>FIRE 목표 달성</h2>
-    <div id="fire-body"></div>
-  </section>
-<section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
-      <div class="seg" id="sim-seg" style="margin-bottom:0">
-        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-        <button class="seg-btn" data-mode="nominal">명목</button>
-      </div>
-    </div>
-    <div class="sim-stats" id="sim-stats"></div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
-    <details class="sim-fold" id="sim-fold">
-      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div class="tbl-scroll"><table id="sim-table"></table></div>
-      <div class="note" id="sim-table-note"></div>
-    </details>
-  </section></div>
 <div id="tab-cashflow" style="display:none">
   <div class="cards" id="cf-kpis"></div>
 
@@ -1639,7 +1566,6 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 </div>
 
 <div id="tab-checkpoint">
-  <section id="daily-overview" aria-label="오늘의 핵심 요약"></section>
   <div id="cp-body"></div>
 </div>
 
@@ -4398,8 +4324,7 @@ const fdNorm = s => (s || "").toLowerCase().replace(/\s+/g, "");
 // 탭 이름에 없는 말로 찾는 경우 — '오피스텔'을 치면 '다음 후보집'이 나와야 한다. 화면엔 안 보이고 찾기에만 쓴다.
 const FD_ALIAS = {
   checkpoint: "오늘 운세 뉴스 시세 날씨 환율 체크포인트",
-  retirement: "은퇴 준비 FIRE 시뮬레이션 계획 저축 가정",
-  overview:   "순자산 fire 부동산 아파트 부채 대출 추이",
+  overview:   "순자산 fire 은퇴 시뮬레이션 부동산 아파트 부채 대출 추이",
   financial:  "주식 계좌 배당 etf 연금 isa 포트폴리오",
   spending:   "가계부 소비 지출 생활비 카테고리",
   cashflow:   "연금 세금 건보료 건강보험 현금흐름 은퇴",
@@ -4669,47 +4594,7 @@ function initTabs() {
     }
   });
 }
-/* Premium dashboard shell. Every metric is derived from the existing snapshot. */
-const JOURNEY_GROUPS = [
-  { id: "today", label: "오늘", number: "01", tabs: ["checkpoint"] },
-  { id: "money", label: "우리 돈", number: "02", tabs: ["overview", "financial", "spending"] },
-  { id: "plan", label: "은퇴 계획", number: "03", tabs: ["retirement", "cashflow"] },
-  { id: "life", label: "다음 삶", number: "04", tabs: ["officetel", "cities", "review"] },
-];
 let currentHealth = null;
-function goDashboardTab(id) {
-  const tab = document.querySelector('#tabs .tab[data-tab="' + id + '"]');
-  if (tab && tab.style.display !== "none") tab.click();
-}
-function initJourney() {
-  const shell = document.getElementById("journey-nav");
-  shell.hidden = false;
-  if (shell.dataset.ready) return;
-  shell.dataset.ready = "1";
-  shell.innerHTML = JOURNEY_GROUPS.map(g => '<button type="button" data-group="' + g.id + '" aria-pressed="false"><span>' + g.number + '</span>' + g.label + '</button>').join("");
-  function selectGroup(id) {
-    const group = JOURNEY_GROUPS.find(g => g.tabs.includes(id)) || JOURNEY_GROUPS[0];
-    for (const b of shell.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.group === group.id));
-    for (const t of document.querySelectorAll("#tabs .tab"))
-      t.classList.toggle("out-of-group", !group.tabs.includes(t.dataset.tab));
-    document.body.dataset.section = group.id;
-  }
-  document.getElementById("tabs").addEventListener("click", ev => {
-    const b = ev.target.closest(".tab"); if (b) selectGroup(b.dataset.tab);
-  }, true);
-  shell.onclick = ev => {
-    const b = ev.target.closest("[data-group]"); if (!b) return;
-    const g = JOURNEY_GROUPS.find(x => x.id === b.dataset.group);
-    const next = g.tabs.find(id => document.querySelector('#tabs .tab[data-tab="' + id + '"]')?.style.display !== "none");
-    if (next) goDashboardTab(next);
-    else showToast("이 영역의 데이터가 아직 없습니다.");
-  };
-  document.addEventListener("click", ev => {
-    const b = ev.target.closest("[data-go-tab]");
-    if (b) goDashboardTab(b.dataset.goTab);
-  });
-  selectGroup(document.querySelector("#tabs .tab.on")?.dataset.tab || "checkpoint");
-}
 function openHealth() {
   const dialog = document.getElementById("data-dialog");
   if (!dialog.open) dialog.showModal();
@@ -4736,37 +4621,6 @@ function renderDataHealth(snap, live) {
   document.getElementById("data-close").onclick = () => document.getElementById("data-dialog").close();
   document.getElementById("data-dialog").onclick = ev => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); };
 }
-function renderDailyOverview(snap, live, net) {
-  const host = document.getElementById("daily-overview");
-  const fin = snap.financial?.holdings || [];
-  const liquid = fin.filter(h => h.group === "유동성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const pension = fin.filter(h => h.group === "연금성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const f = snap.fire || {};
-  const target = Number(f.target_basic) || 0;
-  const gap = target ? Math.max(0, target - net) : null;
-  const delta = snap.prev_day?.net_krw != null ? net - snap.prev_day.net_krw : null;
-  const of = snap.officetel?.items?.filter(x => x.ok) || [];
-  const health = currentHealth;
-  const kpi = (label, value, note, tab, extra = "") =>
-    '<button type="button" class="daily-kpi ' + extra + '" data-go-tab="' + tab + '"><span>' + label + '</span><strong>' + value + '</strong><small>' + note + '</small><i aria-hidden="true">↗</i></button>';
-  const today = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long" }).format(new Date());
-  const actions = [];
-  if (health?.warnings.length) actions.push({ label: "데이터 기준 확인", note: health.warnings.length + "개 항목의 수집 상태를 확인해 주세요.", health: true });
-  if (gap != null) actions.push({ label: gap > 0 ? "은퇴 목표 점검" : "목표 달성 이후 계획", note: gap > 0 ? "기본 목표까지 " + eokMan(gap) + " 남았어요." : "현금흐름과 인출 계획을 함께 확인하세요.", tab: "retirement" });
-  if (of.length) actions.push({ label: "다음 후보집 둘러보기", note: "기준 통과 " + of.length + "건 · 호가와 확인일을 비교해 보세요.", tab: "officetel" });
-  else actions.push({ label: "은퇴 현금흐름 점검", note: "계획값과 실제 입금액을 구분해서 확인하세요.", tab: "cashflow" });
-  host.innerHTML =
-    '<div class="daily-heading"><div><span class="eyebrow">OUR NEXT CHAPTER</span><h2>오늘도, 우리의 속도로.</h2><p>' + today + ' · 우현과 규리의 경제적 자립 여정</p></div><span class="edition">DAILY<br>OVERVIEW</span></div>' +
-    '<div class="daily-kpis">' +
-    kpi("순자산 변화", delta == null ? "비교 기준 없음" : (delta < 0 ? "−" : "+") + eokMan(Math.abs(delta)), "직전 확정 기록 대비 · 수익률과 다름", "overview", delta < 0 ? "negative" : "") +
-    kpi("유동성 투자자산", fin.length ? eokMan(liquid) : "데이터 없음", "연금성 제외 · 세금·출금 조건 별도", "financial") +
-    kpi("연금성 투자자산", fin.length ? eokMan(pension) : "데이터 없음", "계좌 분류 기준 · 즉시 사용 가능액 아님", "financial") +
-    kpi("기본 FIRE 진행", target ? (net / target * 100).toFixed(1) + "%" : "목표 미설정", target ? "목표 " + fmtEok(target) + " · 계획 기준" : "시트에 목표금액을 입력해 주세요", "retirement") +
-    '</div><div class="daily-bottom"><div class="daily-note"><span class="eyebrow">A LITTLE CLOSER</span><h3>숫자 너머의 다음 일상.</h3><p>오늘의 변화는 차분하게,<br>다음 선택은 조금 더 선명하게.</p><button type="button" data-go-tab="cashflow">은퇴 계획 살펴보기 <span aria-hidden="true">↗</span></button></div>' +
-    '<div class="daily-actions"><div class="section-caption"><h3>지금 살펴볼 것</h3><span>우선 확인할 세 가지</span></div>' +
-    actions.slice(0, 3).map((a, i) => '<button type="button" ' + (a.health ? 'data-open-health' : 'data-go-tab="' + a.tab + '"') + '><span class="action-index">0' + (i + 1) + '</span><span><b>' + a.label + '</b><small>' + a.note + '</small></span><span aria-hidden="true">↗</span></button>').join("") + '</div></div>';
-  host.querySelector("[data-open-health]")?.addEventListener("click", openHealth);
-}
 function renderHouseCards(of) {
   const host = document.getElementById("of-mobile-cards");
   if (!host) return;
@@ -4783,58 +4637,10 @@ function safeWebUrl(value) {
   try { const u = new URL(value); return ["https:", "http:"].includes(u.protocol) ? u.href : ""; } catch { return ""; }
 }
 function renderExperience(snap, live, net) {
-  initJourney();
   renderDataHealth(snap, live);
-  renderDailyOverview(snap, live, net);
   renderHouseCards(snap.officetel);
   document.getElementById("lock-dashboard").hidden = false;
 }
-/* A transparent, deterministic planning aid, separate from the sheet projection. */
-function projectSavings(start, monthly, annualPercent, months) {
-  if (![start, monthly, annualPercent, months].every(Number.isFinite) || start < 0 || monthly < 0 || annualPercent <= -100 || months < 0 || months > 1200) return null;
-  const rate = Math.pow(1 + annualPercent / 100, 1 / 12) - 1;
-  if (Math.abs(rate) < 1e-12) return start + monthly * months;
-  const factor = Math.pow(1 + rate, months);
-  return start * factor + monthly * (factor - 1) / rate;
-}
-function renderPlanningLab(snap) {
-  const host = document.getElementById("planning-lab");
-  if (!host) return;
-  const holdings = snap.financial?.holdings || [];
-  const liquid = holdings.filter(h => h.group === "유동성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const pension = holdings.filter(h => h.group === "연금성").reduce((s, h) => s + (Number(h.value_krw) || 0), 0);
-  const today = kstDay();
-  const f = snap.fire || {};
-  const targetMonths = f.target_year ? (f.target_year - Number(today.slice(0, 4))) * 12 + (f.target_month || 12) - Number(today.slice(5, 7)) : 24;
-  const defaults = { months: Math.min(360, Math.max(1, targetMonths)), saving: 0, rate: 3, expense: Math.round((f.monthly_expense || 5000000) / 10000) };
-  const values = renderPlanningLab.values || defaults;
-  const field = (id, label, value, min, max, step, unit) => '<label for="plan-' + id + '">' + label + '<span><input type="number" id="plan-' + id + '" name="' + id + '" value="' + value + '" min="' + min + '" max="' + max + '" step="' + step + '" inputmode="decimal" required><em>' + unit + '</em></span></label>';
-  host.innerHTML = '<div class="lab-header"><div><span class="eyebrow">WHAT IF, TOGETHER</span><h2>우리의 선택을 바꿔보면.</h2><p>월 저축과 수익률을 바꿔 투자자산의 준비 정도를 비교해 보세요.</p></div><span class="lab-tag">가정 기반 계산</span></div>' +
-    '<form id="planning-form" class="planning-form">' +
-    field("months","준비 기간",values.months,1,360,1,"개월") +
-    field("saving","월 추가저축",values.saving,0,100000,1,"만원") +
-    field("rate","연 수익률 가정",values.rate,-50,50,.1,"%") +
-    field("expense","은퇴 후 월 지출",values.expense,1,100000,1,"만원") +
-    '<button type="submit">다시 계산하기 ↗</button></form><div id="planning-output" aria-live="polite"></div>' +
-    '<p class="lab-note">최근 수집 투자 평가액을 출발점으로, 매월 말 저축·고정 수익률을 가정합니다. 추가저축은 유동성 계좌에만 반영합니다. 부동산·부채·세금·수수료·배당의 별도 현금 유출입은 계산하지 않으며, 시트 원본은 바뀌지 않습니다. 생활비 충당기간은 은퇴 후 수익·소득 없이 같은 금액을 쓰는 단순 계산입니다.</p>';
-  function draw() {
-    const form = document.getElementById("planning-form");
-    if (!form.reportValidity()) return;
-    const get = key => Number(form.elements.namedItem(key).value);
-    const v = { months: get("months"), saving: get("saving"), rate: get("rate"), expense: get("expense") };
-    renderPlanningLab.values = v;
-    const lv = projectSavings(liquid, v.saving * 10000, v.rate, v.months);
-    const pv = projectSavings(pension, 0, v.rate, v.months);
-    const out = document.getElementById("planning-output");
-    if (!holdings.length) { out.textContent = "계산에 필요한 투자 보유내역이 없습니다."; return; }
-    if (lv == null || pv == null) { out.textContent = "가정값을 다시 확인해 주세요."; return; }
-    out.innerHTML = '<div class="lab-results"><div><span>준비 기간 후 유동성 투자자산</span><strong>' + eokMan(lv) + '</strong><small>현재 ' + eokMan(liquid) + ' + 저축·가정 수익</small></div><div><span>연금성 투자자산 · 별도</span><strong>' + eokMan(pv) + '</strong><small>인출 시기·조건은 계좌별로 다름</small></div><div><span>유동성 자산의 생활비 충당기간</span><strong>' + (lv / (v.expense * 10000) / 12).toFixed(1) + '년</strong><small>월 ' + v.expense.toLocaleString("ko-KR") + '만원 지출 가정</small></div></div>' +
-      '<div class="lab-comparison">' + [0, 3, 5].map(rate => '<span>연 ' + rate + '% 가정 <b>' + fmtEok(projectSavings(liquid, v.saving * 10000, rate, v.months)) + '</b></span>').join("") + '</div>';
-  }
-  document.getElementById("planning-form").onsubmit = ev => { ev.preventDefault(); draw(); };
-  draw();
-}
-if (typeof module !== "undefined" && module.exports) module.exports = { projectSavings };
 /* ---- 스크롤 진입 연출 -------------------------------------------------------
    화면에 들어오는 카드를 한 번만 떠오르게 한다. IntersectionObserver라 스크롤마다
    계산하지 않아 부드럽고, 한 번 본 카드는 관찰을 끊어 되돌아와도 다시 움직이지 않는다.
@@ -5351,7 +5157,6 @@ async function render() {
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
   renderExperience(snap, live, net);
-  renderPlanningLab(snap);
   return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
 }
 
@@ -5463,7 +5268,7 @@ function flashUpdated() {
   const pane = active && document.getElementById("tab-" + active.dataset.tab);
   if (pane) { pane.classList.remove("flash-in"); void pane.offsetWidth; pane.classList.add("flash-in"); }
 }
-const previewFixture={"snap":{"updated_at":"2026-10-23T05:26:34.077Z","fx_usdkrw":1370,"assets":[{"name":"부동산 A","owner":"우현","category":"부동산","value_krw":1150000000},{"name":"부동산 B","owner":"규리","category":"부동산","value_krw":850000000},{"name":"우현 금융","owner":"우현","category":"주식","value_krw":460000000},{"name":"규리 금융","owner":"규리","category":"주식","value_krw":240000000},{"name":"거주 보증금","owner":"공동","category":"전세보증금","value_krw":200000000},{"name":"생활 예비비","owner":"공동","category":"현금","value_krw":50000000}],"liabilities":[{"name":"주택 담보","owner":"공동","kind":"담보","target":"부동산 A","amount_krw":1000000000}],"gross_krw":2950000000,"debt_krw":1000000000,"net_krw":1950000000,"total_krw":1950000000,"financial":{"year":2026,"fx":1370,"holdings":[{"owner":"우현","account":"일반계좌","group":"유동성","name":"TIGER 미국S&P500","ticker":"KRX:360750","currency":"KRW","qty":1000,"price":320000,"value_krw":320000000,"div_krw":4800000,"div_net_krw":4060800,"tax_rate":0.154,"div_months":[400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"일반계좌","group":"유동성","name":"TIGER 미국배당다우존스","ticker":"KRX:458730","currency":"KRW","qty":1000,"price":180000,"value_krw":180000000,"div_krw":6500000,"div_net_krw":5499000,"tax_rate":0.154,"div_months":[541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"우현","account":"연금저축","group":"연금성","name":"KODEX 미국나스닥100","ticker":"KRX:379810","currency":"KRW","qty":1000,"price":140000,"value_krw":140000000,"div_krw":1400000,"div_net_krw":1184400,"tax_rate":0.154,"div_months":[116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"IRP","group":"연금성","name":"RISE 200","ticker":"KRX:148020","currency":"KRW","qty":1000,"price":60000,"value_krw":60000000,"div_krw":1800000,"div_net_krw":1522800,"tax_rate":0.154,"div_months":[150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]}],"quotes_asof":"2026-10-23T05:26:34.077Z"},"fire":{"target_basic":2200000000,"target_rich":2800000000,"target_year":2028,"target_month":4,"monthly_expense":5500000,"current_age":40,"retire_age":42,"age_self":"우현","age_spouse":"규리","age_gap":8,"real_return":4,"life_expectancy":100},"spending":{"year":2026,"months":["2026-07","2026-08","2026-09","2026-10"],"closed":3,"total":[4200000,4600000,4400000,3100000],"categories":[{"name":"생활","values":[1600000,1500000,1600000,1200000]},{"name":"여행","values":[1200000,1700000,1300000,800000]},{"name":"외식","values":[800000,800000,900000,600000]},{"name":"기타","values":[600000,600000,600000,500000]}]},"officetel":{"cap_man":90000,"area_min":13,"criteria":"샘플 조건 · 환산전세 9억 이하","summary":{"ok":3,"listed":3,"total":3,"buildings":3,"min_conv":72000},"deals":{},"items":[{"name":"브라이튼 여의도","region":"서울 영등포구","type":"59A","area":17.8,"rooms":"방 2 · 욕실 1","deposit":30000,"monthly":180,"converted":75000,"ok":true,"listed":true,"floor":"중층","facing":"남향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"힐스테이트 여의도","region":"서울 영등포구","type":"49B","area":15.2,"rooms":"방 1 · 욕실 1","deposit":50000,"monthly":100,"converted":75000,"ok":true,"listed":true,"floor":"고층","facing":"동향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"여의도 더원","region":"서울 영등포구","type":"49A","area":14.9,"rooms":"방 1 · 욕실 1","deposit":40000,"monthly":128,"converted":72000,"ok":true,"listed":true,"floor":"고층","facing":"남서향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★"}]},"checkpoint":{"generated_at":"2026-10-23T05:26:34.077Z","date_label":"디자인 검증용 샘플","weather":"서울 18° · 맑음","greeting":"오늘의 변화를 차분히 살펴보세요.","summary":"모든 숫자와 매물 조건은 화면 확인을 위한 가상 데이터입니다.","us":[{"name":"S&P 500","price":6000,"unit":"pt","change_pct":0.42},{"name":"나스닥","price":20000,"unit":"pt","change_pct":0.63}],"kr":[{"name":"TIGER 미국S&P500","price":32000,"change_pct":0.35}],"fx":[{"name":"USD/KRW","rate":1370,"change_pct":-0.12}],"news":[{"title":"샘플 뉴스 · 출처와 발표 시각을 함께 확인하세요","source":"미리보기","link":"https://www.wealthfront.com/"}],"fear_greed":{"score":55,"label":"중립"}},"cities":{"seoul":{"name":"서울, 한국","avg_monthly":5500000,"annual_budget":66000000,"fire_target":2200000000,"categories":[2200000,1924999.9999999998,1375000]},"cities":[{"name":"포르투, 포르투갈","avg_monthly":3800000,"annual_budget":45600000,"fire_target":1520000000,"categories":[1520000,1330000,950000]},{"name":"후쿠오카, 일본","avg_monthly":4200000,"annual_budget":50400000,"fire_target":1680000000,"categories":[1680000,1470000,1050000]}],"categories":[{"name":"주거"},{"name":"생활"},{"name":"여행"}]},"simulation":{"retire_age":42,"summary":{"retire_asset":2200000000,"real_net_end":500000000},"series":[{"age":40,"year":2026,"phase":"현재","net":1850000000,"real_net":1850000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":41,"year":2027,"phase":"준비","net":1880000000,"real_net":1860000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":42,"year":2028,"phase":"은퇴","net":1910000000,"real_net":1870000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":43,"year":2029,"phase":"은퇴","net":1940000000,"real_net":1880000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":44,"year":2030,"phase":"은퇴","net":1970000000,"real_net":1890000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":45,"year":2031,"phase":"은퇴","net":2000000000,"real_net":1900000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":46,"year":2032,"phase":"은퇴","net":2030000000,"real_net":1910000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":47,"year":2033,"phase":"은퇴","net":2060000000,"real_net":1920000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":48,"year":2034,"phase":"은퇴","net":2090000000,"real_net":1930000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":49,"year":2035,"phase":"은퇴","net":2120000000,"real_net":1940000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":50,"year":2036,"phase":"은퇴","net":2150000000,"real_net":1950000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":51,"year":2037,"phase":"은퇴","net":2180000000,"real_net":1960000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":52,"year":2038,"phase":"은퇴","net":2210000000,"real_net":1970000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":53,"year":2039,"phase":"은퇴","net":2240000000,"real_net":1980000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":54,"year":2040,"phase":"은퇴","net":2270000000,"real_net":1990000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":55,"year":2041,"phase":"은퇴","net":2300000000,"real_net":2000000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":56,"year":2042,"phase":"은퇴","net":2330000000,"real_net":2010000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":57,"year":2043,"phase":"은퇴","net":2360000000,"real_net":2020000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":58,"year":2044,"phase":"은퇴","net":2390000000,"real_net":2030000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":59,"year":2045,"phase":"은퇴","net":2420000000,"real_net":2040000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000}]},"review":{"years":[2026],"byYear":{"2026":{"best":[{"label":"여행","text":"함께 걷는 다음 여정"}],"months":[]}}},"prev_day":{"net_krw":1943000000,"key":"2026-10-23"},"prev_month":{"net_krw":1900000000,"key":"2026-09"},"prev_year":{"net_krw":1700000000,"key":"2025"}},"live":{"updated_iso":"2026-10-23T05:26:34.077Z","updated_at":"2026-10-23T05:26:34.077Z","financial":{"year":2026,"fx":1370,"holdings":[{"owner":"우현","account":"일반계좌","group":"유동성","name":"TIGER 미국S&P500","ticker":"KRX:360750","currency":"KRW","qty":1000,"price":320000,"value_krw":320000000,"div_krw":4800000,"div_net_krw":4060800,"tax_rate":0.154,"div_months":[400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"일반계좌","group":"유동성","name":"TIGER 미국배당다우존스","ticker":"KRX:458730","currency":"KRW","qty":1000,"price":180000,"value_krw":180000000,"div_krw":6500000,"div_net_krw":5499000,"tax_rate":0.154,"div_months":[541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"우현","account":"연금저축","group":"연금성","name":"KODEX 미국나스닥100","ticker":"KRX:379810","currency":"KRW","qty":1000,"price":140000,"value_krw":140000000,"div_krw":1400000,"div_net_krw":1184400,"tax_rate":0.154,"div_months":[116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"IRP","group":"연금성","name":"RISE 200","ticker":"KRX:148020","currency":"KRW","qty":1000,"price":60000,"value_krw":60000000,"div_krw":1800000,"div_net_krw":1522800,"tax_rate":0.154,"div_months":[150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]}],"quotes_asof":"2026-10-23T05:26:34.077Z"},"fire":{"target_basic":2200000000,"target_rich":2800000000,"target_year":2028,"target_month":4,"monthly_expense":5500000,"current_age":40,"retire_age":42,"age_self":"우현","age_spouse":"규리","age_gap":8,"real_return":4,"life_expectancy":100},"spending":{"year":2026,"months":["2026-07","2026-08","2026-09","2026-10"],"closed":3,"total":[4200000,4600000,4400000,3100000],"categories":[{"name":"생활","values":[1600000,1500000,1600000,1200000]},{"name":"여행","values":[1200000,1700000,1300000,800000]},{"name":"외식","values":[800000,800000,900000,600000]},{"name":"기타","values":[600000,600000,600000,500000]}]},"officetel":{"cap_man":90000,"area_min":13,"criteria":"샘플 조건 · 환산전세 9억 이하","summary":{"ok":3,"listed":3,"total":3,"buildings":3,"min_conv":72000},"deals":{},"items":[{"name":"브라이튼 여의도","region":"서울 영등포구","type":"59A","area":17.8,"rooms":"방 2 · 욕실 1","deposit":30000,"monthly":180,"converted":75000,"ok":true,"listed":true,"floor":"중층","facing":"남향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"힐스테이트 여의도","region":"서울 영등포구","type":"49B","area":15.2,"rooms":"방 1 · 욕실 1","deposit":50000,"monthly":100,"converted":75000,"ok":true,"listed":true,"floor":"고층","facing":"동향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"여의도 더원","region":"서울 영등포구","type":"49A","area":14.9,"rooms":"방 1 · 욕실 1","deposit":40000,"monthly":128,"converted":72000,"ok":true,"listed":true,"floor":"고층","facing":"남서향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★"}]},"checkpoint":{"generated_at":"2026-10-23T05:26:34.077Z","date_label":"디자인 검증용 샘플","weather":"서울 18° · 맑음","greeting":"오늘의 변화를 차분히 살펴보세요.","summary":"모든 숫자와 매물 조건은 화면 확인을 위한 가상 데이터입니다.","us":[{"name":"S&P 500","price":6000,"unit":"pt","change_pct":0.42},{"name":"나스닥","price":20000,"unit":"pt","change_pct":0.63}],"kr":[{"name":"TIGER 미국S&P500","price":32000,"change_pct":0.35}],"fx":[{"name":"USD/KRW","rate":1370,"change_pct":-0.12}],"news":[{"title":"샘플 뉴스 · 출처와 발표 시각을 함께 확인하세요","source":"미리보기","link":"https://www.wealthfront.com/"}],"fear_greed":{"score":55,"label":"중립"}},"cities":{"seoul":{"name":"서울, 한국","avg_monthly":5500000,"annual_budget":66000000,"fire_target":2200000000,"categories":[2200000,1924999.9999999998,1375000]},"cities":[{"name":"포르투, 포르투갈","avg_monthly":3800000,"annual_budget":45600000,"fire_target":1520000000,"categories":[1520000,1330000,950000]},{"name":"후쿠오카, 일본","avg_monthly":4200000,"annual_budget":50400000,"fire_target":1680000000,"categories":[1680000,1470000,1050000]}],"categories":[{"name":"주거"},{"name":"생활"},{"name":"여행"}]},"simulation":{"retire_age":42,"summary":{"retire_asset":2200000000,"real_net_end":500000000},"series":[{"age":40,"year":2026,"phase":"현재","net":1850000000,"real_net":1850000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":41,"year":2027,"phase":"준비","net":1880000000,"real_net":1860000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":42,"year":2028,"phase":"은퇴","net":1910000000,"real_net":1870000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":43,"year":2029,"phase":"은퇴","net":1940000000,"real_net":1880000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":44,"year":2030,"phase":"은퇴","net":1970000000,"real_net":1890000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":45,"year":2031,"phase":"은퇴","net":2000000000,"real_net":1900000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":46,"year":2032,"phase":"은퇴","net":2030000000,"real_net":1910000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":47,"year":2033,"phase":"은퇴","net":2060000000,"real_net":1920000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":48,"year":2034,"phase":"은퇴","net":2090000000,"real_net":1930000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":49,"year":2035,"phase":"은퇴","net":2120000000,"real_net":1940000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":50,"year":2036,"phase":"은퇴","net":2150000000,"real_net":1950000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":51,"year":2037,"phase":"은퇴","net":2180000000,"real_net":1960000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":52,"year":2038,"phase":"은퇴","net":2210000000,"real_net":1970000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":53,"year":2039,"phase":"은퇴","net":2240000000,"real_net":1980000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":54,"year":2040,"phase":"은퇴","net":2270000000,"real_net":1990000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":55,"year":2041,"phase":"은퇴","net":2300000000,"real_net":2000000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":56,"year":2042,"phase":"은퇴","net":2330000000,"real_net":2010000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":57,"year":2043,"phase":"은퇴","net":2360000000,"real_net":2020000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":58,"year":2044,"phase":"은퇴","net":2390000000,"real_net":2030000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":59,"year":2045,"phase":"은퇴","net":2420000000,"real_net":2040000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000}]},"review":{"years":[2026],"byYear":{"2026":{"best":[{"label":"여행","text":"함께 걷는 다음 여정"}],"months":[]}}},"liabilities":[{"name":"주택 담보","owner":"공동","kind":"담보","target":"부동산 A","amount_krw":1000000000}],"news":[{"title":"샘플 뉴스 · 출처와 발표 시각을 함께 확인하세요","source":"미리보기","link":"https://www.wealthfront.com/"}],"us":[{"name":"S&P 500","price":6000,"unit":"pt","change_pct":0.42},{"name":"나스닥","price":20000,"unit":"pt","change_pct":0.63}],"kr":[{"name":"TIGER 미국S&P500","price":32000,"change_pct":0.35}],"fx":[{"name":"USD/KRW","rate":1370,"change_pct":-0.12}],"_fetched":{"financial":"2026-10-23T05:26:34.077Z","news":"2026-10-23T05:26:34.077Z","checkpoint":"2026-10-23T05:26:34.077Z","spending":"2026-10-23T05:26:34.077Z","fire":"2026-10-23T05:26:34.077Z","simulation":"2026-10-23T05:26:34.077Z","liabilities":"2026-10-23T05:26:34.077Z","officetel":"2026-10-23T05:26:34.077Z","cities":"2026-10-23T05:26:34.077Z"},"_status":{"financial":{"state":"ok"},"news":{"state":"ok"},"checkpoint":{"state":"ok"},"spending":{"state":"ok"},"fire":{"state":"ok"},"simulation":{"state":"ok"},"liabilities":{"state":"ok"},"officetel":{"state":"ok"},"cities":{"state":"ok"}}},"history":"date,name,value\n2025-12-31,total,1700000000\n2026-07-31,total,1800000000\n2026-08-31,total,1840000000\n2026-09-30,total,1900000000\n"}; gate=async()=>[previewFixture.snap,previewFixture.history]; loadLive=async()=>previewFixture.live; startCover=()=>{document.getElementById("cover").hidden=false;const s=document.getElementById("cover-stack");s.style.backgroundImage="url(assets/hero-sm.webp)";s.style.backgroundSize="cover";s.style.backgroundPosition="center 60%";document.getElementById("cover-cap").textContent="PORTO · DOURO 2022";};document.body.insertAdjacentHTML("afterbegin", "<div class=\"preview-notice\">디자인 미리보기 · 모든 재무 수치와 매물 조건은 가상 데이터입니다</div>");main();
+const previewFixture={"snap":{"updated_at":"2026-10-23T05:42:31.252Z","fx_usdkrw":1370,"assets":[{"name":"부동산 A","owner":"우현","category":"부동산","value_krw":1150000000},{"name":"부동산 B","owner":"규리","category":"부동산","value_krw":850000000},{"name":"우현 금융","owner":"우현","category":"주식","value_krw":460000000},{"name":"규리 금융","owner":"규리","category":"주식","value_krw":240000000},{"name":"거주 보증금","owner":"공동","category":"전세보증금","value_krw":200000000},{"name":"생활 예비비","owner":"공동","category":"현금","value_krw":50000000}],"liabilities":[{"name":"주택 담보","owner":"공동","kind":"담보","target":"부동산 A","amount_krw":1000000000}],"gross_krw":2950000000,"debt_krw":1000000000,"net_krw":1950000000,"total_krw":1950000000,"financial":{"year":2026,"fx":1370,"holdings":[{"owner":"우현","account":"일반계좌","group":"유동성","name":"TIGER 미국S&P500","ticker":"KRX:360750","currency":"KRW","qty":1000,"price":320000,"value_krw":320000000,"div_krw":4800000,"div_net_krw":4060800,"tax_rate":0.154,"div_months":[400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"일반계좌","group":"유동성","name":"TIGER 미국배당다우존스","ticker":"KRX:458730","currency":"KRW","qty":1000,"price":180000,"value_krw":180000000,"div_krw":6500000,"div_net_krw":5499000,"tax_rate":0.154,"div_months":[541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"우현","account":"연금저축","group":"연금성","name":"KODEX 미국나스닥100","ticker":"KRX:379810","currency":"KRW","qty":1000,"price":140000,"value_krw":140000000,"div_krw":1400000,"div_net_krw":1184400,"tax_rate":0.154,"div_months":[116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"IRP","group":"연금성","name":"RISE 200","ticker":"KRX:148020","currency":"KRW","qty":1000,"price":60000,"value_krw":60000000,"div_krw":1800000,"div_net_krw":1522800,"tax_rate":0.154,"div_months":[150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]}],"quotes_asof":"2026-10-23T05:42:31.252Z"},"fire":{"target_basic":2200000000,"target_rich":2800000000,"target_year":2028,"target_month":4,"monthly_expense":5500000,"current_age":40,"retire_age":42,"age_self":"우현","age_spouse":"규리","age_gap":8,"real_return":4,"life_expectancy":100},"spending":{"year":2026,"months":["2026-07","2026-08","2026-09","2026-10"],"closed":3,"total":[4200000,4600000,4400000,3100000],"categories":[{"name":"생활","values":[1600000,1500000,1600000,1200000]},{"name":"여행","values":[1200000,1700000,1300000,800000]},{"name":"외식","values":[800000,800000,900000,600000]},{"name":"기타","values":[600000,600000,600000,500000]}]},"officetel":{"cap_man":90000,"area_min":13,"criteria":"샘플 조건 · 환산전세 9억 이하","summary":{"ok":3,"listed":3,"total":3,"buildings":3,"min_conv":72000},"deals":{},"items":[{"name":"브라이튼 여의도","region":"서울 영등포구","type":"59A","area":17.8,"rooms":"방 2 · 욕실 1","deposit":30000,"monthly":180,"converted":75000,"ok":true,"listed":true,"floor":"중층","facing":"남향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"힐스테이트 여의도","region":"서울 영등포구","type":"49B","area":15.2,"rooms":"방 1 · 욕실 1","deposit":50000,"monthly":100,"converted":75000,"ok":true,"listed":true,"floor":"고층","facing":"동향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"여의도 더원","region":"서울 영등포구","type":"49A","area":14.9,"rooms":"방 1 · 욕실 1","deposit":40000,"monthly":128,"converted":72000,"ok":true,"listed":true,"floor":"고층","facing":"남서향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★"}]},"checkpoint":{"generated_at":"2026-10-23T05:42:31.252Z","date_label":"디자인 검증용 샘플","weather":"서울 18° · 맑음","greeting":"오늘의 변화를 차분히 살펴보세요.","summary":"모든 숫자와 매물 조건은 화면 확인을 위한 가상 데이터입니다.","us":[{"name":"S&P 500","price":6000,"unit":"pt","change_pct":0.42},{"name":"나스닥","price":20000,"unit":"pt","change_pct":0.63}],"kr":[{"name":"TIGER 미국S&P500","price":32000,"change_pct":0.35}],"fx":[{"name":"USD/KRW","rate":1370,"change_pct":-0.12}],"news":[{"title":"샘플 뉴스 · 출처와 발표 시각을 함께 확인하세요","source":"미리보기","link":"https://www.wealthfront.com/"}],"fear_greed":{"score":55,"label":"중립"}},"cities":{"seoul":{"name":"서울, 한국","avg_monthly":5500000,"annual_budget":66000000,"fire_target":2200000000,"categories":[2200000,1924999.9999999998,1375000]},"cities":[{"name":"포르투, 포르투갈","avg_monthly":3800000,"annual_budget":45600000,"fire_target":1520000000,"categories":[1520000,1330000,950000]},{"name":"후쿠오카, 일본","avg_monthly":4200000,"annual_budget":50400000,"fire_target":1680000000,"categories":[1680000,1470000,1050000]}],"categories":[{"name":"주거"},{"name":"생활"},{"name":"여행"}]},"simulation":{"retire_age":42,"summary":{"retire_asset":2200000000,"real_net_end":500000000},"series":[{"age":40,"year":2026,"phase":"현재","net":1850000000,"real_net":1850000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":41,"year":2027,"phase":"준비","net":1880000000,"real_net":1860000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":42,"year":2028,"phase":"은퇴","net":1910000000,"real_net":1870000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":43,"year":2029,"phase":"은퇴","net":1940000000,"real_net":1880000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":44,"year":2030,"phase":"은퇴","net":1970000000,"real_net":1890000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":45,"year":2031,"phase":"은퇴","net":2000000000,"real_net":1900000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":46,"year":2032,"phase":"은퇴","net":2030000000,"real_net":1910000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":47,"year":2033,"phase":"은퇴","net":2060000000,"real_net":1920000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":48,"year":2034,"phase":"은퇴","net":2090000000,"real_net":1930000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":49,"year":2035,"phase":"은퇴","net":2120000000,"real_net":1940000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":50,"year":2036,"phase":"은퇴","net":2150000000,"real_net":1950000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":51,"year":2037,"phase":"은퇴","net":2180000000,"real_net":1960000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":52,"year":2038,"phase":"은퇴","net":2210000000,"real_net":1970000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":53,"year":2039,"phase":"은퇴","net":2240000000,"real_net":1980000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":54,"year":2040,"phase":"은퇴","net":2270000000,"real_net":1990000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":55,"year":2041,"phase":"은퇴","net":2300000000,"real_net":2000000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":56,"year":2042,"phase":"은퇴","net":2330000000,"real_net":2010000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":57,"year":2043,"phase":"은퇴","net":2360000000,"real_net":2020000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":58,"year":2044,"phase":"은퇴","net":2390000000,"real_net":2030000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":59,"year":2045,"phase":"은퇴","net":2420000000,"real_net":2040000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000}]},"review":{"years":[2026],"byYear":{"2026":{"best":[{"label":"여행","text":"함께 걷는 다음 여정"}],"months":[]}}},"prev_day":{"net_krw":1943000000,"key":"2026-10-23"},"prev_month":{"net_krw":1900000000,"key":"2026-09"},"prev_year":{"net_krw":1700000000,"key":"2025"}},"live":{"updated_iso":"2026-10-23T05:42:31.252Z","updated_at":"2026-10-23T05:42:31.252Z","financial":{"year":2026,"fx":1370,"holdings":[{"owner":"우현","account":"일반계좌","group":"유동성","name":"TIGER 미국S&P500","ticker":"KRX:360750","currency":"KRW","qty":1000,"price":320000,"value_krw":320000000,"div_krw":4800000,"div_net_krw":4060800,"tax_rate":0.154,"div_months":[400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000,400000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"일반계좌","group":"유동성","name":"TIGER 미국배당다우존스","ticker":"KRX:458730","currency":"KRW","qty":1000,"price":180000,"value_krw":180000000,"div_krw":6500000,"div_net_krw":5499000,"tax_rate":0.154,"div_months":[541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666,541666.6666666666],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"우현","account":"연금저축","group":"연금성","name":"KODEX 미국나스닥100","ticker":"KRX:379810","currency":"KRW","qty":1000,"price":140000,"value_krw":140000000,"div_krw":1400000,"div_net_krw":1184400,"tax_rate":0.154,"div_months":[116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667,116666.66666666667],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]},{"owner":"규리","account":"IRP","group":"연금성","name":"RISE 200","ticker":"KRX:148020","currency":"KRW","qty":1000,"price":60000,"value_krw":60000000,"div_krw":1800000,"div_net_krw":1522800,"tax_rate":0.154,"div_months":[150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000,150000],"div_kinds":["est","est","est","est","est","est","est","est","est","est","est","est"]}],"quotes_asof":"2026-10-23T05:42:31.252Z"},"fire":{"target_basic":2200000000,"target_rich":2800000000,"target_year":2028,"target_month":4,"monthly_expense":5500000,"current_age":40,"retire_age":42,"age_self":"우현","age_spouse":"규리","age_gap":8,"real_return":4,"life_expectancy":100},"spending":{"year":2026,"months":["2026-07","2026-08","2026-09","2026-10"],"closed":3,"total":[4200000,4600000,4400000,3100000],"categories":[{"name":"생활","values":[1600000,1500000,1600000,1200000]},{"name":"여행","values":[1200000,1700000,1300000,800000]},{"name":"외식","values":[800000,800000,900000,600000]},{"name":"기타","values":[600000,600000,600000,500000]}]},"officetel":{"cap_man":90000,"area_min":13,"criteria":"샘플 조건 · 환산전세 9억 이하","summary":{"ok":3,"listed":3,"total":3,"buildings":3,"min_conv":72000},"deals":{},"items":[{"name":"브라이튼 여의도","region":"서울 영등포구","type":"59A","area":17.8,"rooms":"방 2 · 욕실 1","deposit":30000,"monthly":180,"converted":75000,"ok":true,"listed":true,"floor":"중층","facing":"남향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"힐스테이트 여의도","region":"서울 영등포구","type":"49B","area":15.2,"rooms":"방 1 · 욕실 1","deposit":50000,"monthly":100,"converted":75000,"ok":true,"listed":true,"floor":"고층","facing":"동향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★★"},{"name":"여의도 더원","region":"서울 영등포구","type":"49A","area":14.9,"rooms":"방 1 · 욕실 1","deposit":40000,"monthly":128,"converted":72000,"ok":true,"listed":true,"floor":"고층","facing":"남서향","asof":"2026-10-23","link":"https://land.naver.com/","stars":"★"}]},"checkpoint":{"generated_at":"2026-10-23T05:42:31.252Z","date_label":"디자인 검증용 샘플","weather":"서울 18° · 맑음","greeting":"오늘의 변화를 차분히 살펴보세요.","summary":"모든 숫자와 매물 조건은 화면 확인을 위한 가상 데이터입니다.","us":[{"name":"S&P 500","price":6000,"unit":"pt","change_pct":0.42},{"name":"나스닥","price":20000,"unit":"pt","change_pct":0.63}],"kr":[{"name":"TIGER 미국S&P500","price":32000,"change_pct":0.35}],"fx":[{"name":"USD/KRW","rate":1370,"change_pct":-0.12}],"news":[{"title":"샘플 뉴스 · 출처와 발표 시각을 함께 확인하세요","source":"미리보기","link":"https://www.wealthfront.com/"}],"fear_greed":{"score":55,"label":"중립"}},"cities":{"seoul":{"name":"서울, 한국","avg_monthly":5500000,"annual_budget":66000000,"fire_target":2200000000,"categories":[2200000,1924999.9999999998,1375000]},"cities":[{"name":"포르투, 포르투갈","avg_monthly":3800000,"annual_budget":45600000,"fire_target":1520000000,"categories":[1520000,1330000,950000]},{"name":"후쿠오카, 일본","avg_monthly":4200000,"annual_budget":50400000,"fire_target":1680000000,"categories":[1680000,1470000,1050000]}],"categories":[{"name":"주거"},{"name":"생활"},{"name":"여행"}]},"simulation":{"retire_age":42,"summary":{"retire_asset":2200000000,"real_net_end":500000000},"series":[{"age":40,"year":2026,"phase":"현재","net":1850000000,"real_net":1850000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":41,"year":2027,"phase":"준비","net":1880000000,"real_net":1860000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":42,"year":2028,"phase":"은퇴","net":1910000000,"real_net":1870000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":43,"year":2029,"phase":"은퇴","net":1940000000,"real_net":1880000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":44,"year":2030,"phase":"은퇴","net":1970000000,"real_net":1890000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":45,"year":2031,"phase":"은퇴","net":2000000000,"real_net":1900000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":46,"year":2032,"phase":"은퇴","net":2030000000,"real_net":1910000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":47,"year":2033,"phase":"은퇴","net":2060000000,"real_net":1920000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":48,"year":2034,"phase":"은퇴","net":2090000000,"real_net":1930000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":49,"year":2035,"phase":"은퇴","net":2120000000,"real_net":1940000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":50,"year":2036,"phase":"은퇴","net":2150000000,"real_net":1950000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":51,"year":2037,"phase":"은퇴","net":2180000000,"real_net":1960000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":52,"year":2038,"phase":"은퇴","net":2210000000,"real_net":1970000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":53,"year":2039,"phase":"은퇴","net":2240000000,"real_net":1980000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":54,"year":2040,"phase":"은퇴","net":2270000000,"real_net":1990000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":55,"year":2041,"phase":"은퇴","net":2300000000,"real_net":2000000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":56,"year":2042,"phase":"은퇴","net":2330000000,"real_net":2010000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":57,"year":2043,"phase":"은퇴","net":2360000000,"real_net":2020000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":58,"year":2044,"phase":"은퇴","net":2390000000,"real_net":2030000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000},{"age":59,"year":2045,"phase":"은퇴","net":2420000000,"real_net":2040000000,"invest":100000000,"spend":66000000,"medical":3000000,"pension":0,"saving":24000000}]},"review":{"years":[2026],"byYear":{"2026":{"best":[{"label":"여행","text":"함께 걷는 다음 여정"}],"months":[]}}},"liabilities":[{"name":"주택 담보","owner":"공동","kind":"담보","target":"부동산 A","amount_krw":1000000000}],"news":[{"title":"샘플 뉴스 · 출처와 발표 시각을 함께 확인하세요","source":"미리보기","link":"https://www.wealthfront.com/"}],"us":[{"name":"S&P 500","price":6000,"unit":"pt","change_pct":0.42},{"name":"나스닥","price":20000,"unit":"pt","change_pct":0.63}],"kr":[{"name":"TIGER 미국S&P500","price":32000,"change_pct":0.35}],"fx":[{"name":"USD/KRW","rate":1370,"change_pct":-0.12}],"_fetched":{"financial":"2026-10-23T05:42:31.252Z","news":"2026-10-23T05:42:31.252Z","checkpoint":"2026-10-23T05:42:31.252Z","spending":"2026-10-23T05:42:31.252Z","fire":"2026-10-23T05:42:31.252Z","simulation":"2026-10-23T05:42:31.252Z","liabilities":"2026-10-23T05:42:31.252Z","officetel":"2026-10-23T05:42:31.252Z","cities":"2026-10-23T05:42:31.252Z"},"_status":{"financial":{"state":"ok"},"news":{"state":"ok"},"checkpoint":{"state":"ok"},"spending":{"state":"ok"},"fire":{"state":"ok"},"simulation":{"state":"ok"},"liabilities":{"state":"ok"},"officetel":{"state":"ok"},"cities":{"state":"ok"}}},"history":"date,name,value\n2025-12-31,total,1700000000\n2026-07-31,total,1800000000\n2026-08-31,total,1840000000\n2026-09-30,total,1900000000\n"}; gate=async()=>[previewFixture.snap,previewFixture.history]; loadLive=async()=>previewFixture.live; startCover=()=>{document.getElementById("cover").hidden=false;const s=document.getElementById("cover-stack");s.style.backgroundImage="url(assets/hero-sm.webp)";s.style.backgroundSize="cover";s.style.backgroundPosition="center 60%";document.getElementById("cover-cap").textContent="PORTO · DOURO 2022";};document.body.insertAdjacentHTML("afterbegin", "<div class=\"preview-notice\">디자인 미리보기 · 모든 재무 수치와 매물 조건은 가상 데이터입니다</div>");main();
 </script>
 </body>
 </html>
