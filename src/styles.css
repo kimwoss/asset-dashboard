@@ -1274,3 +1274,7 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
   .lab-results { grid-template-columns:1fr; padding:20px; gap:22px; }
   .lab-results>div+div { border-top:1px solid var(--border); padding-top:18px; }
 }
+
+/* Source-time labels must wrap on narrow screens. */
+.cp-mkt-head { flex-wrap: wrap; }
+.cp-mkt-head .live-badge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
