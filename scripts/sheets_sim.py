@@ -88,6 +88,7 @@ def fetch_simulation() -> Dict[str, Any]:
                 "net": g("net"), "real_net": g("real_net"),
                 "invest": g("invest"), "spend": g("spend"),
                 "medical": g("medical"), "pension": g("pension"), "saving": g("saving"),
+                "retire_income": g("retire_income"),
                 # 경기순환 — '평상/폭락/회복'과 그 해 실제로 적용된 수익률.
                 # 순환을 끄면 전부 '평상'이라 화면은 종전과 똑같이 보인다.
                 "cycle": str(row[COL["cycle"]]).strip() if len(row) > COL["cycle"] else "",
@@ -127,6 +128,7 @@ def fetch_simulation() -> Dict[str, Any]:
         print(f"OK: 은퇴 지도 {len(series)}개년({series[0]['age']}~{series[-1]['age']}세) · "
               f"은퇴 {retire_age}세 · 소진 {depletion_age}세{cyc_txt}")
         return {"summary": summary, "retire_age": retire_age,
+                "source_url": f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit#gid={ws.id}",
                 "depletion_age": depletion_age, "series": series}
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 은퇴 지도 읽기 실패 ({type(e).__name__}: {e})")

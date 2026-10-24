@@ -438,6 +438,7 @@ async function render() {
   renderCities(snap.cities, net);
   renderOfficetel(snap.officetel);
   renderSim(snap.simulation, net);
+  renderSimulationViewer(snap.simulation, live);
   renderReview(snap.review);
   // 브리핑 맨 위 금융자산 — 현재값은 실시간, 전일은 history, 전월·전년은 asset_history
   renderCheckpoint(snap.checkpoint,

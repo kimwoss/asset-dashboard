@@ -430,7 +430,7 @@ function renderSim(sim, net) {
   document.getElementById("sim-stats").innerHTML =
     stat("은퇴 시점 자산", `${fmtEok(s.retire_asset)} · ${sim.retire_age}세`) +
     stat("자산 소진", sim.depletion_age ? `${sim.depletion_age}세` : "없음") +
-    stat("108세 실질", `<span class="${s.real_net_end < 0 ? "delta-down" : ""}">${fmtEok(s.real_net_end)}</span>`)
+    stat(`${s.end_age || series[series.length - 1].age}세 실질`, `<span class="${s.real_net_end < 0 ? "delta-down" : ""}">${fmtEok(s.real_net_end)}</span>`)
     + (s.cycle_on
         ? stat("경기순환", `<span class="delta-down">폭락 ${(s.crash_ages || []).slice(0, 4).join("·")}세…</span>`
             + (s.spend_cut > 0
@@ -439,7 +439,7 @@ function renderSim(sim, net) {
 
   // ── 연도별 표 헬퍼 — draw()가 paintTable을 부르므로 반드시 그보다 먼저 선언한다 ──
   const eok = v => (v / 1e8).toFixed(2) + "억";
-  const man0 = v => v ? Math.round(v / 1e4).toLocaleString("ko-KR") : "–";
+  const man0 = v => Number.isFinite(v) ? Math.round(v / 1e4).toLocaleString("ko-KR") : "—";
   document.getElementById("sim-fold-hint").textContent =
     `${series[0].age}~${series[series.length - 1].age}세 · ${series.length}개년`;
 
@@ -463,8 +463,8 @@ function renderSim(sim, net) {
     const primary = mode === "real" ? "real_net" : "net";
     const secondary = mode === "real" ? "net" : "real_net";
     const head = mode === "real"
-      ? ["나이", "연도", "단계", "실질 순자산", "명목 순자산", "투자수익", "연지출", "의료비", "연금", "저축"]
-      : ["나이", "연도", "단계", "명목 순자산", "실질 순자산", "투자수익", "연지출", "의료비", "연금", "저축"];
+      ? ["나이", "연도", "단계", "실질 순자산", "명목 순자산", "투자수익", "연지출", "보험료·의료", "연금", "은퇴후소득", "저축"]
+      : ["나이", "연도", "단계", "명목 순자산", "실질 순자산", "투자수익", "연지출", "보험료·의료", "연금", "은퇴후소득", "저축"];
     document.getElementById("sim-table").innerHTML =
       `<thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>`
       + series.map(r => {
@@ -483,11 +483,11 @@ function renderSim(sim, net) {
           + `<td${neg(r[primary])}>${eok(r[primary])}</td>`
           + `<td style="color:var(--ink-muted)">${eok(r[secondary])}</td>`
           + `<td${neg(r.invest)}>${man0(r.invest)}</td><td>${man0(r.spend)}</td>`
-          + `<td>${man0(r.medical)}</td><td>${man0(r.pension)}</td><td>${man0(r.saving)}</td></tr>`;
+          + `<td>${man0(r.medical)}</td><td>${man0(r.pension)}</td><td>${man0(r.retire_income)}</td><td>${man0(r.saving)}</td></tr>`;
       }).join("") + "</tbody>";
     const gap = sheetNow != null && net > 0 ? net - sheetNow : 0;
     document.getElementById("sim-table-note").innerHTML =
-      "순자산은 억, 나머지는 만원 단위 · 출처는 시뮬레이션 시트이고 연도별 예측은 시트가 계산합니다."
+      "순자산은 억, 나머지는 만원 단위 · —는 원자료 없음 · 출처는 시뮬레이션 시트이고 연도별 예측은 시트가 계산합니다."
       + ` 전망 출발점은 시트 기록 기준이며 현재 평가액은 <b>${eok(net)}</b>입니다`
       + (Math.abs(gap) >= 1e6
           ? ` (시트의 현재 행 ${eok(sheetNow)}과 ${gap > 0 ? "+" : "−"}${eok(Math.abs(gap))} 차이 — 시트는 월 단위 기록, 이쪽은 최근 수집 평가액입니다).`
