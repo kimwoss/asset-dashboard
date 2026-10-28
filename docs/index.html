@@ -4095,8 +4095,11 @@ function renderCities(ct, net) {
         <span class="ct-bar-val">${fmtMan(c.avg_monthly)} <b style="color:${col}">${tag}</b></span></div>
     </div>`;
   }).join("");
+  // 시트에서 계산이 깨진 도시는 데이터 단계에서 빠진다 — 조용히 사라지지 않게 이름을 밝힌다
+  const broken = (ct.broken || []).map(ctShort);
   document.getElementById("ct-bars-note").textContent =
-    "Numbeo 물가 기준 · 초록=서울보다 저렴 · 파랑=비쌈";
+    "Numbeo 물가 기준 · 초록=서울보다 저렴 · 파랑=비쌈"
+    + (broken.length ? ` · ⚠️ 시트 계산 오류로 뺀 도시: ${broken.join(", ")}` : "");
 
   // 도시 선택 → 상세 (카테고리별 서울 대비 + 실시간 순자산 달성률)
   const pick = document.getElementById("ct-pick");

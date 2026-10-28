@@ -43,6 +43,20 @@ def _num(v: Any) -> float:
         return 0.0
 
 
+def _ok(v: Any) -> bool:
+    """셀이 숫자로 읽히나. '#VALUE!'·'#N/A' 같은 시트 오류는 숫자가 아니다."""
+    if isinstance(v, (int, float)):
+        return True
+    t = str(v).strip()
+    if not t or t.startswith("#"):
+        return False
+    try:
+        float(t.replace(",", "").replace("₩", "").replace("%", ""))
+        return True
+    except ValueError:
+        return False
+
+
 def fetch_cities(today: Optional[date] = None) -> Dict[str, Any]:
     """🌍이주 대시보드 → {cities, seoul, categories, ...}. 실패 시 {} (탭만 숨김)."""
     try:
@@ -106,10 +120,20 @@ def fetch_cities(today: Optional[date] = None) -> Dict[str, Any]:
             }
 
         seoul = build(SEOUL_COL, str(cell(hdr, SEOUL_COL)).strip() or "서울")
-        cities = []
+        # 결과 칸이 시트 오류인 도시는 빼고 이름만 따로 넘긴다. 종전엔 _num()이 '#VALUE!'를
+        # 0으로 바꿔 '월 0원' 도시가 가장 싼 곳으로 맨 위에 섰고, 로그는 'OK 10곳'이라 아무도
+        # 몰랐다(2026-10 — Numbeo 표에 행이 하나 늘어 7곳이 깨져 있었다).
+        key_rows = [r for r in (r_avg, r_fire, m_total) if r is not None]
+        cities, broken = [], []
         for c in city_cols:
+            if not all(_ok(cell(r, c)) for r in key_rows):
+                broken.append(col_name(c))
+                continue
             st = str(cell(status_row, c)).strip() if status_row is not None else ""
             cities.append(build(c, col_name(c), st))
+        if broken:
+            print(f"WARN: 이주 대시보드 계산 오류 {len(broken)}곳 — 웹에서 뺌: {', '.join(broken)} "
+                  f"(시트 '🌍이주 대시보드' 5행 상태 확인)")
 
         if not cities or seoul["avg_monthly"] <= 0:
             print("WARN: 이주 대시보드 도시/서울 값 없음 — 생략")
@@ -119,6 +143,7 @@ def fetch_cities(today: Optional[date] = None) -> Dict[str, Any]:
             "seoul": seoul,
             "cities": cities,
             "categories": categories_meta,
+            "broken": broken,
         }
         print(f"OK: 살고싶은 도시 {len(cities)}곳 · 서울 월 {seoul['avg_monthly']/1e4:,.0f}만원 기준")
         return out
