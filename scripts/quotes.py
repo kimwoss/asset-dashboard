@@ -63,6 +63,40 @@ def _is_open(market: str, now: Optional[datetime] = None) -> bool:
     return True
 
 
+def fill_missing_closes(sym, close, traded, lookback_days=10):
+    """야후 일봉에서 '거래는 있었는데 종가만 빈' 날을 장중 5분봉 마지막 값으로 채운다.
+
+    2026-10-29 SCHD 일봉이 시가·고가·저가·거래량은 있고 종가만 NaN으로 왔다(단독 조회도 같음).
+    종전엔 그 행을 버려 SCHD만 10-28에 머물렀고, 시세표에 '⚠️10-28 종가'가 붙어 1일 수익률이
+    다른 종목과 다른 날을 비교했다. 같은 날 값은 5분봉에 있다(마지막 봉 35.62 · 공식 종가 35.61).
+    거래 흔적(traded: 거래량>0 또는 시가)이 없는 날(휴장·상장 전)은 건드리지 않는다 — 거래가 없던
+    날을 지어내지 않는다. 시가만으로는 안 된다: 여러 종목을 한 번에 받을 때 야후가 수정주가를
+    적용하며 종가가 빈 날의 시가까지 비운다. 거래량은 수정되지 않아 남는다.
+    Returns: (채운 종가 시리즈, 채운 날짜 목록)
+    """
+    import pandas as pd
+    import yfinance as yf
+    recent = close.index[-lookback_days:]
+    gaps = [d for d in recent if pd.isna(close.get(d)) and bool(traded.get(d, False))]
+    if not gaps:
+        return close, []
+    try:
+        bars = yf.Ticker(sym).history(period="1mo", interval="5m")["Close"].dropna()
+        last_by_day = bars.groupby(bars.index.date).last()
+    except Exception as e:  # noqa: BLE001
+        print(f"WARN: {sym} 장중 봉 조회 실패 ({e}) — 빈 종가 {len(gaps)}일 그대로")
+        return close, []
+    close, filled = close.copy(), []
+    for d in gaps:
+        v = last_by_day.get(pd.Timestamp(d).date())
+        if v is not None and v > 0:
+            close.loc[d] = float(v)
+            filled.append(pd.Timestamp(d).strftime("%Y-%m-%d"))
+    if filled:
+        print(f"INFO: {sym} 야후 일봉 종가 누락 {', '.join(filled)} → 5분봉 마지막 값으로 채움")
+    return close, filled
+
+
 def _daily_closes(symbols: List[str]) -> Dict[str, float]:
     """{심볼: 마지막 '정식 종가'}. 주말 행은 버린다.
 
@@ -85,10 +119,18 @@ def _daily_closes(symbols: List[str]) -> Dict[str, float]:
     idx = pd.DatetimeIndex(cl.index)
     cl = cl[[d.weekday() < 5 for d in idx]]
     out: Dict[str, float] = {}
+    # 그날 거래가 있었나 — 거래량 또는 시가. 거래는 있었는데 종가만 빈 날(2026-10-29 SCHD·QQQM)을
+    # 버리면 보유분이 하루 전 종가로 평가된다. 시세표와 같은 규칙으로 채운다.
+    vol = df["Volume"] if "Volume" in df else None
+    opn = df["Open"] if "Open" in df else None
     for s in symbols:
         if s not in cl:
             continue
-        v = cl[s].dropna()
+        col = cl[s]
+        if vol is not None and opn is not None and s in vol and s in opn:
+            traded = (vol[s].reindex(col.index).fillna(0) > 0) | opn[s].reindex(col.index).notna()
+            col, _ = fill_missing_closes(s, col, traded)
+        v = col.dropna()
         if len(v):
             out[s] = float(v.iloc[-1])
     return out

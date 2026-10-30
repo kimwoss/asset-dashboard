@@ -214,6 +214,10 @@ _FX = [
 _HORIZONS = (("d1", 1), ("w1", 7), ("m1", 30), ("y1", 365))
 
 
+# 시세표와 보유 평가액이 같은 규칙으로 빈 종가를 채우도록 한 곳(quotes)에 둔다
+from quotes import fill_missing_closes as _fill_missing_closes  # noqa: E402
+
+
 def _all_markets_closed() -> bool:
     """국내·미국·외환이 모두 닫혀 있으면 True. 하나라도 열려 있으면 False."""
     try:
@@ -221,40 +225,6 @@ def _all_markets_closed() -> bool:
         return not any(quotes._is_open(m) for m in ("KRX", "US", "FX"))
     except Exception:  # noqa: BLE001 — 판단 못 하면 '열려 있다'고 본다(과한 단정 금지)
         return False
-
-
-def _fill_missing_closes(sym, close, traded, lookback_days=10):
-    """야후 일봉에서 '거래는 있었는데 종가만 빈' 날을 장중 5분봉 마지막 값으로 채운다.
-
-    2026-10-29 SCHD 일봉이 시가·고가·저가·거래량은 있고 종가만 NaN으로 왔다(단독 조회도 같음).
-    종전엔 그 행을 버려 SCHD만 10-28에 머물렀고, 시세표에 '⚠️10-28 종가'가 붙어 1일 수익률이
-    다른 종목과 다른 날을 비교했다. 같은 날 값은 5분봉에 있다(마지막 봉 35.62 · 공식 종가 35.61).
-    거래 흔적(traded: 거래량>0 또는 시가)이 없는 날(휴장·상장 전)은 건드리지 않는다 — 거래가 없던
-    날을 지어내지 않는다. 시가만으로는 안 된다: 여러 종목을 한 번에 받을 때 야후가 수정주가를
-    적용하며 종가가 빈 날의 시가까지 비운다. 거래량은 수정되지 않아 남는다.
-    Returns: (채운 종가 시리즈, 채운 날짜 목록)
-    """
-    import pandas as pd
-    import yfinance as yf
-    recent = close.index[-lookback_days:]
-    gaps = [d for d in recent if pd.isna(close.get(d)) and bool(traded.get(d, False))]
-    if not gaps:
-        return close, []
-    try:
-        bars = yf.Ticker(sym).history(period="1mo", interval="5m")["Close"].dropna()
-        last_by_day = bars.groupby(bars.index.date).last()
-    except Exception as e:  # noqa: BLE001
-        print(f"WARN: {sym} 장중 봉 조회 실패 ({e}) — 빈 종가 {len(gaps)}일 그대로")
-        return close, []
-    close, filled = close.copy(), []
-    for d in gaps:
-        v = last_by_day.get(pd.Timestamp(d).date())
-        if v is not None and v > 0:
-            close.loc[d] = float(v)
-            filled.append(pd.Timestamp(d).strftime("%Y-%m-%d"))
-    if filled:
-        print(f"INFO: {sym} 야후 일봉 종가 누락 {', '.join(filled)} → 5분봉 마지막 값으로 채움")
-    return close, filled
 
 
 def _quotes(symbols):
