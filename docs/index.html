@@ -2714,7 +2714,9 @@ function renderCheckpoint(cp, finBlock) {
     return `<td class="${cls(p)}"><b>${v}</b></td>`;
   };
   const mktRow = (i, mode) => `<tr>
-    <td>${esc(i.name)}${i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}</td>
+    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}${
+      i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}${
+      i.filled ? `<span class="mkt-asof">·장중값</span>` : ""}</td>
     <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
     ${HZ.map(([k]) => mktCell(i, k, mode)).join("")}
   </tr>`;
