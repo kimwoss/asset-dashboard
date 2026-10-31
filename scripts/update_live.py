@@ -73,7 +73,7 @@ TTL_MIN = {
     "fire":          30,    # ★종합 목표치. 달성률은 프론트가 순자산으로 재계산
     "simulation":    30,    # 은퇴 지도 — 경기순환 설정을 바꾸면 30분 내
     "spending":      30,    # 가계부
-    "annual_flow":   30,    # 연도별 소득·지출
+    "annual_flow":   0,    # 연도별 소득·지출
     "asset_history": 30,
     "liabilities":   30,
     "monthly":       30,

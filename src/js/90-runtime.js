@@ -101,9 +101,18 @@ function applyLive(snap, live) {
   // prev_* (전일·전월·전년 기준)도 30분 잡이 싣는다 — 종전엔 일별 스냅샷에만 있어
   // 달이 바뀐 날 아침(일별 잡 전)에 '전월'이 지지난달을 가리켰다.
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
-                   "spending", "cities", "officetel", "simulation", "review", "annual_flow",
+                   "spending", "cities", "officetel", "simulation", "review",
                    "prev_day", "prev_month", "prev_year"])
     if (presentValue(live, k)) snap[k] = live[k];
+  // Keep a corrected snapshot when the live annual block is older.
+  if (presentValue(live, "annual_flow")) {
+    const incoming = dataTime(live._fetched?.annual_flow);
+    const current = dataTime(snap.annual_flow_asof || snap.updated_iso || snap.updated_at);
+    if (!presentValue(snap, "annual_flow") || current == null || (incoming != null && incoming >= current)) {
+      snap.annual_flow = live.annual_flow;
+      snap.annual_flow_asof = live._fetched?.annual_flow || null;
+    }
+  }
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
@@ -348,7 +357,7 @@ async function render() {
 
   // FIRE 목표 달성 (★종합 시트) — 달성률은 위 실시간 net으로 재계산
   renderFire(snap.fire, net);
-  renderAnnualFlow(snap.annual_flow);
+  renderAnnualFlow(snap.annual_flow, snap.annual_flow_asof);
 
   // ---- 자산 구성 도넛 3종 ----
   const A = snap.assets, L = snap.liabilities || [];
