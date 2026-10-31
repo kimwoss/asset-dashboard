@@ -64,6 +64,8 @@ jobs:
         run: python scripts/update_live.py
 
       - name: Publish to live-data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # 고아 브랜치에 live.enc 하나만. 매번 새로 만들어 force push →
           # 히스토리가 1커밋으로 고정되고 main은 건드리지 않는다.
@@ -78,5 +80,6 @@ jobs:
           git checkout -q -b live-data
           git add live.enc
           git commit -q -m "live: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" live-data
+          git remote add publish "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          bash "$GITHUB_WORKSPACE/tools/push-live.sh" publish
           echo "live-data 브랜치 갱신 완료"

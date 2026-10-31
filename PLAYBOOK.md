@@ -125,6 +125,11 @@ Apps Script 시간 트리거는 기존 것을 지우고 새로 걸어야 주기�
 
 ## 5. 사고 기록 — 같은 실수를 두 번 하지 않기 위해
 
+### 2026-10-30: HTML 불일치와 live-data 게시 실패
+
+- `dashboard-quality` 두 실행은 JavaScript 테스트 통과 후 `docs/index.html`과 소스의 불일치로 중단됐다. `src/` 수정 시 `node tools/build.mjs`로 HTML을 생성하고 함께 커밋한다. 검사 실패 로그에 복구 명령을 표시하고 Python 검사는 독립 job으로 실행한다.
+- `update-live-quotes`는 데이터 생성 성공 후 GitHub의 `Internal Server Error`로 push가 거부됐다. `tools/push-live.sh`가 동일 커밋을 최대 3회 게시하며 10초·20초 후 재시도한다. 인증·정책 오류는 즉시 실패하고, 재시도 소진도 성공으로 숨기지 않는다.
+
 ### 시트
 - **`batch_clear` 후 `update`가 실패해 전 행이 날아갔다.** 지우기 전에 쓰지 마라.
   쓰기가 검증된 뒤에 지운다. 되돌릴 데가 없다.

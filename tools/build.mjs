@@ -12,7 +12,10 @@ export function build() {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const html = build(), out = path.join(root, 'docs/index.html');
   if (process.argv.includes('--check')) {
-    if (fs.readFileSync(out, 'utf8').replace(/\r\n/g, '\n') !== html) throw Error('docs/index.html differs from source');
+    if (fs.readFileSync(out, 'utf8').replace(/\r\n/g, '\n') !== html) {
+      console.error('::error file=docs/index.html::docs/index.html differs from source. Run node tools/build.mjs and commit docs/index.html together with the source changes.');
+      process.exit(1);
+    }
     console.log('Build matches source');
   } else { fs.writeFileSync(out, html); console.log('Built docs/index.html'); }
 }

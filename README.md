@@ -91,6 +91,8 @@ python -m http.server -d docs 8788   # http://localhost:8788 에서 대시보드
 
 - Build: `node tools/build.mjs` (equivalent to `python build.py`).
 - Check build: `node tools/build.mjs --check`.
+- After editing `src/`, run the build and commit `docs/index.html` with the source changes. CI checks the committed HTML without regenerating it first.
+- Quality CI runs JavaScript/build checks and Python checks as independent jobs. Live publication retries temporary server/network failures up to three times (10s/20s backoff); permission and policy failures stop immediately.
 - JavaScript regression checks: `node --test tests/*.test.cjs`.
 - Python checks: `PYTHONPATH=scripts python -m pytest tests/test_block_cache.py tests/test_market_hours.py -q`.
 - Self-contained synthetic preview: `node tools/write-preview.mjs`; open `docs/preview.local.html` manually.
