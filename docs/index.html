@@ -1283,6 +1283,16 @@ header h1.brand-lockup::before { font-size:9px; line-height:1.2; font-weight:600
 .simulation-year-facts strong { font-size:19px; }
 .simulation-toolbar { align-items:flex-start; flex-wrap:wrap; }
 }
+
+
+/* Account price moves share the market quote table. */
+.account-moves {min-width:780px}
+.account-moves th:first-child,.account-moves td:first-child {min-width:170px}
+.account-moves td {vertical-align:middle}
+.account-amount {display:block;font-size:.75rem;margin-top:5px;white-space:nowrap}
+.account-rise {color:var(--rise)}
+.account-fall {color:var(--fall)}
+.account-flat,.account-unavailable {color:var(--ink-muted)}
 </style>
 <script>
   /* 저장된 수동 테마를 렌더 전에 즉시 적용 — 깜빡임(FOUC) 방지 */
@@ -1604,32 +1614,9 @@ header h1.brand-lockup::before { font-size:9px; line-height:1.2; font-weight:600
 
 <div id="tab-checkpoint">
   <div id="cp-body"></div>
+  <section class="card" id="account-moves" aria-labelledby="account-moves-title"></section>
 </div>
 
-<details id="simulation-drawer" class="simulation-drawer" hidden>
-<summary><span><small>MASTER · 시뮬레이션</small><strong>우리의 은퇴 이후를 한눈에</strong><span id="simulation-preview">연도별 자산과 생활비 보기</span></span><span class="simulation-open"><span id="simulation-toggle-label">펼쳐보기</span> <i aria-hidden="true">＋</i></span></summary>
-<div class="simulation-content">
-<div class="simulation-toolbar"><p id="simulation-asof"></p><a id="simulation-source-link" hidden target="_blank" rel="noopener noreferrer">원본 시트 열기 ↗</a></div>
-<p class="simulation-source-note">시트가 계산한 전망을 그대로 보여줍니다. 현재 평가액과 예측의 출발점은 다를 수 있습니다.</p>
-<p id="simulation-empty" hidden>아직 불러온 시뮬레이션이 없습니다. 데이터 상태를 확인하거나 원본 시트를 열어 주세요.</p>
-<div id="simulation-year-view"><label for="simulation-year">확인할 연도</label><select id="simulation-year"></select><div id="simulation-year-facts" class="simulation-year-facts" aria-live="polite"></div></div>
-<section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
-      <div class="seg" id="sim-seg" style="margin-bottom:0">
-        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-        <button class="seg-btn" data-mode="nominal">명목</button>
-      </div>
-    </div>
-    <div class="sim-stats" id="sim-stats"></div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
-    <details class="sim-fold" id="sim-fold">
-      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div class="tbl-scroll"><table id="sim-table"></table></div>
-      <div class="note" id="sim-table-note"></div>
-    </details>
-  </section>
-</div></details>
 <dialog id="data-dialog" class="data-dialog" aria-labelledby="data-dialog-title"><div class="dialog-heading"><div><span class="eyebrow">DATA TRANSPARENCY</span><h2 id="data-dialog-title">데이터의 기준</h2></div><button id="data-close" type="button" aria-label="데이터 상태 닫기">×</button></div><div id="data-health-body"></div></dialog>
 <footer class="site-footer"><b>BUNDANG COUPLE · OUR NEXT CHAPTER</b><span>함께 쌓아가는 자산, 함께 그려가는 일상.<br>평가액·계획값·예측값은 서로 다른 기준입니다.</span></footer>
 <div id="tooltip"></div>
@@ -4758,6 +4745,36 @@ function renderSimulationViewer(sim, live) {
   };
 }
 if (typeof module !== "undefined" && module.exports) module.exports = { simulationYearFacts };
+/* Market moves of today's holdings. Deposits and withdrawals are not investment returns. */
+const ACCOUNT_HORIZONS = [["d1", "1일 전"], ["w1", "1주 전"], ["m1", "1개월 전"], ["y1", "1년 전"]];
+
+function accountMovesHtml(fin) {
+  const data = fin?.account_performance;
+  const rows = data?.accounts || [];
+  const money = n => Number(n).toLocaleString("ko-KR", {maximumFractionDigits: 0}) + "원";
+  const cell = (period, horizon) => {
+    if (!Number.isFinite(period?.pct) || !Number.isFinite(period?.delta_krw)) {
+      return '<td class="account-unavailable" title="비교 시세가 없거나 일부 종목의 조회에 실패했습니다">—</td>';
+    }
+    const sign = period.delta_krw > 0 ? "+" : period.delta_krw < 0 ? "−" : "";
+    const direction = Math.abs(period.pct) < 0.005 ? "flat" : period.pct > 0 ? "rise" : "fall";
+    const dates = (period.base_dates || []).join(", ");
+    return `<td title="${esc(dates ? '비교 종가일: ' + dates : '시세 비대상 자산')}"><span class="${horizon === 'd1' ? 'delta-chip ' + direction : 'account-' + direction}">${period.pct > 0 ? '+' : ''}${period.pct.toFixed(2)}%</span><small class="account-amount ${'account-' + direction}">${sign}${money(Math.abs(period.delta_krw))}</small></td>`;
+  };
+  const owners = [...new Set(rows.map(row => row.owner))];
+  const body = owners.map(owner => `<tr class="mkt-grp"><td colspan="6">${esc(owner)}</td></tr>` + rows.filter(row => row.owner === owner).map(row => `<tr><td>${esc(row.account)}</td><td class="mkt-px">${money(row.current_krw)}</td>${ACCOUNT_HORIZONS.map(([key]) => cell(row.periods?.[key], key)).join('')}</tr>`).join('')).join('');
+  return `<div class="cp-mkt-head"><h2 id="account-moves-title">계좌별 시세 증감</h2>${data?.asof ? `<span class="live-badge off">${esc(data.asof.slice(0,16).replace('T',' '))} 기준</span>` : ''}</div>
+    <p class="cp-mkt-note">현재 보유 수량 기준 · 해외주식 환율 반영 · 배당·입출금 제외</p>
+    ${rows.length ? `<div class="tbl-scroll"><table class="mkt mkt-unified account-moves"><thead><tr><th scope="col">계좌</th><th scope="col">현재 평가액</th>${ACCOUNT_HORIZONS.map(([, label]) => `<th scope="col">${label}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>` : '<p class="cp-mkt-note">계좌별 비교 시세를 준비 중입니다. 다음 데이터 갱신 후 표시됩니다.</p>'}
+    <p class="cp-mkt-note">각 기간 이전의 마지막 거래일 종가와 비교한 증감액·등락률입니다. 과거 실제 계좌 잔고·수익률과는 다릅니다. 현금·예금 평가액은 고정하며, 조회할 수 없는 기간은 —로 표시합니다.</p>`;
+}
+
+function renderAccountMoves(fin) {
+  const panel = document.getElementById("account-moves");
+  if (panel) panel.innerHTML = accountMovesHtml(fin);
+}
+
+if (typeof module !== "undefined" && module.exports) module.exports = {accountMovesHtml};
 /* ---- 스크롤 진입 연출 -------------------------------------------------------
    화면에 들어오는 카드를 한 번만 떠오르게 한다. IntersectionObserver라 스크롤마다
    계산하지 않아 부드럽고, 한 번 본 카드는 관찰을 끊어 되돌아와도 다시 움직이지 않는다.
@@ -5197,8 +5214,7 @@ async function render() {
   renderCashflow(snap.financial, snap.fire);   // 건보료·목표구성은 은퇴 시점 세팅(CF_OWN_*)+FIRE 목표 기준
   renderCities(snap.cities, net);
   renderOfficetel(snap.officetel);
-  renderSim(snap.simulation, net);
-  renderSimulationViewer(snap.simulation, live);
+  renderAccountMoves(snap.financial);
   renderReview(snap.review);
   // 브리핑 맨 위 금융자산 — 현재값은 실시간, 전일은 history, 전월·전년은 asset_history
   renderCheckpoint(snap.checkpoint,
@@ -5387,6 +5403,8 @@ function flashUpdated() {
   if (pane) { pane.classList.remove("flash-in"); void pane.offsetWidth; pane.classList.add("flash-in"); }
 }
 main();
+
 </script>
 </body>
 </html>
+
