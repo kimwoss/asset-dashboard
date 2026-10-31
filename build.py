@@ -51,15 +51,19 @@ def main() -> int:
     mods = sorted((SRC / "js").glob("*.js"))
     print(f"모듈 {len(mods)}개 · {len(built):,}자")
 
-    if built == cur:
+    # 줄바꿈은 비교에서 뺀다. Windows는 체크아웃할 때 CRLF로 바꿔 놓아, 내용이 같아도
+    # 글자 비교로는 어긋난 것처럼 보인다. CI의 tools/build.mjs --check도 같은 기준이다.
+    same_built = built.replace("\r\n", "\n")
+    same_cur = (cur or "").replace("\r\n", "\n")
+    if same_built == same_cur:
         print("docs/index.html 과 일치")
         return 0
     if a.check:
         # 어디서 갈렸는지 알려 준다 — 손으로 docs를 고치면 여기서 걸린다
-        n = min(len(built), len(cur or ""))
-        i = next((k for k in range(n) if built[k] != cur[k]), n)
+        n = min(len(same_built), len(same_cur))
+        i = next((k for k in range(n) if same_built[k] != same_cur[k]), n)
         print(f"FAIL: 불일치 — 첫 차이 {i:,}번째 글자 "
-              f"({(cur or '')[:i].count(chr(10)) + 1}행 근처)")
+              f"({same_cur[:i].count(chr(10)) + 1}행 근처)")
         print("  docs/index.html 을 직접 고쳤다면 src/ 로 옮기고 다시 빌드할 것.")
         return 1
     OUT.write_text(built, encoding="utf-8", newline="")

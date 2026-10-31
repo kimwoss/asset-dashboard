@@ -234,6 +234,11 @@ Apps Script 시간 트리거는 기존 것을 지우고 새로 걸어야 주기�
 
 ## 5-1. 소스 구조 — docs/index.html은 산출물이다
 
+**`docs/index.html`을 직접 고치지 않는다.** 고치면 다음 빌드가 그 수정을 조용히 지운다.
+2026-09·10월에 세 번 일어났고, 매번 빌드 직전에야 발견했다. 지금은 `main`에 푸시할 때마다
+`quality.yml`의 `node tools/build.mjs --check`가 어긋남을 잡아 실패로 알린다.
+이 검사가 실패 상태라면 다음 빌드 전에 `src/`로 옮기는 것이 먼저다.
+
 `docs/index.html`을 직접 고치지 마라. `build.py`가 `src/`에서 굽는다.
 직접 고치면 다음 빌드에 조용히 덮인다 (`dashboard-ship` 점검이 이걸 잡는다).
 
