@@ -1708,6 +1708,7 @@ const HEALTH_BLOCKS = [
   ["news", "관심 뉴스", 30, "기사 발행 시각은 원문에서 확인"],
   ["checkpoint", "오늘의 브리핑", 1500, "아침 리포트 생성 기준"],
   ["spending", "생활비", 75, "시트 수집 기준 · 입력 마감과 다름"],
+  ["annual_flow", "연도별 소득·지출", 45, "연간 요약표를 매 발행마다 다시 조회"],
   ["fire", "은퇴 목표", 75, "시트 수집 기준 · 계획값"],
   ["simulation", "은퇴 전망", 75, "시트 계산 기준 · 예측값"],
   ["liabilities", "부채", 75, "시트 수집 기준"],
@@ -2000,7 +2001,7 @@ function annualFlow(rows) {
   }).sort((a, b) => b.year - a.year);
 }
 
-function renderAnnualFlow(rows) {
+function renderAnnualFlow(rows, sourceTime) {
   const sec = document.getElementById("flow-section");
   const list = annualFlow(rows);
   if (!list.length) { sec.style.display = "none"; return; }
@@ -2011,7 +2012,7 @@ function renderAnnualFlow(rows) {
     `<thead><tr><th>연도</th><th class="num">총소득</th><th class="num">총지출<span class="th-sub">투자 제외</span></th>
        <th class="num">순잉여자금</th><th class="num">저축률</th><th class="num">월평균 지출</th></tr></thead>
      <tbody>${list.map(r => `<tr>
-       <td>${r.year}${r.partial ? `<span class="th-sub">1~${r.months}월</span>` : ""}</td>
+       <td>${r.year}${r.partial ? `<span class="th-sub">1~${r.months}월</span>` : ""}${/보정 추정/.test(r.note) ? '<span class="th-sub">보정 추정</span>' : ""}</td>
        <td class="num">${man(r.income)}</td>
        <td class="num">${man(r.expense)}</td>
        <td class="num flow-surplus ${r.surplus >= 0 ? "delta-up" : "delta-down"}">${man(r.surplus)}</td>
@@ -2019,12 +2020,23 @@ function renderAnnualFlow(rows) {
        <td class="num">${man(r.monthlyExpense)}</td></tr>`).join("")}</tbody>`;
 
   // 해마다 가계부 양식이 달라 집계 근거가 다르다. 비교할 때 알고 봐야 하는 것만 적는다.
-  const caveat = list.filter(r => /과소|누락/.test(r.note)).map(r => r.year);
-  document.getElementById("flow-note").textContent =
-    "투자 매수액과 전세보증금 같은 자금 이동은 지출에서 제외했습니다."
-    + (caveat.length ? ` ${caveat.join("·")}년은 당시 가계부에 고정비(대출·보험·통신)가 항목으로 남아 있지 않아 지출이 실제보다 적게 잡혔습니다.` : "");
+  document.getElementById("flow-note").textContent = annualFlowNote(list, sourceTime);
 }
 
+
+function annualFlowNote(list, sourceTime) {
+  const corrected = list.filter(r => /보정 추정/.test(r.note)).map(r => r.year);
+  const caveat = list.filter(r => !/보정 추정/.test(r.note) && /과소|누락/.test(r.note)).map(r => r.year);
+  const stamp = dataTime(sourceTime);
+  const asof = stamp == null ? "조회 시각 미제공" : new Intl.DateTimeFormat("ko-KR", {
+    timeZone:"Asia/Seoul",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false
+  }).format(stamp) + " KST";
+  return "투자·원금 상환·계좌이체는 지출에서 제외합니다."
+    + (corrected.length ? corrected.join("·")+"년은 누락 고정비를 복원한 보정 추정치입니다." : "")
+    + (list.some(r => /보정 추정/.test(r.note) && /결혼/.test(r.note)) ? " 2022년 결혼 관련 수입·지출은 별도입니다." : "")
+    + (caveat.length ? caveat.join("·")+"년은 누락 항목으로 지출 과소 집계 가능성이 있습니다." : "")
+    + " · 이 표의 시트 조회: " + asof;
+}
 /* ---- 히어로 밴드 (탭 위 고정) ----
    '지금 순자산 + 오늘 변화 + FIRE 진척' 세 가지만. 여기서 더 늘리면 요약이 아니라
    또 하나의 표가 된다. 전일은 칩으로 승격하고 전월·전년은 보조행으로 내린다 —
@@ -4878,9 +4890,18 @@ function applyLive(snap, live) {
   // prev_* (전일·전월·전년 기준)도 30분 잡이 싣는다 — 종전엔 일별 스냅샷에만 있어
   // 달이 바뀐 날 아침(일별 잡 전)에 '전월'이 지지난달을 가리켰다.
   for (const k of ["financial", "fire", "monthly", "asset_history", "liabilities",
-                   "spending", "cities", "officetel", "simulation", "review", "annual_flow",
+                   "spending", "cities", "officetel", "simulation", "review",
                    "prev_day", "prev_month", "prev_year"])
     if (presentValue(live, k)) snap[k] = live[k];
+  // Keep a corrected snapshot when the live annual block is older.
+  if (presentValue(live, "annual_flow")) {
+    const incoming = dataTime(live._fetched?.annual_flow);
+    const current = dataTime(snap.annual_flow_asof || snap.updated_iso || snap.updated_at);
+    if (!presentValue(snap, "annual_flow") || current == null || (incoming != null && incoming >= current)) {
+      snap.annual_flow = live.annual_flow;
+      snap.annual_flow_asof = live._fetched?.annual_flow || null;
+    }
+  }
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
@@ -5125,7 +5146,7 @@ async function render() {
 
   // FIRE 목표 달성 (★종합 시트) — 달성률은 위 실시간 net으로 재계산
   renderFire(snap.fire, net);
-  renderAnnualFlow(snap.annual_flow);
+  renderAnnualFlow(snap.annual_flow, snap.annual_flow_asof);
 
   // ---- 자산 구성 도넛 3종 ----
   const A = snap.assets, L = snap.liabilities || [];

@@ -266,7 +266,7 @@ function annualFlow(rows) {
   }).sort((a, b) => b.year - a.year);
 }
 
-function renderAnnualFlow(rows) {
+function renderAnnualFlow(rows, sourceTime) {
   const sec = document.getElementById("flow-section");
   const list = annualFlow(rows);
   if (!list.length) { sec.style.display = "none"; return; }
@@ -277,7 +277,7 @@ function renderAnnualFlow(rows) {
     `<thead><tr><th>연도</th><th class="num">총소득</th><th class="num">총지출<span class="th-sub">투자 제외</span></th>
        <th class="num">순잉여자금</th><th class="num">저축률</th><th class="num">월평균 지출</th></tr></thead>
      <tbody>${list.map(r => `<tr>
-       <td>${r.year}${r.partial ? `<span class="th-sub">1~${r.months}월</span>` : ""}</td>
+       <td>${r.year}${r.partial ? `<span class="th-sub">1~${r.months}월</span>` : ""}${/보정 추정/.test(r.note) ? '<span class="th-sub">보정 추정</span>' : ""}</td>
        <td class="num">${man(r.income)}</td>
        <td class="num">${man(r.expense)}</td>
        <td class="num flow-surplus ${r.surplus >= 0 ? "delta-up" : "delta-down"}">${man(r.surplus)}</td>
@@ -285,9 +285,20 @@ function renderAnnualFlow(rows) {
        <td class="num">${man(r.monthlyExpense)}</td></tr>`).join("")}</tbody>`;
 
   // 해마다 가계부 양식이 달라 집계 근거가 다르다. 비교할 때 알고 봐야 하는 것만 적는다.
-  const caveat = list.filter(r => /과소|누락/.test(r.note)).map(r => r.year);
-  document.getElementById("flow-note").textContent =
-    "투자 매수액과 전세보증금 같은 자금 이동은 지출에서 제외했습니다."
-    + (caveat.length ? ` ${caveat.join("·")}년은 당시 가계부에 고정비(대출·보험·통신)가 항목으로 남아 있지 않아 지출이 실제보다 적게 잡혔습니다.` : "");
+  document.getElementById("flow-note").textContent = annualFlowNote(list, sourceTime);
 }
 
+
+function annualFlowNote(list, sourceTime) {
+  const corrected = list.filter(r => /보정 추정/.test(r.note)).map(r => r.year);
+  const caveat = list.filter(r => !/보정 추정/.test(r.note) && /과소|누락/.test(r.note)).map(r => r.year);
+  const stamp = dataTime(sourceTime);
+  const asof = stamp == null ? "조회 시각 미제공" : new Intl.DateTimeFormat("ko-KR", {
+    timeZone:"Asia/Seoul",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false
+  }).format(stamp) + " KST";
+  return "투자·원금 상환·계좌이체는 지출에서 제외합니다."
+    + (corrected.length ? corrected.join("·")+"년은 누락 고정비를 복원한 보정 추정치입니다." : "")
+    + (list.some(r => /보정 추정/.test(r.note) && /결혼/.test(r.note)) ? " 2022년 결혼 관련 수입·지출은 별도입니다." : "")
+    + (caveat.length ? caveat.join("·")+"년은 누락 항목으로 지출 과소 집계 가능성이 있습니다." : "")
+    + " · 이 표의 시트 조회: " + asof;
+}

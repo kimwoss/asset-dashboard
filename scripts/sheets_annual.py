@@ -15,7 +15,9 @@
 
 실패는 파이프라인을 죽이지 않는다 — 예외 시 [] 반환.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+import hashlib
+import json
 
 import sheets_fire
 
@@ -34,7 +36,7 @@ def _num(v: Any) -> float:
         return 0.0
 
 
-def fetch_annual_flow() -> List[Dict[str, Any]]:
+def fetch_annual_flow() -> Optional[List[Dict[str, Any]]]:
     """[{year, months, income, expense}] — 연도 내림차순. 실패/미입력 시 [].
 
     소득과 지출이 모두 채워진 행만 낸다. 2024·2023처럼 자리만 잡아 둔 빈 행은
@@ -45,7 +47,7 @@ def fetch_annual_flow() -> List[Dict[str, Any]]:
         gc = sheets_fire._authorize(gspread)
         if gc is None:
             print("WARN: 시트 인증 없음 — 연도별 소득·지출 생략")
-            return []
+            return None
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
         grid = ws.get(BLOCK, value_render_option="UNFORMATTED_VALUE")
 
@@ -67,10 +69,14 @@ def fetch_annual_flow() -> List[Dict[str, Any]]:
         out.sort(key=lambda d: d["year"], reverse=True)
         if not out:
             print("WARN: 시각화 연도별 소득·지출 표가 비어 있음")
+            return None
         else:
             print(f"OK: 연도별 소득·지출 {len(out)}개년 "
                   f"({out[-1]['year']}~{out[0]['year']})")
+        signature = hashlib.sha256(json.dumps(out, ensure_ascii=False, sort_keys=True,
+                                             separators=(",", ":")).encode()).hexdigest()[:16]
+        print(f"OK: annual_flow source signature {signature}")
         return out
     except Exception as e:  # noqa: BLE001 — 이 표가 없어도 나머지 대시보드는 살아야 한다
         print(f"WARN: 연도별 소득·지출 읽기 실패 ({type(e).__name__}: {e})")
-        return []
+        return None
