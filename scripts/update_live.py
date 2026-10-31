@@ -42,6 +42,7 @@ import sheets_sim
 import sheets_review
 import sheets_yearly
 import sheets_annual
+from account_performance import fetch_account_performance
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "docs" / "data"
@@ -323,6 +324,11 @@ def main():
             fin = quotes.apply_live_prices(fin)
         except Exception as e:  # noqa: BLE001 — 시세 실패가 발행을 막지 않는다
             print(f"WARN: 평가액 재계산 실패 ({type(e).__name__}: {e}) — 시트 값 유지")
+    if financial:
+        try:
+            fin["account_performance"] = fetch_account_performance(fin)
+        except Exception as error:
+            print(f"WARN: account market moves unavailable ({type(error).__name__})")
     accounts, total = {}, 0
     for h in fin.get("holdings", []):
         key = f"{h['owner']}|{h['account']}"
@@ -473,3 +479,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

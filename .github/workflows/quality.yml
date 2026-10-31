@@ -22,6 +22,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt pytest
       - run: python -m compileall -q scripts
-      - run: python -m pytest tests/test_block_cache.py tests/test_market_hours.py tests/test_simulation_reader.py -q
+      - run: python -m pytest tests/test_block_cache.py tests/test_market_hours.py tests/test_simulation_reader.py tests/test_account_performance.py -q
         env:
           PYTHONPATH: scripts
+

@@ -343,32 +343,9 @@
 
 <div id="tab-checkpoint">
   <div id="cp-body"></div>
+  <section class="card" id="account-moves" aria-labelledby="account-moves-title"></section>
 </div>
 
-<details id="simulation-drawer" class="simulation-drawer" hidden>
-<summary><span><small>MASTER · 시뮬레이션</small><strong>우리의 은퇴 이후를 한눈에</strong><span id="simulation-preview">연도별 자산과 생활비 보기</span></span><span class="simulation-open"><span id="simulation-toggle-label">펼쳐보기</span> <i aria-hidden="true">＋</i></span></summary>
-<div class="simulation-content">
-<div class="simulation-toolbar"><p id="simulation-asof"></p><a id="simulation-source-link" hidden target="_blank" rel="noopener noreferrer">원본 시트 열기 ↗</a></div>
-<p class="simulation-source-note">시트가 계산한 전망을 그대로 보여줍니다. 현재 평가액과 예측의 출발점은 다를 수 있습니다.</p>
-<p id="simulation-empty" hidden>아직 불러온 시뮬레이션이 없습니다. 데이터 상태를 확인하거나 원본 시트를 열어 주세요.</p>
-<div id="simulation-year-view"><label for="simulation-year">확인할 연도</label><select id="simulation-year"></select><div id="simulation-year-facts" class="simulation-year-facts" aria-live="polite"></div></div>
-<section class="card" id="sim-section" style="display:none">
-    <div class="cp-mkt-head"><h2>은퇴 자산 궤적</h2>
-      <div class="seg" id="sim-seg" style="margin-bottom:0">
-        <button class="seg-btn on" data-mode="real">실질 (오늘 가치)</button>
-        <button class="seg-btn" data-mode="nominal">명목</button>
-      </div>
-    </div>
-    <div class="sim-stats" id="sim-stats"></div>
-    <div id="sim-chart"></div>
-    <div class="note" id="sim-note"></div>
-    <details class="sim-fold" id="sim-fold">
-      <summary>연도별 시뮬레이션 표 <span class="sim-fold-hint" id="sim-fold-hint"></span></summary>
-      <div class="tbl-scroll"><table id="sim-table"></table></div>
-      <div class="note" id="sim-table-note"></div>
-    </details>
-  </section>
-</div></details>
 <dialog id="data-dialog" class="data-dialog" aria-labelledby="data-dialog-title"><div class="dialog-heading"><div><span class="eyebrow">DATA TRANSPARENCY</span><h2 id="data-dialog-title">데이터의 기준</h2></div><button id="data-close" type="button" aria-label="데이터 상태 닫기">×</button></div><div id="data-health-body"></div></dialog>
 <footer class="site-footer"><b>BUNDANG COUPLE · OUR NEXT CHAPTER</b><span>함께 쌓아가는 자산, 함께 그려가는 일상.<br>평가액·계획값·예측값은 서로 다른 기준입니다.</span></footer>
 <div id="tooltip"></div>
@@ -376,3 +353,4 @@
 <script>@@APP@@</script>
 </body>
 </html>
+

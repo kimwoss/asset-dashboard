@@ -1259,3 +1259,13 @@ header h1.brand-lockup::before { font-size:9px; line-height:1.2; font-weight:600
 .simulation-year-facts strong { font-size:19px; }
 .simulation-toolbar { align-items:flex-start; flex-wrap:wrap; }
 }
+
+
+/* Account price moves share the market quote table. */
+.account-moves {min-width:780px}
+.account-moves th:first-child,.account-moves td:first-child {min-width:170px}
+.account-moves td {vertical-align:middle}
+.account-amount {display:block;font-size:.75rem;margin-top:5px;white-space:nowrap}
+.account-rise {color:var(--rise)}
+.account-fall {color:var(--fall)}
+.account-flat,.account-unavailable {color:var(--ink-muted)}

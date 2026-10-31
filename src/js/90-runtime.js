@@ -437,8 +437,7 @@ async function render() {
   renderCashflow(snap.financial, snap.fire);   // 건보료·목표구성은 은퇴 시점 세팅(CF_OWN_*)+FIRE 목표 기준
   renderCities(snap.cities, net);
   renderOfficetel(snap.officetel);
-  renderSim(snap.simulation, net);
-  renderSimulationViewer(snap.simulation, live);
+  renderAccountMoves(snap.financial);
   renderReview(snap.review);
   // 브리핑 맨 위 금융자산 — 현재값은 실시간, 전일은 history, 전월·전년은 asset_history
   renderCheckpoint(snap.checkpoint,
@@ -627,3 +626,4 @@ function flashUpdated() {
   if (pane) { pane.classList.remove("flash-in"); void pane.offsetWidth; pane.classList.add("flash-in"); }
 }
 main();
+
