@@ -1151,12 +1151,13 @@ th { font-size:11px; color:var(--ink-muted); font-weight:550; }
 .site-footer b { font-weight:550; letter-spacing:.12em; }
 .preview-notice { background:#203b48; color:#fff7e6; text-align:center; font-size:12px; padding:12px; margin:0 calc(-1 * var(--pad)); }
 @media (max-width:1100px) {
-  #updated,#granny .lb { display:none; }
+  #updated { display:none; }
 }
 @media (max-width:760px) {
   header { min-height:76px; gap:8px; padding:12px 0; }
   header h1 { font-size:15px; }
-  #granny { display:none; }
+  /* 상담소는 모바일에서도 이름과 함께 표시한다. 공간이 부족하면 헤더가 줄바꿈한다. */
+  #granny { flex-shrink:0; min-height:44px; height:44px; padding:0 12px; font-size:12px; }
   #data-status { order:5; width:100%; justify-content:center; padding:8px; }
   #theme,#refresh,#lock-dashboard { min-height:36px; height:36px; }
   #refresh .lb { display:none; }
