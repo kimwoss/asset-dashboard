@@ -861,7 +861,10 @@
   }
   .cp-brief-action { color: var(--ink-2); }
   .cp-mkt-note a { color: var(--ink-2); text-underline-offset: .2em; }
-  .fortune-note { margin-bottom: 12px; }
+  .fortune-people .fortune-body { margin: 9px 0 0; line-height: 1.85; word-break: keep-all; }
+  .fortune-close { max-width: 84ch; }
+  .fortune-close h3 { margin: 0; font-size: var(--fs-4); color: var(--ink-1); }
+  .fortune-close p { line-height: 1.85; }
   .fortune-evidence { margin-top: 10px; color: var(--ink-2); font-size: var(--fs-sm); }
   .fortune-evidence summary { cursor: pointer; padding: 5px 0; }
   .fortune-people .fortune-person:last-child { padding-bottom: 14px; }
