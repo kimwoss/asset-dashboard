@@ -173,14 +173,20 @@ function fortuneHtml(f) {
     ["🐰", "우현", f.woohyun || {}, layers.people?.woohyun || {}, "woohyun"],
     ["🐷", "규리", f.kyuri || {}, layers.people?.kyuri || {}, "kyuri"],
   ].map(([emoji, name, person, layer, key]) => ({
-    emoji, name, person, layer, letter: fortuneLetter(key, person, layer),
+    emoji, name, person, layer, letter: fortuneLetter(key, person, layer, f.ganzi),
   }));
   const hasLetter = people.some(({ letter }) => letter);
+  const overview = f.interaction?.startsWith("화생토(")
+    ? "오늘은 위에 불이 있고 아래에 흙이 있구나. 명리에서는 불이 흙을 북돋는 흐름으로 읽어. 마음에 둔 걸 손에 잡히는 결과로 옮겨보렴. 같은 일진도 두 사람 명식에서 하는 일은 서로 다르단다."
+    : hasLetter && f.ganzi
+      ? `오늘은 ${f.ganzi}일이구나. 같은 일진이라도 네가 타고난 기운과 어느 자리에서 만나느냐에 따라 할미가 짚어줄 대목이 달라진단다.`
+      : f.intro;
   const couple = fortuneCouple(...people.map(({ letter }) => letter)) || f.couple;
   const detail = (label, text) => text
     ? `<p class="fortune-detail"><b>${label}</b> ${esc(fortuneTalk(text))}</p>` : "";
   const personHtml = ({ emoji, name, person, layer, letter }) => !person.body && !letter ? "" : `<div class="fortune-person">
-    <h3 class="fortune-head"><span class="fortune-name">${emoji} ${name}에게</span></h3>
+    <h3 class="fortune-head"><span class="fortune-name">${emoji} ${name}에게</span>
+      ${person.stars ? `<span class="fortune-stars">${esc(person.stars)}</span>` : ""}</h3>
     ${(letter?.paragraphs || [person.body]).map(text => `<p class="fortune-body">${esc(fortuneTalk(text))}</p>`).join("")}
     ${!letter ? detail("일터", person.work) + detail("가족", person.family) : ""}
     ${letter ? `<details class="fortune-evidence"><summary>오늘 말씀을 풀어낸 근거</summary>
@@ -189,14 +195,15 @@ function fortuneHtml(f) {
       ${detail("지장간의 십성", (layer.hidden || []).join(" · "))}
       ${detail("일진이 닿는 자리", (layer.positions || []).join(" / "))}
     </details>` : ""}
+    ${(person.lucky_hour || person.lucky_color || person.lucky_number) ? `<div class="luck">🍀 ${[person.lucky_hour, person.lucky_color, person.lucky_number && "숫자 " + person.lucky_number].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
   </div>`;
-  const day = [f.ganzi && [f.ganzi, f.zodiac && `${f.zodiac}의 날`].filter(Boolean).join(" "), f.lunar]
+  const day = [f.ganzi && [f.ganzi, f.zodiac && `${f.zodiac}의 날`].filter(Boolean).join(" "), f.lunar, f.interaction]
     .filter(Boolean).join(" · ");
   return `<section class="card"><h2>할머니 말씀</h2>
     ${day ? `<div class="cp-date" style="margin-top:0">${esc(day)} · 전통 명리 풀이</div>` : ""}
-    ${!hasLetter && f.intro ? `<p class="fortune-open">${esc(fortuneTalk(f.intro))}</p>` : ""}
+    ${overview ? `<p class="fortune-open">${esc(fortuneTalk(overview))}</p>` : ""}
     <div class="fortune-people">${people.map(personHtml).join("")}</div>
-    ${couple ? `<div class="fortune-close"><h3>둘이 앉으면</h3><p>${esc(fortuneTalk(couple))}</p></div>` : ""}
+    ${couple ? `<div class="fortune-close"><h3>부부운</h3><p>${esc(fortuneTalk(couple))}</p></div>` : ""}
   </section>`;
 }
 

@@ -49,7 +49,7 @@ test('the fallback in the screenshot becomes two specific letters and a shared c
   });
   assert.match(html, /나는 여기까지 할게/);
   assert.match(html, /내가 이해한 기준이 이게 맞을까/);
-  assert.match(html, /둘이 앉으면/);
+  assert.match(html, /부부운/);
   assert.match(html, /좋은 마음으로 맡았다가/);
   assert.match(html, /누군가에게 물어봤으면/);
   assert.doesNotMatch(html, /�|날 날|그 기운 믿고|한국천문연구원/);
@@ -58,7 +58,7 @@ test('the fallback in the screenshot becomes two specific letters and a shared c
 test('a supporting type or relationship changes the follow-up without guessing an event', () => {
   const a = context.fortuneLetter('kyuri', {}, { daily: '정인', hidden: ['상관'] });
   const b = context.fortuneLetter('kyuri', {}, { daily: '정인', hidden: ['정재'] });
-  const c = context.fortuneLetter('kyuri', {}, { daily: '정인', relationship_focus: '가까운 관계 자리' });
+  const c = context.fortuneLetter('kyuri', {}, { daily: '정인', relationship_focus: '가까운 관계 자리', positions: ['가까운 관계 자리 · 충'] });
   assert.equal(a.paragraphs[0], b.paragraphs[0]);
   assert.notEqual(a.paragraphs[1], b.paragraphs[1]);
   assert.match(c.paragraphs[1], /약속이 어긋나면/);
@@ -71,4 +71,23 @@ test('same daily type still gives different advice to each partner', () => {
     assert.notEqual(a.paragraphs[0], b.paragraphs[0]);
   }
   assert.equal(context.fortuneLetter('woohyun', { body: '아마 겁재라는 말이 나왔대.' }), null);
+});
+
+test('November 8 reads the two distinct relationships before offering advice', () => {
+  const html = context.fortuneHtml({
+    ganzi: '丙戌 병술', zodiac: '개', lunar: '음력 9월 30일', interaction: '화생토(火生土)',
+    woohyun: { stars: '★★★☆☆', lucky_hour: '오후 3~5시', lucky_number: '4·9' },
+    kyuri: { stars: '★★★☆☆', lucky_hour: '오전 9~11시', lucky_number: '2·7' },
+    layers: { people: {
+      woohyun: { daily: '식신', relationship_focus: '가까운 관계 자리', positions: [
+        '집안 어른 자리 · 육합', '일상·일터 자리 · 충', '가까운 관계 자리 · 충',
+      ] },
+      kyuri: { daily: '비견', relationship_focus: '개인 시간 자리', positions: [
+        '일상·일터 자리 · 부분삼합', '개인 시간 자리 · 충',
+      ] },
+    } },
+  });
+  for (const phrase of ['화생토', '식신(食神)', '비견(比肩)', '일지와 월지 사이에 진술충',
+    '시지 사이에 진술충', '년지 사이에 묘술합', '불의 방향으로 힘을 보태는 부분합',
+    '★★★☆☆', '오전 9~11시', '둘의 약속을 다시 맞추는 데']) assert.ok(html.includes(phrase), phrase);
 });
