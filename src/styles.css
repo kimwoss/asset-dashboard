@@ -847,6 +847,27 @@
   .fortune-close { font-size: var(--fs-body); line-height: 1.8; color: var(--ink-2);
                    max-width: 62ch; word-break: keep-all; margin-top: 16px; padding-top: 14px;
                    border-top: 1px solid var(--grid); }
+  .cp-brief-grid, .fortune-people {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
+  }
+  .cp-brief-grid:empty { display: none; }
+  .cp-brief-item, .fortune-people .fortune-person {
+    border: 1px solid var(--border); border-radius: var(--r-sm);
+    padding: 14px; overflow-wrap: anywhere;
+  }
+  .cp-brief-item h3 { margin: 0 0 6px; font-size: var(--fs-4); }
+  .cp-brief-item p, .fortune-detail, .fortune-close p {
+    margin: 6px 0 0; font-size: var(--fs-body); line-height: 1.7;
+  }
+  .cp-brief-action { color: var(--ink-2); }
+  .cp-mkt-note a { color: var(--ink-2); text-underline-offset: .2em; }
+  .fortune-note { margin-bottom: 12px; }
+  .fortune-evidence { margin-top: 10px; color: var(--ink-2); font-size: var(--fs-sm); }
+  .fortune-evidence summary { cursor: pointer; padding: 5px 0; }
+  .fortune-people .fortune-person:last-child { padding-bottom: 14px; }
+  @media (max-width: 640px) {
+    .cp-brief-grid, .fortune-people { grid-template-columns: minmax(0, 1fr); }
+  }
   /* 오류 · 게이트 */
   #err { color: var(--neg); padding: 30px 10px; font-size: var(--fs-body); display: none; }
 
