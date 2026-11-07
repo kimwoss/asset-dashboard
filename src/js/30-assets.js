@@ -160,7 +160,7 @@ function finTodayHtml(fin, hist, ah) {
 /* 옛 리포트에 남아 있는 '💡 오늘의 한 수:' 같은 딱지를 걷어내 말로 잇는다.
    프롬프트를 고쳐 새 리포트부터는 안 나오지만, 이미 시트에 저장된 것들이 하루이틀 남는다. */
 const fortuneTalk = t => String(t || "")
-  .replace(/\s*[💡▶]\s*(오늘|이번\s*주)의?\s*한\s*수\s*[:：]\s*/g, " ")
+  .replace(/\s*(?:💡|▶|�)\s*(오늘|이번\s*주)의?\s*한\s*수\s*[:：]\s*/g, " ")
   .replace(/\s*💰\s*/g, " ")
   .replace(/\n+/g, " ")
   .replace(/\s{2,}/g, " ")
@@ -169,40 +169,34 @@ const fortuneTalk = t => String(t || "")
 function fortuneHtml(f) {
   if (!f) return "";
   const layers = f.layers || {};
+  const people = [
+    ["🐰", "우현", f.woohyun || {}, layers.people?.woohyun || {}, "woohyun"],
+    ["🐷", "규리", f.kyuri || {}, layers.people?.kyuri || {}, "kyuri"],
+  ].map(([emoji, name, person, layer, key]) => ({
+    emoji, name, person, layer, letter: fortuneLetter(key, person, layer),
+  }));
+  const hasLetter = people.some(({ letter }) => letter);
+  const couple = fortuneCouple(...people.map(({ letter }) => letter)) || f.couple;
   const detail = (label, text) => text
     ? `<p class="fortune-detail"><b>${label}</b> ${esc(fortuneTalk(text))}</p>` : "";
-  const person = (emoji, name, p = {}, layer = {}) => !p.body && !layer.daily ? "" : `<div class="fortune-person">
-    <h3 class="fortune-head"><span class="fortune-name">${emoji} ${name}</span>
-      <span class="fortune-stars">${esc(p.stars || "")}</span></h3>
-    ${layer.daily ? detail("오늘의 십성 · " + esc(layer.daily), layer.meaning) : ""}
-    ${p.body ? `<p class="fortune-body">${esc(fortuneTalk(p.body))}</p>` : ""}
-    ${detail("일터", p.work)}${detail("돈 습관", p.money)}${detail("가족", p.family)}
-    ${detail("오늘 해볼 일", layer.action)}
-    ${detail(esc(layer.relationship_focus || ""), layer.context_action)}
-    ${layer.daily ? `<details class="fortune-evidence"><summary>명리 해석 근거</summary>
-      <p>월운은 이번 절기 달의 배경, 지장간은 오늘 지지에 들어 있는 보조 해석이에요.</p>
-      ${detail("월운 · " + esc(layers.month || ""), layer.month)}
-      ${detail("오늘 지지 속 지장간 십성", (layer.hidden || []).join(" · "))}
-      ${detail("일진이 닿는 자리", (layer.positions || []).join(" / ") || "표시할 주요 관계가 없어요.")}
+  const personHtml = ({ emoji, name, person, layer, letter }) => !person.body && !letter ? "" : `<div class="fortune-person">
+    <h3 class="fortune-head"><span class="fortune-name">${emoji} ${name}에게</span></h3>
+    ${(letter?.paragraphs || [person.body]).map(text => `<p class="fortune-body">${esc(fortuneTalk(text))}</p>`).join("")}
+    ${!letter ? detail("일터", person.work) + detail("가족", person.family) : ""}
+    ${letter ? `<details class="fortune-evidence"><summary>오늘 말씀을 풀어낸 근거</summary>
+      ${detail("오늘의 십성", letter.daily)}
+      ${detail("절기 기준 월운 · " + esc(layers.month || ""), layer.month)}
+      ${detail("지장간의 십성", (layer.hidden || []).join(" · "))}
+      ${detail("일진이 닿는 자리", (layer.positions || []).join(" / "))}
     </details>` : ""}
-    ${(p.lucky_hour || p.lucky_color || p.lucky_number) ? `<div class="luck">🍀 ${[p.lucky_hour, p.lucky_color, p.lucky_number ? "숫자 " + p.lucky_number : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
   </div>`;
-  const day = [f.ganzi && [f.ganzi, f.zodiac && `${f.zodiac}의 날`].filter(Boolean).join(" "), f.lunar, f.interaction]
+  const day = [f.ganzi && [f.ganzi, f.zodiac && `${f.zodiac}의 날`].filter(Boolean).join(" "), f.lunar]
     .filter(Boolean).join(" · ");
   return `<section class="card"><h2>할머니 말씀</h2>
-    ${day ? `<div class="cp-date" style="margin-top:0">${esc(day)}</div>` : ""}
-    <p class="cp-mkt-note fortune-note">전통 명리 해석을 빌려 하루를 돌아보는 코너예요.
-      <a href="https://astro.kasi.re.kr/life/post/almanac" target="_blank" rel="noopener noreferrer">한국천문연구원 달력자료</a></p>
-    ${f.intro ? `<p class="fortune-open">${esc(fortuneTalk(f.intro))}</p>` : ""}
-    <div class="fortune-people">
-      ${person("🐰", "우현", f.woohyun, layers.people?.woohyun)}
-      ${person("🐷", "규리", f.kyuri, layers.people?.kyuri)}
-    </div>
-    ${(f.couple || f.blessing || layers.couple_action) ? `<div class="fortune-close">
-      ${detail("부부 이야기", f.couple)}
-      ${detail("둘이 해볼 일", layers.couple_action)}
-      ${f.blessing ? `<p>${esc(fortuneTalk(f.blessing))}</p>` : ""}
-    </div>` : ""}
+    ${day ? `<div class="cp-date" style="margin-top:0">${esc(day)} · 전통 명리 풀이</div>` : ""}
+    ${!hasLetter && f.intro ? `<p class="fortune-open">${esc(fortuneTalk(f.intro))}</p>` : ""}
+    <div class="fortune-people">${people.map(personHtml).join("")}</div>
+    ${couple ? `<div class="fortune-close"><h3>둘이 앉으면</h3><p>${esc(fortuneTalk(couple))}</p></div>` : ""}
   </section>`;
 }
 
