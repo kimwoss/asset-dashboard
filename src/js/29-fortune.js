@@ -69,22 +69,103 @@ const FORTUNE_PLACES = {
   "집안 어른 자리": "집안 어른과 통화할 일이 있다면 용건부터 서두르지 말고 요즘 어떤지 물어봐 주렴. 네가 이미 아는 사정이라고 생각해도 직접 들으면 챙길 게 달라질 수 있단다.",
 };
 
-function fortuneLetter(who, person = {}, layer = {}) {
+const FORTUNE_TYPES = {
+  비견: ["比肩", "자기 기준을 세우고 나란히 의견을 내는 힘"],
+  겁재: ["劫財", "다른 사람과 역할이나 자원을 나눌 때 자기 몫을 살피는 흐름"],
+  식신: ["食神", "생각이나 재주를 눈에 보이는 결과로 만드는 힘"],
+  상관: ["傷官", "익숙한 방식을 고치고 자기 말로 표현하는 힘"],
+  편재: ["偏財", "평소 밖의 제안과 여러 선택지를 살피는 흐름"],
+  정재: ["正財", "이미 맡은 일과 정해둔 살림을 꾸준히 챙기는 힘"],
+  편관: ["偏官", "압박을 느낄 때 먼저 처리할 일을 가르는 힘"],
+  정관: ["正官", "역할과 약속을 또렷하게 세우는 힘"],
+  편인: ["偏印", "익숙한 문제를 새로운 각도로 보는 힘"],
+  정인: ["正印", "자료나 사람의 도움으로 판단의 바탕을 다지는 힘"],
+};
+const FORTUNE_SEATS = {
+  "가까운 관계 자리": ["일지", "둘이 맞춘 약속"],
+  "일상·일터 자리": ["월지", "일이나 일상을 꾸리는 순서"],
+  "개인 시간 자리": ["시지", "저녁과 개인 시간"],
+  "집안 어른 자리": ["년지", "집안 어른과의 연락"],
+};
+const FORTUNE_RELATIONS = {
+  충: "서로 움직이는 방향이 달라 조정이 필요한 관계",
+  형: "같은 문제를 자꾸 고치려다 압박이 생기기 쉬운 관계",
+  육합: "서로 연결되어 이야기를 꺼내기 쉬운 관계",
+  부분삼합: "두 지지가 한 방향에 힘을 보태는 부분합",
+  파: "작은 약속이 느슨해지기 쉬운 관계",
+  해: "겉으로 드러난 말과 속뜻이 엇갈리기 쉬운 관계",
+  "같은 지지": "익숙한 패턴이 한 번 더 도드라지는 관계",
+};
+const FORTUNE_BRANCH_PAIRS = {
+  충: ["자오", "축미", "인신", "묘유", "진술", "사해"],
+  육합: ["자축", "인해", "묘술", "진유", "사신", "오미"],
+};
+const FORTUNE_STEMS = {
+  甲: "갑목", 乙: "을목", 丙: "병화", 丁: "정화", 戊: "무토",
+  己: "기토", 庚: "경금", 辛: "신금", 壬: "임수", 癸: "계수",
+};
+
+function fortunePositions(layer) {
+  return (layer.positions || []).flatMap(row => {
+    const [seat, names] = row.split(" · ");
+    return Object.hasOwn(FORTUNE_SEATS, seat)
+      ? (names || "").split(" / ").filter(name => Object.hasOwn(FORTUNE_RELATIONS, name)).map(name => ({ seat, name }))
+      : [];
+  });
+}
+
+function fortuneRelationName(name, ganzi) {
+  const branch = String(ganzi || "").match(/^[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]\s+.[자축인묘진사오미신유술해]/)?.[0].slice(-1);
+  const pair = FORTUNE_BRANCH_PAIRS[name]?.find(pair => branch && pair.includes(branch));
+  return pair ? pair + (name === "육합" ? "합" : name) : name;
+}
+
+function fortuneRelationLine(positions, ganzi) {
+  const first = positions[0];
+  if (!first) return "";
+  const same = positions.filter(position => position.name === first.name);
+  const seats = same.map(({ seat }) => FORTUNE_SEATS[seat][0]).join("와 ");
+  const relation = fortuneRelationName(first.name, ganzi);
+  const meaning = first.name === "부분삼합" && ganzi[1] === "戌"
+    ? "불의 방향으로 힘을 보태는 부분합"
+    : FORTUNE_RELATIONS[first.name];
+  return `오늘 일진과 ${seats} 사이에 ${relation} 관계가 생겨. ${meaning}으로 읽는단다.`;
+}
+
+function fortuneLetter(who, person = {}, layer = {}, ganzi = "") {
   // Older payloads identify the type only in the calculator's stock fallback line.
   const recordedType = String(person?.body || "").match(/일간[^\n.]*?에\s+([가-힣]{2}) 기운으로 닿는구나/)?.[1];
-  const daily = layer?.daily || recordedType;
+  const daily = layer.daily || recordedType;
   if (!Object.hasOwn(FORTUNE_LETTERS, daily)) return null;
   const theme = FORTUNE_LETTERS[daily];
+  const [hanja, meaning] = FORTUNE_TYPES[daily];
+  const positions = fortunePositions(layer);
+  const focus = positions.find(({ seat }) => seat === layer.relationship_focus);
+  const secondary = positions.find(({ name }) => name === "육합" || name === "부분삼합");
   const supportingType = (layer.hidden || []).find(type => type !== daily && Object.hasOwn(FORTUNE_LETTERS, type));
-  const note = FORTUNE_PLACES[layer.relationship_focus] || FORTUNE_LETTERS[supportingType || layer.month]?.second || theme.second;
   const address = who === "woohyun" ? "우현아" : "규리야";
-  return { daily, paragraphs: [`${address}, ${theme[who]}`, note], question: theme.question };
+  const stem = FORTUNE_STEMS[ganzi[0]];
+  const focusLine = focus ? fortuneRelationLine([focus, ...positions.filter(row => row !== focus)], ganzi) : "";
+  const supportLine = secondary && secondary !== focus
+    ? fortuneRelationLine([secondary], ganzi) + (secondary.seat === "집안 어른 자리" ? " " + FORTUNE_PLACES[secondary.seat] : "")
+    : "";
+  const intro = `${address}, ${stem ? `오늘의 ${stem} 기운이 네 명식에는` : "오늘 네게는"} ${daily}(${hanja})으로 와. ${meaning}으로 읽는단다.`;
+  const note = focus
+    ? `${focusLine} ${FORTUNE_PLACES[focus.seat]}`
+    : FORTUNE_LETTERS[supportingType || layer.month]?.second || theme.second;
+  return { daily, focus, paragraphs: [`${intro} ${theme[who]}`, note, supportLine].filter(Boolean), question: theme.question };
 }
 
 function fortuneCouple(woohyun, kyuri) {
   if (!woohyun || !kyuri) return "";
-  if (woohyun.daily === kyuri.daily) {
-    return `저녁에 둘이 앉으면 할미 질문 하나만 나눠보렴. ${woohyun.question} 같은 질문을 듣고 떠오르는 답이 달라도, 서로 어떤 장면을 보고 있었는지 끝까지 들어주면 좋겠구나.`;
+  const a = woohyun.focus?.seat, b = kyuri.focus?.seat;
+  if (a === "가까운 관계 자리" && b === "개인 시간 자리") {
+    return "오늘 걸리는 자리가 서로 다르구나. 우현이는 둘의 약속을 다시 맞추는 데, 규리는 자기 저녁 시간을 지키는 데 마음이 쓰일 수 있단다. 저녁 계획을 잡을 때 우현이가 같이 하고 싶은 것 하나를 먼저 말하고, 규리는 언제부터 혼자 쉬고 싶은지 알려주렴. 함께할 시간과 쉬는 시간을 한 약속에 넣어보면 좋겠구나.";
   }
-  return `저녁에 둘이 앉으면 우현이한테는 이렇게 묻고 싶구나. ${woohyun.question} 규리한테도 하나 물을게. ${kyuri.question} 서로 고쳐주기 전에 먼저 들어주고, 마지막에 내일 상대에게 부탁하고 싶은 일 하나씩만 말해보렴.`;
+  const focus = [a && `우현이는 ${FORTUNE_SEATS[a][1]}`, b && `규리는 ${FORTUNE_SEATS[b][1]}`].filter(Boolean);
+  const opening = focus.length ? `오늘은 ${focus.join(", ")}부터 챙겨보는 풀이란다. ` : "";
+  if (woohyun.daily === kyuri.daily) {
+    return `${opening}저녁에 둘이 앉으면 할미 질문 하나만 나눠보렴. ${woohyun.question} 답이 달라도 서로 어떤 장면을 보고 있었는지 끝까지 들어주면 좋겠구나.`;
+  }
+  return `${opening}저녁에 우현이한테는 이렇게 묻고 싶구나. ${woohyun.question} 규리한테도 하나 물을게. ${kyuri.question} 서로 답을 듣고 내일 상대에게 부탁하고 싶은 일 하나씩 말해보렴.`;
 }
