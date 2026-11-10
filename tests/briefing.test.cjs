@@ -11,6 +11,18 @@ for (const module of ['29-fortune', '30-assets']) {
 }
 
 const now = Date.parse('2026-11-07T00:20:00Z');
+test('original daily words and separate practical sections survive calculated letters', () => {
+  const html = context.fortuneHtml({
+    intro: '오늘은 차근차근 해보렴.', couple: '서로 고마웠던 일을 말해보렴.', blessing: '몸과 마음 편하길 빈다.',
+    woohyun: {body: '오늘 받은 부탁은 범위부터 확인하렴.', work: '날짜를 확인하렴.', money: '결제 전에 맞춰보렴.'},
+    kyuri: {body: '기획의 기준을 먼저 물어보렴.', family: '안부를 전해보렴.'},
+    layers: {people: {woohyun: {daily: '겁재'}, kyuri: {daily: '정인'}}},
+  });
+  for (const text of ['오늘 받은 부탁은 범위부터 확인하렴.', '기획의 기준을 먼저 물어보렴.',
+    '일터', '돈 습관', '가족', '서로 고마웠던 일을 말해보렴.', '몸과 마음 편하길 빈다.', '오늘 말씀을 풀어낸 근거'])
+    assert.ok(html.includes(text), text);
+  assert.doesNotMatch(html, /누군가 “우리 같이 하자”/);
+});
 test('briefing shows fact sources and distinguishes the KST day from UTC', () => {
   const result = context.briefingCard({
     generated_at: '2026-11-06T22:05:00Z', date_label: '11/7',
