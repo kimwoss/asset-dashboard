@@ -1294,3 +1294,10 @@ header h1.brand-lockup::before { font-size:9px; line-height:1.2; font-weight:600
 .account-rise {color:var(--rise)}
 .account-fall {color:var(--fall)}
 .account-flat,.account-unavailable {color:var(--ink-muted)}
+
+/* 모바일 할머니 말씀: 원문의 짧은 문단과 여백을 그대로 보존한다. */
+.fortune-person .fortune-body, .fortune-close .fortune-body { line-height:1.85; word-break:keep-all; overflow-wrap:anywhere; margin:0 0 1em; }
+.fortune-people { grid-template-columns:1fr; }
+@media (max-width:760px) {
+  .fortune-person .fortune-body, .fortune-close .fortune-body { font-size:15px; line-height:1.9; }
+}
