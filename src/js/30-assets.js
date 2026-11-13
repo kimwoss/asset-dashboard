@@ -172,7 +172,14 @@ function fortuneHtml(f) {
   if (f.style_version !== "daily-paragraphs-v1") return `<section class="card"><h2>할머니 말씀</h2>
     <p class="fortune-open">${esc(f.intro && !f.woohyun && !f.kyuri ? f.intro : "오늘의 운세 원문을 아직 확인하지 못했어요. 새 리포트가 도착하면 보여드릴게요.")}</p></section>`;
   const paragraphs = (text, cls) => String(text || "").split(/\n\s*\n/)
-    .filter(p => p.trim()).map(p => `<p class="${cls}">${esc(fortuneTalk(p))}</p>`).join("");
+    .filter(p => p.trim()).map(p => {
+      const line = p.indexOf("\n");
+      const label = p.slice(0, line);
+      if (line > 0 && ["직장에서", "일상에서", "가정에서", "나를 위한 시간", "돈을 쓸 때"].includes(label)) {
+        return `<p class="${cls}"><strong>${esc(label)}</strong><br>${esc(fortuneTalk(p.slice(line + 1)))}</p>`;
+      }
+      return `<p class="${cls}">${esc(fortuneTalk(p))}</p>`;
+    }).join("");
   const people = [["🐰", "우현", f.woohyun], ["🐷", "규리", f.kyuri]];
   const personHtml = ([emoji, name, p]) => !p?.body ? "" : `<div class="fortune-person">
     <h3 class="fortune-head"><span class="fortune-name">${emoji} 우리 ${name}${name === "우현" ? "아" : "야"},</span>
