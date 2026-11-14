@@ -12,14 +12,16 @@ for (const module of ['30-assets']) {
 
 const now = Date.parse('2026-11-07T00:20:00Z');
 test('canonical prose keeps mobile paragraphs without labels or local rewriting', () => {
-  const html = context.fortuneHtml({style_version: 'daily-paragraphs-v1', ganzi: '병술',
+  const html = context.fortuneHtml({style_version: 'grandma-2026-11-06-v1', ganzi: '병술',
     intro: '오늘의 계산된 인사', couple: '부부 첫 문단\n\n부부 둘째 문단',
-    woohyun: {body: '원문 <첫> 문단\n\n원문 둘째 문단', money: '별도 항목은 만들지 않음'},
+    woohyun: {body: '원문 <첫> 문단\n\n원문 둘째 문단', work: '기자 문의를 확인하렴.', lucky_hour: '오후 3~5시', money: '별도 항목은 만들지 않음'},
     kyuri: {body: '규리 첫 문단\n\n규리 둘째 문단'}, blessing: '축원',
   });
   assert.match(html, /원문 &lt;첫&gt; 문단<\/p><p class="fortune-body">원문 둘째 문단/);
   assert.match(html, /부부 첫 문단<\/p><p class="fortune-body">부부 둘째 문단/);
-  assert.match(html, /우리 우현아/); assert.match(html, /우리 규리야/);
+  assert.match(html, /🐰 우현/); assert.match(html, /🐷 규리/);
+  assert.match(html, /💼 기자 문의를 확인하렴/);
+  assert.match(html, /오후 3~5시/);
   assert.doesNotMatch(html, /별도 항목|돈 습관|<b>일터|오늘 말씀을 풀어낸 근거/);
 });
 test('briefing shows fact sources and distinguishes the KST day from UTC', () => {
