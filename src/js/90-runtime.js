@@ -455,7 +455,7 @@ async function render() {
   renderMonthly(snap.monthly);
   renderSpending(snap.spending, snap.liabilities);
   renderCashflow(snap.financial, snap.fire);   // 건보료·목표구성은 은퇴 시점 세팅(CF_OWN_*)+FIRE 목표 기준
-  renderCities(snap.cities, net);
+  renderCities(snap.cities, net, { fetched: live?._fetched?.cities, failed: live?._status?.cities?.state === "error" });
   renderOfficetel(snap.officetel);
   renderAccountMoves(snap.financial);
   renderReview(snap.review);

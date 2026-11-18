@@ -15,6 +15,9 @@ name: update-live-quotes
 # 둘이 겹쳐도 아래 concurrency가 최신 것만 남기고, 실행당 시트 읽기는 TTL 캐시
 # (update_live.py TTL_MIN)가 눌러 준다 — 캐시 적중 시 9블록 중 2블록만 읽는다.
 on:
+  push:
+    branches: [main]
+    paths: [scripts/sheets_cities.py]
   schedule:
     # 폴백 전용 — 정시 발화는 tools/trigger_live.gs(Apps Script)가 담당한다.
     # 종전엔 여기도 */30이라 dispatch와 계속 겹쳤다. 러너 배정이 밀리는 시간대에는
