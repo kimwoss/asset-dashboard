@@ -1611,6 +1611,7 @@ header h1.brand-lockup::before { font-size:9px; line-height:1.2; font-weight:600
 </div>
 
 <div id="tab-cities" style="display:none">
+  <p id="ct-status" class="goal-sub" role="status" aria-live="polite"></p>
   <div class="cards" id="ct-kpis"></div>
 
   <section class="card">
@@ -1745,7 +1746,7 @@ const HEALTH_BLOCKS = [
   ["simulation", "은퇴 전망", 75, "시트 계산 기준 · 예측값"],
   ["liabilities", "부채", 75, "시트 수집 기준"],
   ["officetel", "후보집", 135, "시트 수집 기준 · 매물 확인일은 별도"],
-  ["cities", "후보 도시", 375, "시트 수집 기준 · 현지 조사일은 별도"],
+  ["cities", "후보 도시", 75, "시트 수집 기준 · 현지 조사일은 별도"],
 ];
 function dataHealth(snap, live, now = Date.now()) {
   const published = live?.updated_iso || live?.updated_at;
@@ -1759,7 +1760,8 @@ function dataHealth(snap, live, now = Date.now()) {
           .sort((a, b) => dataTime(b) - dataTime(a))[0]
       : live?._fetched?.[key];
     const age = dataAge(time, now);
-    const state = meta?.state === "error" ? "error" : !available ? "snapshot" : age == null ? "unknown" : (age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
+    const sourceError = key === "cities" && !!live?.cities?.broken?.length;
+    const state = meta?.state === "error" || sourceError ? "error" : !available ? "snapshot" : age == null ? "unknown" : (age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
     return { key, label, time, age, state, note, sourceTime: key === "financial" ? live?.financial?.quotes_asof : null };
   });
   const warnings = blocks.filter(b => b.state !== "ok");
@@ -4080,9 +4082,25 @@ function renderOfficetel(of) {
   };
 }
 
-function renderCities(ct, net) {
+function renderCities(ct, net, source = {}) {
   const tabBtn = document.querySelector('.tab[data-tab="cities"]');
-  if (!ct || !ct.cities || !ct.cities.length || !ct.seoul) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (tabBtn) tabBtn.style.display = "";
+  const fetched = ct?.fetched_at || source.fetched;
+  const stamp = dataTime(fetched);
+  const collected = stamp == null ? "수집 시각 미제공" : new Date(stamp).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false }) + " KST 수집 · " + ageLabel(fetched);
+  const brokenNames = (ct?.broken || []).map(ctShort);
+  const warnings = source.failed ? (ct?.cities?.length ? "최근 수집 실패 · 마지막 정상 자료 표시 중. " : "최근 수집 실패 · 도시 자료가 없습니다. ") : "";
+  const status = document.getElementById("ct-status");
+  status.textContent = warnings + collected + (brokenNames.length ? ` · 원본 계산 오류 ${brokenNames.length}곳: ${brokenNames.join(", ")}` : "")
+    + " · 시트는 약 30분 간격으로 수집하며, Numbeo 현지 가격 조사일과는 다릅니다.";
+  status.dataset.state = source.failed || brokenNames.length || !ct ? "error" : "ok";
+  const assumptions = "FIRE 필요자금은 서울 목표에 생활비 비율을 곱한 근삿값입니다. 세금·비자·현지 의료비 차이는 반영하지 않습니다. 자기계발·미용비는 여가 물가 배율을 대용합니다.";
+  if (!ct?.cities?.length || !ct.seoul) {
+    for (const id of ["ct-kpis", "ct-bars", "ct-pick", "ct-detail", "ct-table"]) document.getElementById(id).innerHTML = "";
+    document.getElementById("ct-bars-note").textContent = "계산 가능한 도시 자료가 없습니다. 원본 수식·누락값을 확인한 뒤 다시 수집합니다.";
+    document.getElementById("ct-note").textContent = assumptions;
+    return;
+  }
   const seoul = ct.seoul;
   const byCost = [...ct.cities].sort((a, b) => a.avg_monthly - b.avg_monthly);
   const reachable = ct.cities.filter(c => c.fire_target > 0 && net >= c.fire_target).length;
@@ -4099,7 +4117,7 @@ function renderCities(ct, net) {
     kpiCard("서울 (기준)", fmtMan(seoul.avg_monthly) + "/월", `FIRE 필요 ${fmtEok(seoul.fire_target)} · 연 ${fmtMan(seoul.annual_budget)}`, true) +
     kpiCard("현재 순자산 기준", fmtMan(afford / 12) + "/월", `현재 순자산 ${fmtEok(net)} · 연 ${fmtMan(afford)}`) +
     // 순자산 금액은 바로 왼쪽 '현재 순자산 기준' 카드가 이미 적었다 — 여기선 판정 기준만
-    kpiCard("지금 순자산으로 은퇴 가능", `${reachable} / ${ct.cities.length}곳`, "도시별 FIRE 필요자금 대비");
+    kpiCard("생활비 비례 목표 달성", `${reachable} / ${ct.cities.length}곳`, "계산 정상 도시 기준 · 세금·비자 등 별도");
 
   // 서울 대비 가로 막대 (도시명이 길어 가로가 읽기 좋다). 서울은 기준선으로 표시.
   const rows = [{ ...seoul, _seoul: true }, ...byCost];
@@ -4179,7 +4197,7 @@ function renderCities(ct, net) {
       <td>${fmtEok(seoul.fire_target)}</td><td><b>${seoul.fire_target ? (net / seoul.fire_target * 100).toFixed(0) : 0}%</b></td></tr>
       ${byCost.map(trow).join("")}</tbody>`;
   document.getElementById("ct-note").innerHTML =
-    "달성률은 현재 순자산으로 재계산 · 도시 추가·변경은 시트 🌍이주 대시보드 4행에 입력하면 반영됩니다.";
+    assumptions + " 달성률은 현재 순자산 기준입니다. 도시 추가·변경은 시트 🌍이주 대시보드 4행에 입력하면 반영됩니다.";
 }
 
 let _tabsInited = false;
@@ -4699,7 +4717,7 @@ function renderDataHealth(snap, live) {
     '<div class="health-publication"><span>파일 발행</span><b>' + esc(h.published || snap.updated_at || "미제공") + '</b></div>' +
     h.blocks.map(b => '<div class="health-row"><div><b>' + b.label + '</b><small>' + esc(b.note) + '</small>' +
       (b.sourceTime ? '<small>가격 조회 ' + esc(ageLabel(b.sourceTime)) + ' · 거래 시각과 다를 수 있음</small>' : '') +
-      '</div><div><span class="health-pill ' + b.state + '">' + labels[b.state] + '</span><small>' + esc(ageLabel(b.time)) + '</small></div></div>').join("") +
+      '</div><div><span class="health-pill ' + b.state + '">' + (b.key === "cities" && live?.cities?.broken?.length ? "원본 계산 오류" : labels[b.state]) + '</span><small>' + esc(ageLabel(b.time)) + '</small></div></div>').join("") +
     '<p class="health-foot">부동산 KB시세는 주간 기준입니다. 가격 제공사의 지연, 휴장, 시트 입력 시점은 수집 주기와 별개입니다. 새로고침은 최신 발행본을 다시 불러옵니다.</p>';
   document.getElementById("data-close").onclick = () => document.getElementById("data-dialog").close();
   document.getElementById("data-dialog").onclick = ev => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); };
@@ -5262,7 +5280,7 @@ async function render() {
   renderMonthly(snap.monthly);
   renderSpending(snap.spending, snap.liabilities);
   renderCashflow(snap.financial, snap.fire);   // 건보료·목표구성은 은퇴 시점 세팅(CF_OWN_*)+FIRE 목표 기준
-  renderCities(snap.cities, net);
+  renderCities(snap.cities, net, { fetched: live?._fetched?.cities, failed: live?._status?.cities?.state === "error" });
   renderOfficetel(snap.officetel);
   renderAccountMoves(snap.financial);
   renderReview(snap.review);

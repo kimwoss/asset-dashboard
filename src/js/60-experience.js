@@ -20,7 +20,7 @@ function renderDataHealth(snap, live) {
     '<div class="health-publication"><span>파일 발행</span><b>' + esc(h.published || snap.updated_at || "미제공") + '</b></div>' +
     h.blocks.map(b => '<div class="health-row"><div><b>' + b.label + '</b><small>' + esc(b.note) + '</small>' +
       (b.sourceTime ? '<small>가격 조회 ' + esc(ageLabel(b.sourceTime)) + ' · 거래 시각과 다를 수 있음</small>' : '') +
-      '</div><div><span class="health-pill ' + b.state + '">' + labels[b.state] + '</span><small>' + esc(ageLabel(b.time)) + '</small></div></div>').join("") +
+      '</div><div><span class="health-pill ' + b.state + '">' + (b.key === "cities" && live?.cities?.broken?.length ? "원본 계산 오류" : labels[b.state]) + '</span><small>' + esc(ageLabel(b.time)) + '</small></div></div>').join("") +
     '<p class="health-foot">부동산 KB시세는 주간 기준입니다. 가격 제공사의 지연, 휴장, 시트 입력 시점은 수집 주기와 별개입니다. 새로고침은 최신 발행본을 다시 불러옵니다.</p>';
   document.getElementById("data-close").onclick = () => document.getElementById("data-dialog").close();
   document.getElementById("data-dialog").onclick = ev => { if (ev.target === ev.currentTarget) ev.currentTarget.close(); };

@@ -1,166 +1,98 @@
 # -*- coding: utf-8 -*-
-"""⭐️분당부부_MASTER > 🌍이주 대시보드 → '살고싶은 도시' 웹 탭.
+"""Mirror the migration sheet. Missing costs must never become zero or stale success."""
+from datetime import date, datetime, timezone
+import math
+from typing import Any, Dict, Optional
 
-시트의 자동화(도시명 입력 → Numbeo 실시간 IMPORTHTML → 배율 → 도시별 생활비)는
-Google Sheets 위에서만 돈다. 정적 호스팅인 웹은 브라우저에서 Numbeo를 직접 못 긁는다
-(CORS·API키). 그래서 다른 탭들과 같은 원칙 — 시트가 원본, 웹은 그 결과를 미러링한다.
-도시를 더하거나 바꾸려면 시트 4행에 도시명을 입력하면 되고, 다음 동기화 때 웹에 반영된다.
-
-읽는 것: 도시별 월간 카테고리 생활비 · 월/연 합계 · 도시 FIRE 필요자금.
-웹에서 재계산: 서울 대비 비율, 실시간 순자산 기준 달성률 (메인 FIRE 섹션과 일관되게).
-
-파싱은 A열 라벨을 기준으로 한다 — 행이 밀리거나 항목이 늘어도 따라가도록.
-"""
-from datetime import date
-from typing import Any, Dict, List, Optional
-
-import sheets_fire  # 인증·스프레드시트 ID 재사용
+import sheets_fire
 
 SPREADSHEET_ID = sheets_fire.SPREADSHEET_ID
 TAB = "🌍이주 대시보드"
-BLOCK = "A1:N55"
-
-HEADER_LABEL = "항목"          # 이 행 E~N에 도시명
-STATUS_LABEL = "[데이터 상태]"
-SEOUL_COL = 3                  # D열 (0-indexed) = 서울(기준)
-CITY_COL_FIRST = 4            # E열부터 도시
-
-# 월간 생활비 블록 경계 (A열 라벨)
-MONTHLY_START = "[월간 생활비]"
-MONTHLY_TOTAL = "월간 합계"
-ANNUAL_TOTAL = "연간 합계"
-AVG_MONTHLY = "평균 월 생활비"
-ANNUAL_BUDGET = "연간 사용예산"
-FIRE_TARGET_PREFIX = "FIRE 기본 필요자금"
+BLOCK = "A1:O60"
+SEOUL_COL = 3
+CITY_COL_FIRST = 4
 
 
-def _num(v: Any) -> float:
-    if isinstance(v, (int, float)):
-        return float(v)
+def _number(value):
+    if isinstance(value, bool) or value is None:
+        return None
     try:
-        return float(str(v).replace(",", "").replace("₩", "").replace("%", "").strip())
-    except (ValueError, AttributeError):
-        return 0.0
+        result = float(str(value).replace(",", "").replace("₩", "").strip())
+        return result if math.isfinite(result) and result >= 0 else None
+    except (ValueError, TypeError):
+        return None
 
 
-def _ok(v: Any) -> bool:
-    """셀이 숫자로 읽히나. '#VALUE!'·'#N/A' 같은 시트 오류는 숫자가 아니다."""
-    if isinstance(v, (int, float)):
-        return True
-    t = str(v).strip()
-    if not t or t.startswith("#"):
-        return False
-    try:
-        float(t.replace(",", "").replace("₩", "").replace("%", ""))
-        return True
-    except ValueError:
-        return False
+def parse_cities(grid) -> Dict[str, Any]:
+    def cell(row, col):
+        return grid[row][col] if row is not None and row < len(grid) and col < len(grid[row]) else ""
+
+    def label(row):
+        return str(cell(row, 0)).strip()
+
+    def row_of(text, prefix=False):
+        return next((r for r in range(len(grid))
+                     if (label(r).startswith(text) if prefix else label(r) == text)), None)
+
+    header = row_of("항목")
+    monthly_start, monthly_end = row_of("[월간 생활비]", True), row_of("월간 합계")
+    rows = {"monthly_total": monthly_end, "annual_fixed": row_of("연간 합계"),
+            "avg_monthly": row_of("평균 월 생활비"), "annual_budget": row_of("연간 사용예산"),
+            "fire_target": row_of("FIRE 기본 필요자금", True)}
+    if header is None or monthly_start is None or any(r is None for r in rows.values()):
+        raise ValueError("도시 시트 필수 행 누락")
+    categories = [r for r in range(monthly_start + 1, monthly_end) if label(r) and not label(r).startswith("[")]
+    if not categories:
+        raise ValueError("도시 시트 월간 항목 누락")
+    status_row = row_of("[데이터 상태]")
+
+    def build(col):
+        costs = [_number(cell(r, col)) for r in categories]
+        totals = {key: _number(cell(row, col)) for key, row in rows.items()}
+        missing = [label(r) for r, v in zip(categories, costs) if v is None]
+        missing += [label(rows[key]) for key, v in totals.items() if v is None]
+        if missing:
+            return None, "자료 없음·계산 오류: " + ", ".join(missing)
+        if any(totals[key] <= 0 for key in ("avg_monthly", "annual_budget", "fire_target")):
+            return None, "생활비·FIRE 필요자금이 0 이하"
+        if (abs(sum(costs) - totals["monthly_total"]) > 2
+                or abs(totals["monthly_total"] * 12 + totals["annual_fixed"] - totals["annual_budget"]) > 2
+                or abs(totals["avg_monthly"] * 12 - totals["annual_budget"]) > 2):
+            return None, "월간 항목·연간 합계 불일치"
+        return {"name": str(cell(header, col)).strip(), "status": str(cell(status_row, col)).strip(),
+                "categories": [round(v) for v in costs], **{key: round(v) for key, v in totals.items()}}, None
+
+    seoul, error = build(SEOUL_COL)
+    if error:
+        raise ValueError("서울 기준 계산 오류: " + error)
+    cities, broken, details = [], [], []
+    for col in range(CITY_COL_FIRST, len(grid[header])):
+        name = str(cell(header, col)).strip()
+        if not name:
+            continue
+        city, error = build(col)
+        if error:
+            broken.append(name)
+            details.append({"name": name, "reason": error})
+        else:
+            cities.append(city)
+    # Publish a successfully read source error, even when no city is valid.
+    # Returning {} here would silently preserve obsolete values in the cache.
+    return {"seoul": seoul, "cities": cities, "broken": broken, "broken_details": details,
+            "categories": [{"name": label(r), "group": str(cell(r, 1)).strip()} for r in categories]}
 
 
 def fetch_cities(today: Optional[date] = None) -> Dict[str, Any]:
-    """🌍이주 대시보드 → {cities, seoul, categories, ...}. 실패 시 {} (탭만 숨김)."""
     try:
         import gspread
         gc = sheets_fire._authorize(gspread)
         if gc is None:
-            print("WARN: 시트 인증 없음 — 살고싶은 도시 생략")
             return {}
         ws = gc.open_by_key(SPREADSHEET_ID).worksheet(TAB)
-        grid = ws.get(BLOCK, value_render_option="UNFORMATTED_VALUE")
-
-        def cell(r0: int, c0: int) -> Any:
-            row = grid[r0] if r0 < len(grid) else []
-            return row[c0] if c0 < len(row) else ""
-
-        def label(r0: int) -> str:
-            return str(cell(r0, 0)).strip()
-
-        # 1) 헤더 행 — 도시명. 서울(D) + 도시(E~N) 중 값이 있는 열만.
-        hdr = next((r for r in range(len(grid)) if label(r) == HEADER_LABEL), None)
-        if hdr is None:
-            print("WARN: 이주 대시보드 헤더('항목') 못 찾음")
-            return {}
-        status_row = next((r for r in range(len(grid)) if label(r) == STATUS_LABEL), None)
-
-        def col_name(c0: int) -> str:
-            return str(cell(hdr, c0)).strip()
-
-        city_cols = [c for c in range(CITY_COL_FIRST, len(grid[hdr]) if hdr < len(grid) else 0)
-                     if col_name(c)]
-
-        # 2) 월간 카테고리 행 (블록 시작 ~ '월간 합계' 사이, 라벨 있는 행)
-        m_start = next((r for r in range(len(grid)) if label(r).startswith(MONTHLY_START)), None)
-        m_total = next((r for r in range(len(grid)) if label(r) == MONTHLY_TOTAL), None)
-        cat_rows: List[int] = []
-        if m_start is not None and m_total is not None:
-            for r in range(m_start + 1, m_total):
-                lab = label(r)
-                if lab and not lab.startswith("["):
-                    cat_rows.append(r)
-
-        # 결과 행들
-        row_of = lambda pred: next((r for r in range(len(grid)) if pred(label(r))), None)
-        r_avg = row_of(lambda l: l == AVG_MONTHLY)
-        r_budget = row_of(lambda l: l == ANNUAL_BUDGET)
-        r_annual = row_of(lambda l: l == ANNUAL_TOTAL)
-        r_fire = row_of(lambda l: l.startswith(FIRE_TARGET_PREFIX))
-
-        categories_meta = [{"name": label(r), "group": str(cell(r, 1)).strip()} for r in cat_rows]
-
-        def build(c0: int, name: str, status: str = "") -> Dict[str, Any]:
-            return {
-                "name": name,
-                "status": status,
-                "categories": [round(_num(cell(r, c0))) for r in cat_rows],
-                "monthly_total": round(_num(cell(m_total, c0))) if m_total is not None else 0,
-                "annual_fixed": round(_num(cell(r_annual, c0))) if r_annual is not None else 0,
-                "avg_monthly": round(_num(cell(r_avg, c0))) if r_avg is not None else 0,
-                "annual_budget": round(_num(cell(r_budget, c0))) if r_budget is not None else 0,
-                "fire_target": round(_num(cell(r_fire, c0))) if r_fire is not None else 0,
-            }
-
-        seoul = build(SEOUL_COL, str(cell(hdr, SEOUL_COL)).strip() or "서울")
-        # 결과 칸이 시트 오류인 도시는 빼고 이름만 따로 넘긴다. 종전엔 _num()이 '#VALUE!'를
-        # 0으로 바꿔 '월 0원' 도시가 가장 싼 곳으로 맨 위에 섰고, 로그는 'OK 10곳'이라 아무도
-        # 몰랐다(2026-10 — Numbeo 표에 행이 하나 늘어 7곳이 깨져 있었다).
-        key_rows = [r for r in (r_avg, r_fire, m_total) if r is not None]
-        cities, broken = [], []
-        for c in city_cols:
-            if not all(_ok(cell(r, c)) for r in key_rows):
-                broken.append(col_name(c))
-                continue
-            st = str(cell(status_row, c)).strip() if status_row is not None else ""
-            cities.append(build(c, col_name(c), st))
-        if broken:
-            print(f"WARN: 이주 대시보드 계산 오류 {len(broken)}곳 — 웹에서 뺌: {', '.join(broken)} "
-                  f"(시트 '🌍이주 대시보드' 5행 상태 확인)")
-
-        if not cities or seoul["avg_monthly"] <= 0:
-            print("WARN: 이주 대시보드 도시/서울 값 없음 — 생략")
-            return {}
-
-        out = {
-            "seoul": seoul,
-            "cities": cities,
-            "categories": categories_meta,
-            "broken": broken,
-        }
-        print(f"OK: 살고싶은 도시 {len(cities)}곳 · 서울 월 {seoul['avg_monthly']/1e4:,.0f}만원 기준")
-        return out
-    except Exception as e:  # noqa: BLE001 — 자산추적을 죽이지 않는다
-        print(f"WARN: 살고싶은 도시 읽기 실패 ({type(e).__name__}: {e})")
+        result = parse_cities(ws.get(BLOCK, value_render_option="UNFORMATTED_VALUE"))
+        result["fetched_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"OK: 후보 도시 {len(result['cities'])}곳 · 원본 오류 {len(result['broken'])}곳")
+        return result
+    except Exception as error:
+        print(f"WARN: 후보 도시 읽기 실패 ({type(error).__name__}: {error})")
         return {}
-
-
-if __name__ == "__main__":
-    import sys
-    sys.stdout.reconfigure(encoding="utf-8")
-    d = fetch_cities()
-    if d:
-        s = d["seoul"]
-        print(f"\n서울: 월 {s['avg_monthly']:,} · FIRE {s['fire_target']/1e8:.2f}억")
-        print(f"\n{'도시':<26}{'상태':<8}{'월생활비':>12}{'서울대비':>9}{'FIRE필요':>10}")
-        for c in sorted(d["cities"], key=lambda x: x["avg_monthly"]):
-            vs = c["avg_monthly"] / s["avg_monthly"] * 100
-            print(f"{c['name'][:25]:<26}{c['status']:<8}{c['avg_monthly']:>12,}{vs:>8.0f}%{c['fire_target']/1e8:>9.2f}억")
-        print(f"\n카테고리: {[m['name'] for m in d['categories']]}")

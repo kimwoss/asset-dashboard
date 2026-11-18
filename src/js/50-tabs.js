@@ -224,9 +224,25 @@ function renderOfficetel(of) {
   };
 }
 
-function renderCities(ct, net) {
+function renderCities(ct, net, source = {}) {
   const tabBtn = document.querySelector('.tab[data-tab="cities"]');
-  if (!ct || !ct.cities || !ct.cities.length || !ct.seoul) { if (tabBtn) tabBtn.style.display = "none"; return; }
+  if (tabBtn) tabBtn.style.display = "";
+  const fetched = ct?.fetched_at || source.fetched;
+  const stamp = dataTime(fetched);
+  const collected = stamp == null ? "수집 시각 미제공" : new Date(stamp).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false }) + " KST 수집 · " + ageLabel(fetched);
+  const brokenNames = (ct?.broken || []).map(ctShort);
+  const warnings = source.failed ? (ct?.cities?.length ? "최근 수집 실패 · 마지막 정상 자료 표시 중. " : "최근 수집 실패 · 도시 자료가 없습니다. ") : "";
+  const status = document.getElementById("ct-status");
+  status.textContent = warnings + collected + (brokenNames.length ? ` · 원본 계산 오류 ${brokenNames.length}곳: ${brokenNames.join(", ")}` : "")
+    + " · 시트는 약 30분 간격으로 수집하며, Numbeo 현지 가격 조사일과는 다릅니다.";
+  status.dataset.state = source.failed || brokenNames.length || !ct ? "error" : "ok";
+  const assumptions = "FIRE 필요자금은 서울 목표에 생활비 비율을 곱한 근삿값입니다. 세금·비자·현지 의료비 차이는 반영하지 않습니다. 자기계발·미용비는 여가 물가 배율을 대용합니다.";
+  if (!ct?.cities?.length || !ct.seoul) {
+    for (const id of ["ct-kpis", "ct-bars", "ct-pick", "ct-detail", "ct-table"]) document.getElementById(id).innerHTML = "";
+    document.getElementById("ct-bars-note").textContent = "계산 가능한 도시 자료가 없습니다. 원본 수식·누락값을 확인한 뒤 다시 수집합니다.";
+    document.getElementById("ct-note").textContent = assumptions;
+    return;
+  }
   const seoul = ct.seoul;
   const byCost = [...ct.cities].sort((a, b) => a.avg_monthly - b.avg_monthly);
   const reachable = ct.cities.filter(c => c.fire_target > 0 && net >= c.fire_target).length;
@@ -243,7 +259,7 @@ function renderCities(ct, net) {
     kpiCard("서울 (기준)", fmtMan(seoul.avg_monthly) + "/월", `FIRE 필요 ${fmtEok(seoul.fire_target)} · 연 ${fmtMan(seoul.annual_budget)}`, true) +
     kpiCard("현재 순자산 기준", fmtMan(afford / 12) + "/월", `현재 순자산 ${fmtEok(net)} · 연 ${fmtMan(afford)}`) +
     // 순자산 금액은 바로 왼쪽 '현재 순자산 기준' 카드가 이미 적었다 — 여기선 판정 기준만
-    kpiCard("지금 순자산으로 은퇴 가능", `${reachable} / ${ct.cities.length}곳`, "도시별 FIRE 필요자금 대비");
+    kpiCard("생활비 비례 목표 달성", `${reachable} / ${ct.cities.length}곳`, "계산 정상 도시 기준 · 세금·비자 등 별도");
 
   // 서울 대비 가로 막대 (도시명이 길어 가로가 읽기 좋다). 서울은 기준선으로 표시.
   const rows = [{ ...seoul, _seoul: true }, ...byCost];
@@ -323,7 +339,7 @@ function renderCities(ct, net) {
       <td>${fmtEok(seoul.fire_target)}</td><td><b>${seoul.fire_target ? (net / seoul.fire_target * 100).toFixed(0) : 0}%</b></td></tr>
       ${byCost.map(trow).join("")}</tbody>`;
   document.getElementById("ct-note").innerHTML =
-    "달성률은 현재 순자산으로 재계산 · 도시 추가·변경은 시트 🌍이주 대시보드 4행에 입력하면 반영됩니다.";
+    assumptions + " 달성률은 현재 순자산 기준입니다. 도시 추가·변경은 시트 🌍이주 대시보드 4행에 입력하면 반영됩니다.";
 }
 
 let _tabsInited = false;

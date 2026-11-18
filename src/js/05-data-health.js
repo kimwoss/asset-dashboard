@@ -31,7 +31,7 @@ const HEALTH_BLOCKS = [
   ["simulation", "은퇴 전망", 75, "시트 계산 기준 · 예측값"],
   ["liabilities", "부채", 75, "시트 수집 기준"],
   ["officetel", "후보집", 135, "시트 수집 기준 · 매물 확인일은 별도"],
-  ["cities", "후보 도시", 375, "시트 수집 기준 · 현지 조사일은 별도"],
+  ["cities", "후보 도시", 75, "시트 수집 기준 · 현지 조사일은 별도"],
 ];
 function dataHealth(snap, live, now = Date.now()) {
   const published = live?.updated_iso || live?.updated_at;
@@ -45,7 +45,8 @@ function dataHealth(snap, live, now = Date.now()) {
           .sort((a, b) => dataTime(b) - dataTime(a))[0]
       : live?._fetched?.[key];
     const age = dataAge(time, now);
-    const state = meta?.state === "error" ? "error" : !available ? "snapshot" : age == null ? "unknown" : (age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
+    const sourceError = key === "cities" && !!live?.cities?.broken?.length;
+    const state = meta?.state === "error" || sourceError ? "error" : !available ? "snapshot" : age == null ? "unknown" : (age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
     return { key, label, time, age, state, note, sourceTime: key === "financial" ? live?.financial?.quotes_asof : null };
   });
   const warnings = blocks.filter(b => b.state !== "ok");
