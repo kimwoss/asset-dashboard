@@ -194,8 +194,8 @@ function fortuneHtml(f) {
 
 function briefingCard(cp, now = Date.now()) {
   const kstDate = time => new Date(time + 9 * 3600e3).toISOString().slice(0, 10);
-  const generated = Date.parse(cp.generated_at);
-  const sameDay = Number.isFinite(generated) && generated <= now && kstDate(generated) === kstDate(now);
+  const generated = dataTime(cp.generated_at);
+  const sameDay = generated != null && Number.isFinite(generated) && generated <= now && kstDate(generated) === kstDate(now);
   const timeLabel = sameDay ? new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   }).format(generated) : "";
@@ -205,13 +205,13 @@ function briefingCard(cp, now = Date.now()) {
     ${item.action ? `<p class="cp-brief-action">${esc(item.action)}</p>` : ""}
     <div class="cp-mkt-note"><a href="${href}" target="_blank" rel="noopener noreferrer">${esc(source)}</a></div>
   </div>` : "";
-  const intro = brief?.intro || cp.greeting;
+  const intro = cp.greeting || brief?.intro;
   const wx = !brief?.weather?.text && cp.weather;
   return { sameDay, html: `<section class="card">
     <h2>오늘 하루 미리보기</h2>
     ${sameDay ? `<div class="cp-date">${esc(cp.date_label)} · ${esc(timeLabel)} KST 작성</div>
       ${intro ? `<p class="cp-hero">${esc(intro)}</p>` : ""}
-      ${!brief && cp.summary ? `<p class="cp-sub">아침 리포트 해석 · ${esc(cp.summary)}</p>` : ""}
+      ${cp.summary ? `<p class="cp-sub">아침 리포트 해석 · ${esc(cp.summary)}</p>` : ""}
       ${wx ? `<p class="cp-sub">${esc(wx.replace(/^현재/gm, "아침 수집 시점"))}</p>` : ""}
       <div class="cp-brief-grid">
         ${section("외출 전에", brief?.weather, "Open-Meteo 서울 예보 · 아침 수집 기준", "https://open-meteo.com/")}
@@ -230,16 +230,16 @@ function renderCheckpoint(cp, finBlock) {
       </section>`;
     return;
   }
-  const pct = v => (v == null || Math.abs(v) < 0.005) ? "0.00%" : (v > 0 ? "+" : "") + v.toFixed(2) + "%";
+  const pct = v => Math.abs(v) < 0.005 ? "0.00%" : (v > 0 ? "+" : "") + v.toFixed(2) + "%";
   // 시세는 방향으로 칠한다(국내 관례: 상승 빨강·하락 파랑) — 우리 돈의 판정색과 다른 축이다
   const cls = v => v > 0 ? "rise" : v < 0 ? "fall" : "";
-  const px = (v, unit) => v == null ? "—"
+  const px = (v, unit) => typeof v !== "number" || !Number.isFinite(v) ? "—"
     : unit === "pt" ? v.toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "pt"
     : unit === "$" ? "$" + v.toLocaleString("ko-KR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "₩" + v.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
   // 등락을 '몇 원'으로 — 현재가와 %로 역산 (base=price/(1+p/100), Δ=price-base).
   // 환율은 %보다 실제 원(₩) 변동이 직관적이라는 요청(2026-07-21)으로 환율 표만 이 모드를 쓴다.
-  const wonD = (price, p) => (price == null || p == null) ? "—"
+  const wonD = (price, p) => (!Number.isFinite(price) || !Number.isFinite(p) || p <= -100) ? "—"
     : (() => {
         const d = price * (p / 100) / (1 + p / 100);
         return Math.abs(d) < 0.05 ? "0원"
@@ -254,7 +254,7 @@ function renderCheckpoint(cp, finBlock) {
   // 나머지 기간은 조용한 수치로 둬서, 넷이 같은 목소리로 떠들지 않게 한다.
   const mktCell = (i, k, mode) => {
     const p = i[k] !== undefined ? i[k] : (k === "d1" ? i.change_pct : null);
-    if (p == null) return `<td style="color:var(--ink-muted)">—</td>`;
+    if (typeof p !== "number" || !Number.isFinite(p)) return `<td style="color:var(--ink-muted)">—</td>`;
     const v = mode === "won" ? wonD(i.price ?? i.rate, p) : pct(p);
     if (k === "d1") {
       const dir = Math.abs(p) < 0.005 ? "flat" : (p > 0 ? "rise" : "fall");
@@ -263,7 +263,7 @@ function renderCheckpoint(cp, finBlock) {
     return `<td class="${cls(p)}"><b>${v}</b></td>`;
   };
   const mktRow = (i, mode) => `<tr>
-    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}${
+    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}${i.asof ? `<span class="mkt-asof">${esc(i.asof)} 가격 기준</span>` : `<span class="mkt-asof">가격 기준일 미제공</span>`}${
       i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}${
       i.filled ? `<span class="mkt-asof">·장중값</span>` : ""}</td>
     <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
@@ -280,13 +280,14 @@ function renderCheckpoint(cp, finBlock) {
   const badge = cp.live_at
     ? (cp.market_closed
         // 장이 닫혔는데 '실시간'이라 적으면, 값이 안 변하는 것을 고장으로 읽게 된다.
-        ? `<span class="live-badge off">장 마감 · 종가 기준 (${esc(cp.live_at)} 확인)</span>`
-        : `<span class="live-badge on"><span class="dot"></span>시세 발행본 ${esc(cp.live_at)} · 가격 지연 가능</span>`)
+        ? `<span class="live-badge off">시장 휴장 · ${esc(cp.live_at)} 발행</span>`
+        : `<span class="live-badge on"><span class="dot"></span>시세 발행 ${esc(cp.live_at)} · 종목별 가격 기준일 확인</span>`)
     : `<span class="live-badge off">모닝 리포트 스냅샷 · ${esc(cp.date_label)}</span>`;
   const fg = cp.fear_greed || {};
-  const fgLine = fg.score != null
-    ? `공포탐욕 <b>${fg.score}</b> (${esc(fg.label || "")})${fg.vix ? ` · VIX ${fg.vix.toFixed(1)}` : ""}` : "";
-  const usAsof = (cp.us || []).map(i => i.asof).filter(Boolean).sort().pop();
+  const fgLine = typeof fg.score === "number" && Number.isFinite(fg.score) && fg.score >= 0 && fg.score <= 100
+    ? `모닝 리포트 ${esc(cp.date_label)} · 공포탐욕 <b>${fg.score}</b> (${esc(fg.label || "")})${typeof fg.vix === "number" && Number.isFinite(fg.vix) ? ` · VIX ${fg.vix.toFixed(1)}` : ""}` : "";
+  const usDates = [...new Set((cp.us || []).map(i => i.asof).filter(Boolean))].sort();
+  const usAsof = usDates.length === 1 ? usDates[0] : null;
 
   // 미국·국내·환율을 한 표로 통합 — 그룹 소제목 행으로 구분, 환율만 원(₩) 변동 모드.
   // 공포탐욕지수는 요청대로 표 아래 별도 문구로 그대로 남긴다.

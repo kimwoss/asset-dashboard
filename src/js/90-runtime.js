@@ -78,13 +78,24 @@ function applyLive(snap, live) {
   // 아침 시트에 올리면 무거운 일별 잡(07:30)을 기다리지 않고 30분 내 반영된다.
   // 단, 일별 스냅샷이 더 최신이면(경계 시각) 밀어내지 않는다.
   if (live.checkpoint && live.checkpoint.generated_at) {
-    const cur = snap.checkpoint && snap.checkpoint.generated_at;
-    if (!cur || live.checkpoint.generated_at >= cur) snap.checkpoint = live.checkpoint;
+    const incoming = dataTime(live.checkpoint.generated_at);
+    const current = dataTime(snap.checkpoint?.generated_at);
+    if (incoming != null && incoming <= Date.now() && (current == null || incoming >= current)) {
+      snap.checkpoint = live.checkpoint;
+    }
   }
   if (snap.checkpoint) {
     let applied = false;
     for (const k of ["us", "kr", "fx"])
-      if (Array.isArray(live[k])) { snap.checkpoint[k] = live[k]; applied = true; }
+      if (Array.isArray(live[k]) && live[k].length) {
+        const rows = snap.checkpoint[k] || [];
+        const merged = live[k].map(row => {
+          const previous = rows.find(item => item.name === row.name);
+          return previous?.asof && (!row.asof || row.asof < previous.asof) ? previous : row;
+        });
+        snap.checkpoint[k] = [...merged, ...rows.filter(row => !merged.some(item => item.name === row.name))];
+        applied = true;
+      }
     // 뉴스도 실시간(30분)으로 덮어쓴다 — 07:00 모닝 뉴스가 온종일 옛것으로 남던 문제 해결
     if (Array.isArray(live.news)) { snap.checkpoint.news = live.news; snap.checkpoint.news_live = true; snap.checkpoint.news_at = live._fetched?.news || null; }
     // 실시간 시세가 실제로 붙었을 때만 기준시각을 남긴다 → 체크포인트가 '실시간' 배지를 켠다

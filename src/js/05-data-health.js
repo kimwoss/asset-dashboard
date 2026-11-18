@@ -39,9 +39,13 @@ function dataHealth(snap, live, now = Date.now()) {
   const blocks = HEALTH_BLOCKS.map(([key, label, limit, note]) => {
     const meta = live?._status?.[key];
     const available = live && Object.hasOwn(live, key) && live[key] != null;
-    const time = key === "checkpoint" ? (live?.checkpoint?.generated_at || snap.checkpoint?.generated_at) : live?._fetched?.[key];
+    const time = key === "checkpoint"
+      ? [snap.checkpoint?.generated_at, live?.checkpoint?.generated_at]
+          .filter(value => dataTime(value) != null && dataTime(value) <= now)
+          .sort((a, b) => dataTime(b) - dataTime(a))[0]
+      : live?._fetched?.[key];
     const age = dataAge(time, now);
-    const state = meta?.state === "error" ? "error" : !available ? "snapshot" : age == null ? "unknown" : age > limit ? "stale" : "ok";
+    const state = meta?.state === "error" ? "error" : !available ? "snapshot" : age == null ? "unknown" : (age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
     return { key, label, time, age, state, note, sourceTime: key === "financial" ? live?.financial?.quotes_asof : null };
   });
   const warnings = blocks.filter(b => b.state !== "ok");
