@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const context = vm.createContext({
   esc: text => String(text).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
 });
-for (const module of ['30-assets']) {
+for (const module of ['05-data-health', '30-assets']) {
   vm.runInContext(fs.readFileSync(`src/js/${module}.js`, 'utf8'), context);
 }
 
