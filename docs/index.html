@@ -730,12 +730,18 @@
   .seg-btn.on { background: var(--surface-1); color: var(--ink-1); font-weight: 600; }
 
   /* 살고싶은 도시 */
-  .ct-bar-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .ct-bar-row { display: grid; grid-template-columns: 92px minmax(24px, 1fr) max-content; align-items: center; gap: 10px; padding: 5px 0; }
   .ct-bar-name { width: 92px; flex-shrink: 0; font-size: var(--fs-body); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ct-bar-track { position: relative; flex: 1; height: 24px; background: var(--grid); border-radius: 6px; }
   .ct-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; }
-  .ct-bar-val { position: absolute; top: 0; left: 9px; height: 24px; display: flex; align-items: center;
+  .ct-bar-val { min-width: 126px; display: flex; align-items: center; justify-content: flex-end; gap: 7px;
                 font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--ink-1); white-space: nowrap; }
+  #ct-status[data-state="error"] { color: var(--warn); }
+  @media (max-width: 520px) {
+    .ct-bar-row { grid-template-columns: 78px minmax(16px, 1fr) max-content; gap: 7px; }
+    .ct-bar-name { width: 78px; font-size: var(--fs-cap); }
+    .ct-bar-val { min-width: 110px; gap: 5px; }
+  }
   .ct-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
                     padding-bottom: 14px; border-bottom: 1px solid var(--grid); margin-bottom: 14px; }
   .ct-detail-city { font-size: var(--fs-2); font-weight: 700; letter-spacing: -0.01em; }
@@ -4127,9 +4133,9 @@ function renderCities(ct, net, source = {}) {
     const col = c._seoul ? "var(--baseline)" : vs <= 100 ? "var(--pos)" : "var(--accent)";
     const tag = c._seoul ? "기준" : (vs <= 100 ? `-${(100 - vs).toFixed(0)}%` : `+${(vs - 100).toFixed(0)}%`);
     return `<div class="ct-bar-row">
-      <div class="ct-bar-name" title="${esc(c.name)}">${esc(ctShort(c.name))}${c._seoul ? " ⭐" : ""}</div>
-      <div class="ct-bar-track"><div class="ct-bar-fill" style="width:${w}%;background:${col}"></div>
-        <span class="ct-bar-val">${fmtMan(c.avg_monthly)} <b style="color:${col}">${tag}</b></span></div>
+      <div class="ct-bar-name" title="${esc(c.name)}">${c._seoul ? "서울 ⭐" : esc(ctShort(c.name))}</div>
+      <div class="ct-bar-track" aria-hidden="true"><div class="ct-bar-fill" style="width:${w}%;background:${col}"></div></div>
+      <span class="ct-bar-val">${fmtMan(c.avg_monthly)} <b style="color:${col}">${tag}</b></span>
     </div>`;
   }).join("");
   // 시트에서 계산이 깨진 도시는 데이터 단계에서 빠진다 — 조용히 사라지지 않게 이름을 밝힌다

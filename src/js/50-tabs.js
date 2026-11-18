@@ -269,9 +269,9 @@ function renderCities(ct, net, source = {}) {
     const col = c._seoul ? "var(--baseline)" : vs <= 100 ? "var(--pos)" : "var(--accent)";
     const tag = c._seoul ? "기준" : (vs <= 100 ? `-${(100 - vs).toFixed(0)}%` : `+${(vs - 100).toFixed(0)}%`);
     return `<div class="ct-bar-row">
-      <div class="ct-bar-name" title="${esc(c.name)}">${esc(ctShort(c.name))}${c._seoul ? " ⭐" : ""}</div>
-      <div class="ct-bar-track"><div class="ct-bar-fill" style="width:${w}%;background:${col}"></div>
-        <span class="ct-bar-val">${fmtMan(c.avg_monthly)} <b style="color:${col}">${tag}</b></span></div>
+      <div class="ct-bar-name" title="${esc(c.name)}">${c._seoul ? "서울 ⭐" : esc(ctShort(c.name))}</div>
+      <div class="ct-bar-track" aria-hidden="true"><div class="ct-bar-fill" style="width:${w}%;background:${col}"></div></div>
+      <span class="ct-bar-val">${fmtMan(c.avg_monthly)} <b style="color:${col}">${tag}</b></span>
     </div>`;
   }).join("");
   // 시트에서 계산이 깨진 도시는 데이터 단계에서 빠진다 — 조용히 사라지지 않게 이름을 밝힌다
