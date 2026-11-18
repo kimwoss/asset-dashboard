@@ -28,7 +28,7 @@ def parse_cities(grid) -> Dict[str, Any]:
         return grid[row][col] if row is not None and row < len(grid) and col < len(grid[row]) else ""
 
     def label(row):
-        return str(cell(row, 0)).strip()
+        return str(cell(row, 0) or "").strip()
 
     def row_of(text, prefix=False):
         return next((r for r in range(len(grid))
@@ -59,7 +59,7 @@ def parse_cities(grid) -> Dict[str, Any]:
                 or abs(totals["monthly_total"] * 12 + totals["annual_fixed"] - totals["annual_budget"]) > 2
                 or abs(totals["avg_monthly"] * 12 - totals["annual_budget"]) > 2):
             return None, "월간 항목·연간 합계 불일치"
-        return {"name": str(cell(header, col)).strip(), "status": str(cell(status_row, col)).strip(),
+        return {"name": str(cell(header, col) or "").strip(), "status": str(cell(status_row, col) or "").strip(),
                 "categories": [round(v) for v in costs], **{key: round(v) for key, v in totals.items()}}, None
 
     seoul, error = build(SEOUL_COL)
@@ -67,7 +67,7 @@ def parse_cities(grid) -> Dict[str, Any]:
         raise ValueError("서울 기준 계산 오류: " + error)
     cities, broken, details = [], [], []
     for col in range(CITY_COL_FIRST, len(grid[header])):
-        name = str(cell(header, col)).strip()
+        name = str(cell(header, col) or "").strip()
         if not name:
             continue
         city, error = build(col)
@@ -79,7 +79,7 @@ def parse_cities(grid) -> Dict[str, Any]:
     # Publish a successfully read source error, even when no city is valid.
     # Returning {} here would silently preserve obsolete values in the cache.
     return {"seoul": seoul, "cities": cities, "broken": broken, "broken_details": details,
-            "categories": [{"name": label(r), "group": str(cell(r, 1)).strip()} for r in categories]}
+            "categories": [{"name": label(r), "group": str(cell(r, 1) or "").strip()} for r in categories]}
 
 
 def fetch_cities(today: Optional[date] = None) -> Dict[str, Any]:

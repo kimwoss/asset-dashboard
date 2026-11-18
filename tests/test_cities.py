@@ -1,4 +1,3 @@
-from copy import deepcopy
 import pytest
 from sheets_cities import parse_cities, _number
 
@@ -53,3 +52,13 @@ def test_numeric_parser_rejects_nonfinite_and_boolean():
     assert _number("1,234") == 1234
     for value in ["?", "", False, "NaN", "Infinity", -1]:
         assert _number(value) is None
+
+
+def test_null_labels_do_not_appear_as_none_or_create_a_phantom_city():
+    source = grid()
+    source[0].append(None)
+    source[3][1] = None
+    result = parse_cities(source)
+    assert len(result["cities"]) == 1
+    assert result["broken"] == []
+    assert result["categories"][0]["group"] == ""
