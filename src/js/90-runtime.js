@@ -58,15 +58,22 @@ async function decryptEnvelope(envText, passphrase) {
    그래서 '30분마다'라고 약속하지 않고, 화면에는 배지로 실제 기준시각을 밝힌다.
    raw.githubusercontent.com은 CORS 허용 + 5분 캐시. 실패해도 무시하고 스냅샷을 쓴다. */
 const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/live.enc";
+let lastLivePayload = null;
 
 async function loadLive(passphrase) {
   try {
-    const r = await fetch(LIVE_URL + "?t=" + Date.now(), { signal: AbortSignal.timeout(15000) });  // 매 호출 캐시 우회 (업데이트 버튼 대응)
-    if (!r.ok) return null;
-    return JSON.parse(await decryptEnvelope(await r.text(), passphrase));
+    const r = await fetch(LIVE_URL + "?t=" + Date.now(), { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error("Live HTTP " + r.status);
+    const incoming = JSON.parse(await decryptEnvelope(await r.text(), passphrase));
+    const time = dataTime(incoming.updated_iso || incoming.updated_at);
+    const previousTime = dataTime(lastLivePayload?.updated_iso || lastLivePayload?.updated_at);
+    if (time == null || time > Date.now() + 60_000) throw new Error("Invalid live publication time");
+    if (previousTime != null && time < previousTime) throw new Error("Older live publication");
+    lastLivePayload = incoming;
+    return structuredClone(incoming);
   } catch (e) {
     console.warn("실시간 시세 실패 — 스냅샷 사용", e);
-    return null;
+    return lastLivePayload ? { ...structuredClone(lastLivePayload), _connection_error: true } : null;
   }
 }
 
@@ -91,6 +98,8 @@ function applyLive(snap, live) {
         const rows = snap.checkpoint[k] || [];
         const merged = live[k].map(row => {
           const previous = rows.find(item => item.name === row.name);
+          const incomingTime = dataTime(row.price_at), previousTime = dataTime(previous?.price_at);
+          if (previousTime != null && (incomingTime == null || incomingTime < previousTime) && (!row.asof || !previous.asof || row.asof <= previous.asof)) return previous;
           return previous?.asof && (!row.asof || row.asof < previous.asof) ? previous : row;
         });
         snap.checkpoint[k] = [...merged, ...rows.filter(row => !merged.some(item => item.name === row.name))];
@@ -102,6 +111,7 @@ function applyLive(snap, live) {
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
     // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
     snap.checkpoint.market_closed = !!live.market_closed;
+    snap.checkpoint.market = live.market || null;
   }
   if (live.fx_usdkrw) snap.fx_usdkrw = live.fx_usdkrw;
 
@@ -125,6 +135,16 @@ function applyLive(snap, live) {
     }
   }
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
+
+  if (live.real_estate && Array.isArray(snap.assets)) {
+    snap.real_estate = live.real_estate;
+    for (const asset of snap.assets.filter(a => a.category === "부동산")) {
+      const incoming = live.real_estate.assets?.find(a => a.name === asset.name);
+      if (incoming && Number.isFinite(incoming.value_krw) && incoming.value_krw > 0
+          && incoming.asof && incoming.asof <= kstDay() && (!asset.asof || incoming.asof >= asset.asof))
+        Object.assign(asset, incoming);
+    }
+  }
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
   if (!live.financial && live.accounts && snap.financial && snap.financial.holdings) {
@@ -193,7 +213,7 @@ function retainPassword(value, remember) {
   } catch { /* Storage may be blocked; memory-only operation still works. */ }
 }
 function lockDashboard() {
-  appPassphrase = null; baseSnap = null; histText = "";
+  appPassphrase = null; baseSnap = null; histText = ""; lastLivePayload = null;
   try { sessionStorage.removeItem("asset_pw"); localStorage.removeItem("asset_pw"); localStorage.removeItem("asset_remember_v2"); } catch {}
   location.reload();
 }
@@ -257,12 +277,15 @@ function showToast(msg) {
 //   ⑤ 아래 net / gross / debt                     = '지금'을 뜻하는 단 하나의 값
 //   ⑥ KPI · 자산 배분 도넛 · FIRE · 후보 도시 · 순자산 추이 끝점이 전부 ⑤만 참조
 // ⑤를 건너뛰고 위젯이 ②를 직접 읽으면 한 화면에 시점이 두 개 생긴다 — 금지.
-async function render() {
+let lastRenderKey = null, lastRenderSummary = "";
+async function render({ skipUnchanged = false } = {}) {
   const snap = structuredClone(baseSnap);
 
   // 실시간 시세·뉴스·체크포인트 덮어쓰기 (장중 5분 · 장외 15분). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   // live를 이름 있는 변수로 받는다 — 아래 신선도 배지가 _fetched를 들여다봐야 한다.
   const live = await loadLive(appPassphrase);
+  const renderKey = `${baseSnap.updated_at}|${live?.updated_iso || live?.updated_at || "snapshot"}|${!!live?._connection_error}`;
+  if (skipUnchanged && lastRenderKey === renderKey) { renderDataHealth(snap, live); return lastRenderSummary; }
   const liveAt = applyLive(snap, live);
 
   // 등급별로 무엇이 언제 값인지 한 번에 알려 준다. 대시보드에서 가장 자주 나오는
@@ -495,7 +518,7 @@ async function render() {
   const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => {
     const h = histFor(a.name, a.category, a.owner) || {};
     return `<tr>
-      <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${a.name}</td>
+      <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${esc(a.name)}${a.category === "부동산" ? `<span class="mkt-asof">KB 기준 ${esc(a.asof || "미제공")}</span>` : ""}</td>
       <td>${a.owner}</td><td>${a.category}</td>
       <td><b>${fmtEok(a.value_krw)}</b></td>
       ${deltaCell(a.value_krw, h.m1, true)}
@@ -534,7 +557,9 @@ async function render() {
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
   renderExperience(snap, live, net);
-  return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
+  lastRenderKey = renderKey;
+  lastRenderSummary = liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
+  return lastRenderSummary;
 }
 
 /* 라이트/다크 수동 토글 — 버튼 아이콘은 현재 테마를 보여준다. SVG 차트는 CSS 변수를
@@ -591,6 +616,7 @@ async function main() {
 
   // 마지막으로 데이터를 받아 온 시각. 화면에 다시 돌아왔을 때 다시 받을지 판단한다.
   let lastLoad = Date.now();
+  let lastSnapshotLoad = lastLoad;
 
   const refreshAll = async (silent) => {
     if (rb.disabled) return;
@@ -598,8 +624,11 @@ async function main() {
     const t0 = Date.now();
     try {
       const pw = appPassphrase;
-      [baseSnap, histText] = await loadData(pw);   // 일별 발행본 재수신 (핵심 — 종전엔 live만 받았다)
-      const freshness = await render();            // live.enc 재수신 + 전체 재렌더
+      if (!silent || Date.now() - lastSnapshotLoad >= 300_000) {
+        [baseSnap, histText] = await loadData(pw);
+        lastSnapshotLoad = Date.now();
+      }
+      const freshness = await render({ skipUnchanged: silent });
       lastLoad = Date.now();
       // 자동 갱신은 조용히 한다 — 앱을 오갈 때마다 토스트가 뜨면 성가시다.
       if (!silent) { flashUpdated(); showToast(`업데이트 완료 · ${freshness}`); }
@@ -623,16 +652,17 @@ async function main() {
   //
   // pageshow(persisted)도 함께 듣는다. bfcache로 복원되면 스크립트가 다시 돌지 않고
   // visibilitychange도 오지 않는 경우가 있다(iOS Safari에서 흔하다).
-  const AUTO_REFRESH_GAP = 5 * 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
   const maybeAutoRefresh = () => {
     if (document.visibilityState !== "visible") return;
-    if (Date.now() - lastLoad < AUTO_REFRESH_GAP) return;
+    const active = document.querySelector('#tabs .tab.on')?.dataset.tab || "checkpoint";
+    if (Date.now() - lastLoad < refreshGap(Date.now(), active)) return;
     refreshAll(true);
   };
   // visibilitychange는 document에서 발생한다. window에 걸면 버블링에 기대게 되므로
   // 표준 대상인 document에 직접 건다.
   document.addEventListener("visibilitychange", maybeAutoRefresh);
-  const refreshTimer = setInterval(maybeAutoRefresh, AUTO_REFRESH_GAP);
+  document.getElementById("tabs").addEventListener("click", maybeAutoRefresh);
+  const refreshTimer = setInterval(maybeAutoRefresh, 15_000);
   addEventListener("pagehide", ev => { if (!ev.persisted) clearInterval(refreshTimer); });
   addEventListener("pageshow", e => { if (e.persisted) maybeAutoRefresh(); });
 }

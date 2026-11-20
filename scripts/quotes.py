@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 KST = timezone(timedelta(hours=9))
+_DAILY_DATES = {}
 
 
 def _market(sym: str) -> str:
@@ -40,6 +41,7 @@ def _market(sym: str) -> str:
 def _is_open(market: str, now: Optional[datetime] = None) -> bool:
     """지금 그 시장이 열려 있나 — 시계만 본다(휴장일은 '봉이 신선한가'로 따로 거른다)."""
     now = now or datetime.now(KST)
+    now = now.astimezone(KST)
     wd = now.weekday()
     if market == "KRX":
         if wd >= 5:
@@ -133,6 +135,7 @@ def _daily_closes(symbols: List[str]) -> Dict[str, float]:
         v = col.dropna()
         if len(v):
             out[s] = float(v.iloc[-1])
+            _DAILY_DATES[s] = v.index[-1].strftime("%Y-%m-%d")
     return out
 
 
@@ -233,7 +236,7 @@ def fetch_prices(symbols: List[str]) -> Tuple[Dict[str, float], Optional[str]]:
     return out, asof
 
 
-def apply_live_prices(fin: Dict[str, Any], fx: Optional[float] = None) -> Dict[str, Any]:
+def apply_live_prices(fin: Dict[str, Any], fx: Optional[float] = None, price_points=None) -> Dict[str, Any]:
     """fetch_holdings() 결과의 평가액을 현재가로 다시 계산해 덮어쓴다.
 
     fin을 제자리에서 고치고 그대로 돌려준다. 시세를 못 받았으면 아무것도 바꾸지 않는다.
@@ -248,7 +251,11 @@ def apply_live_prices(fin: Dict[str, Any], fx: Optional[float] = None) -> Dict[s
     if rate:
         fin["fx"] = rate
     by_sym = _symbols(holdings)
-    prices, asof = fetch_prices(sorted(by_sym))
+    if price_points is None:
+        from market_quotes import fetch_points
+        price_points = fetch_points(sorted(by_sym))
+    prices = {symbol: point["price"] for symbol, point in price_points.items()}
+    asof = datetime.now(KST).isoformat()
     if not prices:
         return fin
 
@@ -268,10 +275,14 @@ def apply_live_prices(fin: Dict[str, Any], fx: Optional[float] = None) -> Dict[s
                 print(f"WARN: {sym} 평가액이 시트 대비 {new_val/old_val:.2f}배 — 시트 값 유지")
                 kept += 1; continue
             h["price"], h["value_krw"], h["price_live"] = p, new_val, True
+            point = price_points.get(sym) or {}
+            h.update({k: point.get(k) for k in ("price_at", "price_kind", "source", "quote_state", "asof")})
+            h["price_live"] = point.get("quote_state") != "awaiting"
             moved += 1
 
     total = sum(h.get("value_krw") or 0 for h in holdings)
     fin["quotes_asof"] = asof
     fin["quotes_live"] = moved
+    fin["quotes_pending"] = sum(p.get("quote_state") == "awaiting" for s, p in price_points.items() if s in by_sym)
     print(f"OK: 평가액 재계산 {moved}건 (시트 유지 {kept}건) · 합계 {total/1e8:.2f}억")
     return fin

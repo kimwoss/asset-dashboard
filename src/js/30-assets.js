@@ -263,7 +263,7 @@ function renderCheckpoint(cp, finBlock) {
     return `<td class="${cls(p)}"><b>${v}</b></td>`;
   };
   const mktRow = (i, mode) => `<tr>
-    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}${i.asof ? `<span class="mkt-asof">${esc(i.asof)} 가격 기준</span>` : `<span class="mkt-asof">가격 기준일 미제공</span>`}${
+    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}<span class="mkt-asof">${esc(quoteSourceLabel(i))}</span>${
       i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}${
       i.filled ? `<span class="mkt-asof">·장중값</span>` : ""}</td>
     <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
@@ -309,7 +309,9 @@ function renderCheckpoint(cp, finBlock) {
       <div class="tbl-scroll"><table class="mkt mkt-unified">
         <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
         <tbody>${rows}</tbody></table></div>
-      ${usAsof ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
+      ${usAsof && (cp.us || []).every(i => i.price_kind !== "intraday") ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
+      <div class="cp-mkt-note">수집·발행 시각과 실제 거래 시각은 다릅니다. 국내는 네이버 금융 우선, 미국은 Yahoo 장중 시세를 사용하며 조회 실패 시 마지막 확인 가격을 유지합니다.</div>
+      ${cp.market?.pending ? `<div class="cp-mkt-note">개장 후 시세 대기 ${Number(cp.market.pending)}종목 · 마지막으로 확인된 가격을 표시합니다.</div>` : ""}
       ${fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : ""}
     </section>`;
   }

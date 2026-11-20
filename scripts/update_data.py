@@ -251,7 +251,8 @@ def main():
     #    순자산 −3.24억짜리 스냅샷이 'success'로 발행됐다. 그래서
     #      ① 실패하면 직전 스냅샷의 마지막 시세를 그대로 들고 가고(기준일도 그때 값 유지)
     #      ② 폴백조차 없으면 발행하지 않고 잡을 실패시킨다.
-    wait_for_kb_friday(pf, now)
+    # Never hold the whole snapshot while waiting for the Friday source release.
+    # The frequent live publisher checks each property again after 08:00 KST.
 
     for r in pf.get("real_estate") or []:
         field = r.get("price_field", "매매일반거래가")

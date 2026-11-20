@@ -28,7 +28,7 @@ test('unavailable liabilities preserve existing values',()=>{
 });
 function authContext() {
   const storage=()=>{const m=new Map();return {getItem:k=>m.get(k)||null,setItem:(k,v)=>m.set(k,v),removeItem:k=>m.delete(k)};};
-  const c=vm.createContext({sessionStorage:storage(),localStorage:storage(),location:{reload(){}},baseSnap:{},histText:"",console});
+  const c=vm.createContext({sessionStorage:storage(),localStorage:storage(),location:{reload(){}},baseSnap:{},histText:"",lastLivePayload:null,console});
   vm.runInContext(runtime.slice(runtime.indexOf('let appPassphrase = null;'),runtime.indexOf('async function gate()')),c);
   return c;
 }

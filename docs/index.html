@@ -1742,8 +1742,18 @@ function ageLabel(value, now = Date.now()) {
   return Math.floor(age / 1440) + "일 전";
 }
 function kstDay(now = Date.now()) { return new Date(now + 9 * 3600e3).toISOString().slice(0, 10); }
+function quoteSourceLabel(row) {
+  const time = dataTime(row.price_at);
+  const date = time == null ? (row.asof ? row.asof + " 가격 기준" : "가격 기준일 미제공")
+    : new Date(time + 9 * 3600e3).toISOString().slice(0, 16).replace("T", " ") + " KST";
+  return date + (row.price_kind === "intraday" ? " · 장중" : row.price_kind === "close" ? " · 종가" : "")
+    + (row.source ? " · " + row.source : "")
+    + (row.quote_state === "awaiting" ? " · 개장 후 시세 대기" : row.quote_state === "delayed" ? " · 시세 지연" : "");
+}
 const HEALTH_BLOCKS = [
   ["financial", "투자 평가액", 22, "시세 조회·시트 보유수량 기준"],
+  ["market", "브리핑 시세", 8, "실제 거래 시각과 지연 여부는 종목별 표시"],
+  ["real_estate", "KB 부동산", 90, "금요일 08시 이후 첫 수집부터 직접 조회 · 미갱신이면 재확인"],
   ["news", "관심 뉴스", 30, "기사 발행 시각은 원문에서 확인"],
   ["checkpoint", "오늘의 브리핑", 1500, "아침 리포트 생성 기준"],
   ["spending", "생활비", 75, "시트 수집 기준 · 입력 마감과 다름"],
@@ -1766,17 +1776,34 @@ function dataHealth(snap, live, now = Date.now()) {
           .sort((a, b) => dataTime(b) - dataTime(a))[0]
       : live?._fetched?.[key];
     const age = dataAge(time, now);
-    const sourceError = key === "cities" && !!live?.cities?.broken?.length;
-    const state = meta?.state === "error" || sourceError ? "error" : !available ? "snapshot" : age == null ? "unknown" : (age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
-    return { key, label, time, age, state, note, sourceTime: key === "financial" ? live?.financial?.quotes_asof : null };
+    const sourceError = (key === "cities" && !!live?.cities?.broken?.length) || (key === "real_estate" && !!live?.real_estate?.errors?.length);
+    const pending = (key === "market" && (live?.market?.pending || live?.market?.delayed)) || (key === "real_estate" && live?.real_estate?.pending?.length);
+    const state = meta?.state === "error" || sourceError ? "error" : !available ? "snapshot" : age == null ? "unknown" : (pending || age > limit || (key === "checkpoint" && kstDay(dataTime(time)) !== kstDay(now))) ? "stale" : "ok";
+    const kbDate = (live?.real_estate?.assets || []).map(a => a.asof).filter(Boolean).sort()[0];
+    return { key, label, time, age, state, note, sourceTime: key === "financial" ? live?.financial?.quotes_asof : key === "real_estate" ? kbDate : null,
+      sourceLabel: key === "real_estate" ? "KB 시세 기준일" : "가격 조회" };
   });
   const warnings = blocks.filter(b => b.state !== "ok");
   return { published, publicationAge, blocks, warnings,
-    state: !live ? "snapshot" : publicationAge == null || publicationAge > 22 || warnings.length ? "attention" : "ok" };
+    state: !live ? "snapshot" : live._connection_error || publicationAge == null || publicationAge > 22 || warnings.length ? "attention" : "ok" };
 }
 function presentValue(object, key) { return object != null && Object.hasOwn(object, key) && object[key] != null; }
 if (typeof module !== "undefined" && module.exports)
-  module.exports = { dataTime, dataAge, ageLabel, kstDay, dataHealth, presentValue };
+  module.exports = { dataTime, dataAge, ageLabel, kstDay, dataHealth, presentValue, quoteSourceLabel };
+/* Poll publication quickly at opening boundaries. Source timestamps remain independent. */
+function refreshGap(now = Date.now(), tab = "checkpoint") {
+  const parts = zone => Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: zone, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date(now)).filter(p => p.type !== "literal").map(p => [p.type, p.value]));
+  const kr = parts("Asia/Seoul"), us = parts("America/New_York");
+  const weekday = p => !["Sat", "Sun"].includes(p.weekday);
+  const minute = p => Number(p.hour) * 60 + Number(p.minute);
+  const active = (weekday(kr) && minute(kr) >= 540 && minute(kr) <= 940)
+    || (weekday(us) && minute(us) >= 570 && minute(us) <= 970);
+  const kbWindow = kr.weekday === "Fri" && minute(kr) >= 479 && minute(kr) < 570;
+  return tab === "checkpoint" ? (active || kbWindow ? 30_000 : 60_000) : active || kbWindow ? 60_000 : 300_000;
+}
+if (typeof module !== "undefined" && module.exports) module.exports = { refreshGap };
 /* ---- 도넛 차트 (중앙 합계 + 범례 + 툴팁) ---- */
 function arcPath(cx, cy, rO, rI, a0, a1) {
   const pt = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
@@ -2791,7 +2818,7 @@ function renderCheckpoint(cp, finBlock) {
     return `<td class="${cls(p)}"><b>${v}</b></td>`;
   };
   const mktRow = (i, mode) => `<tr>
-    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}${i.asof ? `<span class="mkt-asof">${esc(i.asof)} 가격 기준</span>` : `<span class="mkt-asof">가격 기준일 미제공</span>`}${
+    <td${i.filled ? ` title="야후 일봉에 ${esc(i.asof || "")} 종가가 비어 있어 장중 마지막 값으로 채웠습니다 (공식 종가와 몇 센트 다를 수 있음)"` : ""}>${esc(i.name)}<span class="mkt-asof">${esc(quoteSourceLabel(i))}</span>${
       i.stale ? `<span class="mkt-asof">⚠️${esc((i.asof || "").slice(5))} 종가</span>` : ""}${
       i.filled ? `<span class="mkt-asof">·장중값</span>` : ""}</td>
     <td class="mkt-px">${px(i.price ?? i.rate, i.unit || "₩")}</td>
@@ -2837,7 +2864,9 @@ function renderCheckpoint(cp, finBlock) {
       <div class="tbl-scroll"><table class="mkt mkt-unified">
         <thead><tr><th>종목</th><th>현재가</th>${HZ.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead>
         <tbody>${rows}</tbody></table></div>
-      ${usAsof ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
+      ${usAsof && (cp.us || []).every(i => i.price_kind !== "intraday") ? `<div class="cp-mkt-note">미국 지수 ${esc(usAsof.slice(5))} 종가 기준</div>` : ""}
+      <div class="cp-mkt-note">수집·발행 시각과 실제 거래 시각은 다릅니다. 국내는 네이버 금융 우선, 미국은 Yahoo 장중 시세를 사용하며 조회 실패 시 마지막 확인 가격을 유지합니다.</div>
+      ${cp.market?.pending ? `<div class="cp-mkt-note">개장 후 시세 대기 ${Number(cp.market.pending)}종목 · 마지막으로 확인된 가격을 표시합니다.</div>` : ""}
       ${fgLine ? `<div class="cp-mkt-note">${fgLine}</div>` : ""}
     </section>`;
   }
@@ -4146,9 +4175,11 @@ function renderCities(ct, net, source = {}) {
 
   // 도시 선택 → 상세 (카테고리별 서울 대비 + 실시간 순자산 달성률)
   const pick = document.getElementById("ct-pick");
+  const selectedIndex = Math.max(0, byCost.findIndex(c => c.name === pick.dataset.selectedCity));
   pick.innerHTML = byCost.map((c, i) =>
-    `<button class="seg-btn${i === 0 ? " on" : ""}" data-i="${i}">${esc(ctShort(c.name))}</button>`).join("");
+    `<button class="seg-btn${i === selectedIndex ? " on" : ""}" data-i="${i}">${esc(ctShort(c.name))}</button>`).join("");
   const drawDetail = c => {
+    pick.dataset.selectedCity = c.name;
     const pctFire = c.fire_target ? net / c.fire_target * 100 : 0;
     const cats = (ct.categories || []).map((m, k) => ({
       name: m.name, group: m.group, seoul: seoul.categories[k] || 0, city: c.categories[k] || 0,
@@ -4178,7 +4209,7 @@ function renderCities(ct, net, source = {}) {
         <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
         <tbody>${catRows}</tbody></table></div>`;
   };
-  drawDetail(byCost[0]);
+  drawDetail(byCost[selectedIndex]);
   pick.onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     for (const x of pick.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);
@@ -4720,9 +4751,10 @@ function renderDataHealth(snap, live) {
   const labels = { ok: "정상", stale: "갱신 지연", error: "이전 값 유지", unknown: "시각 미제공", snapshot: "일별 기록" };
   document.getElementById("data-health-body").innerHTML =
     '<p class="health-intro">파일 발행과 원자료 기준은 다릅니다. 각 항목의 마지막 정상 수집과 현재 상태를 확인하세요.</p>' +
+    (live?._connection_error ? '<p class="health-intro">최신 발행본 재수신에 실패해 마지막으로 받은 자료를 유지하고 있습니다.</p>' : '') +
     '<div class="health-publication"><span>파일 발행</span><b>' + esc(h.published || snap.updated_at || "미제공") + '</b></div>' +
     h.blocks.map(b => '<div class="health-row"><div><b>' + b.label + '</b><small>' + esc(b.note) + '</small>' +
-      (b.sourceTime ? '<small>가격 조회 ' + esc(ageLabel(b.sourceTime)) + ' · 거래 시각과 다를 수 있음</small>' : '') +
+      (b.sourceTime ? '<small>' + esc(b.sourceLabel || '가격 조회') + ' ' + esc(b.key === 'real_estate' ? b.sourceTime : ageLabel(b.sourceTime)) + ' · 수집 시각과 다름</small>' : '') +
       '</div><div><span class="health-pill ' + b.state + '">' + (b.key === "cities" && live?.cities?.broken?.length ? "원본 계산 오류" : labels[b.state]) + '</span><small>' + esc(ageLabel(b.time)) + '</small></div></div>').join("") +
     '<p class="health-foot">부동산 KB시세는 주간 기준입니다. 가격 제공사의 지연, 휴장, 시트 입력 시점은 수집 주기와 별개입니다. 새로고침은 최신 발행본을 다시 불러옵니다.</p>';
   document.getElementById("data-close").onclick = () => document.getElementById("data-dialog").close();
@@ -4889,15 +4921,22 @@ async function decryptEnvelope(envText, passphrase) {
    그래서 '30분마다'라고 약속하지 않고, 화면에는 배지로 실제 기준시각을 밝힌다.
    raw.githubusercontent.com은 CORS 허용 + 5분 캐시. 실패해도 무시하고 스냅샷을 쓴다. */
 const LIVE_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/live.enc";
+let lastLivePayload = null;
 
 async function loadLive(passphrase) {
   try {
-    const r = await fetch(LIVE_URL + "?t=" + Date.now(), { signal: AbortSignal.timeout(15000) });  // 매 호출 캐시 우회 (업데이트 버튼 대응)
-    if (!r.ok) return null;
-    return JSON.parse(await decryptEnvelope(await r.text(), passphrase));
+    const r = await fetch(LIVE_URL + "?t=" + Date.now(), { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error("Live HTTP " + r.status);
+    const incoming = JSON.parse(await decryptEnvelope(await r.text(), passphrase));
+    const time = dataTime(incoming.updated_iso || incoming.updated_at);
+    const previousTime = dataTime(lastLivePayload?.updated_iso || lastLivePayload?.updated_at);
+    if (time == null || time > Date.now() + 60_000) throw new Error("Invalid live publication time");
+    if (previousTime != null && time < previousTime) throw new Error("Older live publication");
+    lastLivePayload = incoming;
+    return structuredClone(incoming);
   } catch (e) {
     console.warn("실시간 시세 실패 — 스냅샷 사용", e);
-    return null;
+    return lastLivePayload ? { ...structuredClone(lastLivePayload), _connection_error: true } : null;
   }
 }
 
@@ -4922,6 +4961,8 @@ function applyLive(snap, live) {
         const rows = snap.checkpoint[k] || [];
         const merged = live[k].map(row => {
           const previous = rows.find(item => item.name === row.name);
+          const incomingTime = dataTime(row.price_at), previousTime = dataTime(previous?.price_at);
+          if (previousTime != null && (incomingTime == null || incomingTime < previousTime) && (!row.asof || !previous.asof || row.asof <= previous.asof)) return previous;
           return previous?.asof && (!row.asof || row.asof < previous.asof) ? previous : row;
         });
         snap.checkpoint[k] = [...merged, ...rows.filter(row => !merged.some(item => item.name === row.name))];
@@ -4933,6 +4974,7 @@ function applyLive(snap, live) {
     if (applied) snap.checkpoint.live_at = live.updated_at || null;
     // 장이 닫혀 있으면 배지가 "실시간"이라 말하지 않게 한다 — 값이 안 변하는 게 정상이다
     snap.checkpoint.market_closed = !!live.market_closed;
+    snap.checkpoint.market = live.market || null;
   }
   if (live.fx_usdkrw) snap.fx_usdkrw = live.fx_usdkrw;
 
@@ -4956,6 +4998,16 @@ function applyLive(snap, live) {
     }
   }
   if (snap.spending && !snap.spending.retire && baseRetire) snap.spending.retire = baseRetire;
+
+  if (live.real_estate && Array.isArray(snap.assets)) {
+    snap.real_estate = live.real_estate;
+    for (const asset of snap.assets.filter(a => a.category === "부동산")) {
+      const incoming = live.real_estate.assets?.find(a => a.name === asset.name);
+      if (incoming && Number.isFinite(incoming.value_krw) && incoming.value_krw > 0
+          && incoming.asof && incoming.asof <= kstDay() && (!asset.asof || incoming.asof >= asset.asof))
+        Object.assign(asset, incoming);
+    }
+  }
 
   // 계좌 평가액 — live.financial로 이미 최신 holdings가 왔으면 그대로. 못 받았을 때만 옛 스케일 폴백.
   if (!live.financial && live.accounts && snap.financial && snap.financial.holdings) {
@@ -5024,7 +5076,7 @@ function retainPassword(value, remember) {
   } catch { /* Storage may be blocked; memory-only operation still works. */ }
 }
 function lockDashboard() {
-  appPassphrase = null; baseSnap = null; histText = "";
+  appPassphrase = null; baseSnap = null; histText = ""; lastLivePayload = null;
   try { sessionStorage.removeItem("asset_pw"); localStorage.removeItem("asset_pw"); localStorage.removeItem("asset_remember_v2"); } catch {}
   location.reload();
 }
@@ -5088,12 +5140,15 @@ function showToast(msg) {
 //   ⑤ 아래 net / gross / debt                     = '지금'을 뜻하는 단 하나의 값
 //   ⑥ KPI · 자산 배분 도넛 · FIRE · 후보 도시 · 순자산 추이 끝점이 전부 ⑤만 참조
 // ⑤를 건너뛰고 위젯이 ②를 직접 읽으면 한 화면에 시점이 두 개 생긴다 — 금지.
-async function render() {
+let lastRenderKey = null, lastRenderSummary = "";
+async function render({ skipUnchanged = false } = {}) {
   const snap = structuredClone(baseSnap);
 
   // 실시간 시세·뉴스·체크포인트 덮어쓰기 (장중 5분 · 장외 15분). 실패하면 스냅샷 그대로 — 화면은 항상 뜬다.
   // live를 이름 있는 변수로 받는다 — 아래 신선도 배지가 _fetched를 들여다봐야 한다.
   const live = await loadLive(appPassphrase);
+  const renderKey = `${baseSnap.updated_at}|${live?.updated_iso || live?.updated_at || "snapshot"}|${!!live?._connection_error}`;
+  if (skipUnchanged && lastRenderKey === renderKey) { renderDataHealth(snap, live); return lastRenderSummary; }
   const liveAt = applyLive(snap, live);
 
   // 등급별로 무엇이 언제 값인지 한 번에 알려 준다. 대시보드에서 가장 자주 나오는
@@ -5326,7 +5381,7 @@ async function render() {
   const rows = [...snap.assets].sort((a, b) => b.value_krw - a.value_krw).map(a => {
     const h = histFor(a.name, a.category, a.owner) || {};
     return `<tr>
-      <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${a.name}</td>
+      <td class="name"><span class="chip" style="background:${CAT_COLORS[a.category] || "var(--baseline)"}"></span>${esc(a.name)}${a.category === "부동산" ? `<span class="mkt-asof">KB 기준 ${esc(a.asof || "미제공")}</span>` : ""}</td>
       <td>${a.owner}</td><td>${a.category}</td>
       <td><b>${fmtEok(a.value_krw)}</b></td>
       ${deltaCell(a.value_krw, h.m1, true)}
@@ -5365,7 +5420,9 @@ async function render() {
   revealIn(document.querySelector('[id^="tab-"]:not([style*="display: none"])'));
 
   renderExperience(snap, live, net);
-  return liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
+  lastRenderKey = renderKey;
+  lastRenderSummary = liveAt ? `발행 ${liveAt} 기준` : `${snap.updated_at} 기준`;
+  return lastRenderSummary;
 }
 
 /* 라이트/다크 수동 토글 — 버튼 아이콘은 현재 테마를 보여준다. SVG 차트는 CSS 변수를
@@ -5422,6 +5479,7 @@ async function main() {
 
   // 마지막으로 데이터를 받아 온 시각. 화면에 다시 돌아왔을 때 다시 받을지 판단한다.
   let lastLoad = Date.now();
+  let lastSnapshotLoad = lastLoad;
 
   const refreshAll = async (silent) => {
     if (rb.disabled) return;
@@ -5429,8 +5487,11 @@ async function main() {
     const t0 = Date.now();
     try {
       const pw = appPassphrase;
-      [baseSnap, histText] = await loadData(pw);   // 일별 발행본 재수신 (핵심 — 종전엔 live만 받았다)
-      const freshness = await render();            // live.enc 재수신 + 전체 재렌더
+      if (!silent || Date.now() - lastSnapshotLoad >= 300_000) {
+        [baseSnap, histText] = await loadData(pw);
+        lastSnapshotLoad = Date.now();
+      }
+      const freshness = await render({ skipUnchanged: silent });
       lastLoad = Date.now();
       // 자동 갱신은 조용히 한다 — 앱을 오갈 때마다 토스트가 뜨면 성가시다.
       if (!silent) { flashUpdated(); showToast(`업데이트 완료 · ${freshness}`); }
@@ -5454,16 +5515,17 @@ async function main() {
   //
   // pageshow(persisted)도 함께 듣는다. bfcache로 복원되면 스크립트가 다시 돌지 않고
   // visibilitychange도 오지 않는 경우가 있다(iOS Safari에서 흔하다).
-  const AUTO_REFRESH_GAP = 5 * 60_000;   // 잠깐 다른 앱에 다녀오는 정도로는 다시 받지 않는다
   const maybeAutoRefresh = () => {
     if (document.visibilityState !== "visible") return;
-    if (Date.now() - lastLoad < AUTO_REFRESH_GAP) return;
+    const active = document.querySelector('#tabs .tab.on')?.dataset.tab || "checkpoint";
+    if (Date.now() - lastLoad < refreshGap(Date.now(), active)) return;
     refreshAll(true);
   };
   // visibilitychange는 document에서 발생한다. window에 걸면 버블링에 기대게 되므로
   // 표준 대상인 document에 직접 건다.
   document.addEventListener("visibilitychange", maybeAutoRefresh);
-  const refreshTimer = setInterval(maybeAutoRefresh, AUTO_REFRESH_GAP);
+  document.getElementById("tabs").addEventListener("click", maybeAutoRefresh);
+  const refreshTimer = setInterval(maybeAutoRefresh, 15_000);
   addEventListener("pagehide", ev => { if (!ev.persisted) clearInterval(refreshTimer); });
   addEventListener("pageshow", e => { if (e.persisted) maybeAutoRefresh(); });
 }
