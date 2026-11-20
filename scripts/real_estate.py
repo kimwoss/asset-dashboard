@@ -19,7 +19,7 @@ def expected_date(now):
 def refresh_due(previous, fetched, now):
     now = now.astimezone(KST)
     target = expected_date(now)
-    pending = any(str(a.get("asof") or "") < target for a in (previous or {}).get("assets", []))
+    pending = bool((previous or {}).get("errors")) or any(str(a.get("asof") or "") < target for a in (previous or {}).get("assets", []))
     ttl = 5 if now.weekday() == 4 and now.hour >= 8 and pending else 60
     # Crossing 08:00 must invalidate a successful 07:59 collection immediately.
     try:
@@ -32,7 +32,7 @@ def refresh_due(previous, fetched, now):
 
 def collect(properties, known, now, lookup):
     target = expected_date(now)
-    assets, errors = [], []
+    assets, errors, updated = [], [], []
     for prop in properties:
         name = prop["name"]
         old = known.get(name)
@@ -47,12 +47,14 @@ def collect(properties, known, now, lookup):
             assets.append({"name": name, "owner": prop.get("owner", ""), "category": "부동산",
                            "quantity": 1, "price": value, "currency": "KRW", "value_krw": round(value),
                            "asof": asof, "note": "KB시세 직접 조회"})
+            updated.append(name)
         except Exception as error:
             errors.append({"name": name, "reason": type(error).__name__})
+            print(f"WARN: KB 직접 조회 예외 ({type(error).__name__}): {str(error)[:160]}")
             if old:
                 assets.append(dict(old))
     pending = [a["name"] for a in assets if str(a.get("asof") or "") < target]
-    return {"assets": assets, "errors": errors, "pending": pending, "expected_date": target,
+    return {"assets": assets, "errors": errors, "pending": pending, "updated": updated, "expected_date": target,
             "fetched_at": now.isoformat()}
 
 
@@ -69,5 +71,5 @@ def fetch_real_estate(previous=None):
         if asset.get("value_krw", 0) > 0 and (not old or str(asset.get("asof") or "") >= str(old.get("asof") or "")):
             known[asset["name"]] = asset
     result = collect(portfolio.get("real_estate") or [], known, datetime.now(KST), kb_api.latest_price)
-    print(f"OK: KB 직접 조회 {len(result['assets'])}건 · 이번 주 대기 {len(result['pending'])}건 · 조회 실패 {len(result['errors'])}건")
+    print(f"OK: KB 직접 조회 성공 {len(result['updated'])}건 · 이번 주 대기 {len(result['pending'])}건 · 조회 실패 {len(result['errors'])}건")
     return result
