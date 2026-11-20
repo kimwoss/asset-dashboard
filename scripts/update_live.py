@@ -321,7 +321,7 @@ def main():
     import quotes
     from market_quotes import fetch_points
     table_symbols = [s for s, _, _, _ in _US + _KR + _FX]
-    points = fetch_points(sorted(set(table_symbols) | set(quotes._symbols(fin.get("holdings") or []))), now=now)
+    points = fetch_points(sorted(set(table_symbols) | set(quotes._symbols(fin.get("holdings") or []))))
     q = _quotes(table_symbols, points)
     latest = lambda spec: max((q[s]["asof"] for s, _, _, _ in spec if s in q), default=None)
     us, kr = _rows(_US, q, latest(_US)), _rows(_KR, q, latest(_KR))
@@ -379,10 +379,11 @@ def main():
     statuses["market"] = {"state": "ok", "attempted_at": now.isoformat()}
 
     def _block(key, fn, *a):
+        read_at = datetime.now(KST) if key == "real_estate" else now
         reuse = not _fresh(key, meta, now)
         if key == "real_estate":
-            reuse = not real_estate.refresh_due(prev.get(key), meta.get(key), now)
-        value, changed = read_block(key, fn, a, prev, meta, statuses, now,
+            reuse = not real_estate.refresh_due(prev.get(key), meta.get(key), read_at)
+        value, changed = read_block(key, fn, a, prev, meta, statuses, read_at,
                                     reuse=reuse)
         (refetched if changed else reused).append(key)
         return value
@@ -429,10 +430,11 @@ def main():
     baselines = _block("baselines", lambda d: _delta_baselines(d), now.date()) or {}
 
     statuses["financial"] = {"state": "ok" if financial_read_ok else "error", "attempted_at": now.isoformat()}
-    meta["market"] = now.isoformat()
+    meta["market"] = datetime.now(KST).isoformat()
+    published = datetime.now(KST)
     live = {
-        "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
-        "updated_iso": now.isoformat(),
+        "updated_at": published.strftime("%Y-%m-%d %H:%M KST"),
+        "updated_iso": published.isoformat(),
         "us": us,
         "kr": kr,
         "fx": fx,
