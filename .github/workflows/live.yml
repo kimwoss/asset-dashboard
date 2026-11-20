@@ -1,8 +1,8 @@
 name: update-live-quotes
 
 # 시세·시트 블록을 자주 갱신 — 07:00 스냅샷을 온종일 보는 문제 해결용.
-# 주기 장중 5분 · 장외 15분 (tools/trigger_live.gs). 5분이 실효 하한이다 — 브라우저가
-# live.enc를 받는 raw.githubusercontent CDN이 5분 캐시하므로 더 자주 발행해도 안 보인다.
+# 주기 장중 5분 · 장외 15분 (tools/trigger_live.gs). 브라우저는 개장·KB 갱신 창에서
+# 최신 발행본을 30초마다 캐시 우회 조회한다. 조회 주기와 원자료 거래 시각은 별도다.
 # 블록마다 수명(TTL)이 달라 매 실행 시트 왕복은 T1 두 블록뿐이라, 주기를 당겨도 쿼터는
 # 거의 늘지 않는다. 바깥 API 한도는 update_live.py TTL_MIN이 블록별로 지킨다.
 # 무거운 잡(update.yml: AI·KB시세·배당·이력)과 분리했다. 미국장이 밤이라 24시간 돌린다.
@@ -17,7 +17,7 @@ name: update-live-quotes
 on:
   push:
     branches: [main]
-    paths: [scripts/sheets_cities.py]
+    paths: [scripts/sheets_cities.py, scripts/market_quotes.py, scripts/real_estate.py, scripts/quotes.py, scripts/update_live.py]
   schedule:
     # 폴백 전용 — 정시 발화는 tools/trigger_live.gs(Apps Script)가 담당한다.
     # 종전엔 여기도 */30이라 dispatch와 계속 겹쳤다. 러너 배정이 밀리는 시간대에는

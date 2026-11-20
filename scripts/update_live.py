@@ -42,6 +42,7 @@ import sheets_sim
 import sheets_review
 import sheets_yearly
 import sheets_annual
+import real_estate
 from account_performance import fetch_account_performance
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -62,6 +63,7 @@ PREV_URL = "https://raw.githubusercontent.com/kimwoss/asset-dashboard/live-data/
 TTL_MIN = {
     # ── T1 실시간 (목표 ≤5분) — 매 실행 ───────────────────────────────────
     "financial":     0,     # 계좌 평가액. 가격은 quotes.py가 직접 받아 곱한다
+    "real_estate":   60,    # 금 08시 경계·미갱신이면 아래 refresh_due로 재조회
     "checkpoint":    0,     # 셀 1개라 저렴 + 모닝 리포트를 늦추지 않으려고
     # 뉴스는 RSS 6곳을 두드린다. 주기를 5분으로 당기면서 그대로 두면 언론사에 가는 요청이
     # 두 배가 된다 — 기사 갱신 속도로는 10분이면 충분하고, 종전과 같은 부하를 유지한다.
@@ -169,7 +171,7 @@ def _code_fingerprint() -> str:
     here = Path(__file__).parent
     # sheets_* 외에 molit_deals도 넣는다 — officetel 블록의 실거래 부분이 여기서 나오므로
     # 이 파일만 고치면 지문이 그대로라 최대 4시간 동안 옛 결과가 계속 실려 나간다.
-    for f in sorted([*here.glob("sheets_*.py"), here / "molit_deals.py"]):
+    for f in sorted([*here.glob("sheets_*.py"), *[here / name for name in ("molit_deals.py", "real_estate.py", "kb_api.py", "market_quotes.py", "quotes.py")]]):
         if f.exists():
             h.update(f.read_bytes())
     return h.hexdigest()[:12]
@@ -228,7 +230,7 @@ def _all_markets_closed() -> bool:
         return False
 
 
-def _quotes(symbols):
+def _quotes(symbols, points=None):
     """{symbol: {price, asof, d1, w1, m1, y1}} — 각 기준일 '이전 마지막 거래일' 종가 대비 %.
 
     2년치를 한 번에 받는다 (yfinance 1콜). period='1y'로 받으면 가장 이른 행이
@@ -238,7 +240,7 @@ def _quotes(symbols):
     import yfinance as yf
     out = {}
     try:
-        full = yf.download(symbols, period="2y", progress=False, threads=False)
+        full = yf.download(symbols, period="2y", auto_adjust=False, progress=False, threads=False)
         # 주말 행은 버린다 — 야후는 환율(KRW=X)에 토·일 행을 만든다. 실제로 거래된 날이
         # 아닌데 값이 흔들려, 장이 닫힌 주말에도 시세표와 환율이 계속 바뀌어 보였다.
         full = full[[d.weekday() < 5 for d in pd.DatetimeIndex(full.index)]]
@@ -247,23 +249,29 @@ def _quotes(symbols):
         traded = (full["Volume"].fillna(0) > 0) | full["Open"].notna()
     except Exception as e:  # noqa: BLE001
         print(f"WARN: 시세 조회 실패 ({e})")
-        return out
+        df, traded = pd.DataFrame(), pd.DataFrame()
     for s in symbols:
         try:
-            col = df[s] if isinstance(df, pd.DataFrame) else df
-            trd = traded[s] if isinstance(traded, pd.DataFrame) else traded
-            col, filled = _fill_missing_closes(s, col, trd)
+            col = df[s] if isinstance(df, pd.DataFrame) and s in df else df if isinstance(df, pd.Series) else pd.Series(dtype=float)
+            trd = traded[s] if isinstance(traded, pd.DataFrame) and s in traded else traded if isinstance(traded, pd.Series) else pd.Series(dtype=bool)
+            col, filled = _fill_missing_closes(s, col, trd) if len(col) else (col, [])
             ser = col.dropna()
-            if ser.empty:
+            point = (points or {}).get(s) or {}
+            if ser.empty and not point:
                 print(f"WARN: {s} 시세 없음")
                 continue
-            price, last_dt = float(ser.iloc[-1]), ser.index[-1]
+            price = point.get("price") or float(ser.iloc[-1])
+            last_dt = pd.Timestamp(point["asof"]) if point.get("asof") else ser.index[-1]
             q = {"price": price, "asof": last_dt.strftime("%Y-%m-%d")}
-            if q["asof"] in filled:
+            q.update({key: point.get(key) for key in ("price_at", "price_kind", "quote_state", "source")})
+            if not point:
+                import quotes
+                q.update(price_kind="close", source="Yahoo Finance", quote_state="awaiting" if quotes._is_open(quotes._market(s)) else "ok")
+            if not point and q["asof"] in filled:
                 q["filled"] = True     # 공식 종가가 아니라 5분봉 마지막 값 — 화면에 밝힌다
             for key, days in _HORIZONS:
                 # 기준일 이전(포함) 마지막 거래일 — 주말·휴장 자동 처리
-                prior = ser[ser.index <= last_dt - pd.Timedelta(days=days)]
+                prior = ser[[d.date() <= (last_dt - pd.Timedelta(days=days)).date() for d in ser.index]]
                 base = float(prior.iloc[-1]) if len(prior) else None
                 q[key] = round((price - base) / base * 100, 2) if base else None
             out[s] = q
@@ -288,6 +296,7 @@ def _rows(spec, q, latest=None):
             "name": name, "unit": unit, "price": v["price"] * mul, "asof": v["asof"],
             "stale": bool(latest and v["asof"] < latest),
             "filled": bool(v.get("filled")),
+            **{key: v.get(key) for key in ("price_at", "price_kind", "quote_state", "source")},
             **{k: v[k] for k, _ in _HORIZONS},
             "change_pct": v["d1"],  # 구버전 렌더러 호환
         })
@@ -296,13 +305,6 @@ def _rows(spec, q, latest=None):
 
 def main():
     now = datetime.now(KST)
-
-    # 1) 지수·ETF·환율 — 1일/1주/1개월/1년 수익률
-    q = _quotes([s for s, _, _, _ in _US + _KR + _FX])
-    # 시장별 최신 종가일 — 그보다 뒤처진 종목은 stale로 표시 (미국장/국내장은 휴장일이 달라 분리)
-    latest = lambda spec: max((q[s]["asof"] for s, _, _, _ in spec if s in q), default=None)
-    us, kr = _rows(_US, q, latest(_US)), _rows(_KR, q, latest(_KR))
-    fx = [{**r, "rate": r["price"]} for r in _rows(_FX, q, latest(_FX))]  # 환율은 rate 키로도
 
     # 2) 금융자산 상세 (★주식계좌) — 계좌 평가액·투자 포트폴리오·자산현황 '주식'이
     #    모두 이 '한 번의 읽기'에서 나온다.
@@ -315,13 +317,22 @@ def main():
         print(f"WARN: 금융자산 상세 조회 실패 ({type(e).__name__}: {e})")
         financial = None
     fin = financial or {}
+    # One timestamped quote set drives both the briefing and all account valuations.
+    import quotes
+    from market_quotes import fetch_points
+    table_symbols = [s for s, _, _, _ in _US + _KR + _FX]
+    points = fetch_points(sorted(set(table_symbols) | set(quotes._symbols(fin.get("holdings") or []))))
+    q = _quotes(table_symbols, points)
+    latest = lambda spec: max((q[s]["asof"] for s, _, _, _ in spec if s in q), default=None)
+    us, kr = _rows(_US, q, latest(_US)), _rows(_KR, q, latest(_KR))
+    fx = [{**r, "rate": r["price"]} for r in _rows(_FX, q, latest(_FX))]
     # 시트의 평가액은 GOOGLEFINANCE 계산값이라 15~20분 지연이고, 시트가 언제 재계산
     # 되는지는 우리가 못 정한다. 티커·수량은 시트에서 받고 가격만 우리가 받아 곱한다.
     # 시세를 못 받으면 아무것도 바꾸지 않는다(시트 값 유지).
     if fin.get("holdings"):
         try:
             import quotes
-            fin = quotes.apply_live_prices(fin)
+            fin = quotes.apply_live_prices(fin, fx=(points.get("KRW=X") or {}).get("price"), price_points=points)
         except Exception as e:  # noqa: BLE001 — 시세 실패가 발행을 막지 않는다
             print(f"WARN: 평가액 재계산 실패 ({type(e).__name__}: {e}) — 시트 값 유지")
     if financial:
@@ -341,6 +352,7 @@ def main():
     # 4) 직전 발행본 — 수명이 남은 블록은 여기서 그대로 가져다 쓴다.
     prev, meta = _load_prev()
     meta = dict(meta)
+    meta["market"] = now.isoformat()
     # 시트를 방금 고쳤을 때 캐시를 건너뛰는 문 — 워크플로 입력 FRESH_BLOCKS로 받는다.
     # 코드 지문(_code)은 파싱 코드가 바뀔 때만 열리는데, 값만 바뀐 경우엔 안 열려서
     # 수명이 끝날 때까지(최대 4시간) 옛 값이 실려 나갔다. 'all' 또는 블록 이름 목록.
@@ -364,10 +376,15 @@ def main():
     reused, refetched = [], []
 
     statuses = {}
+    statuses["market"] = {"state": "ok", "attempted_at": now.isoformat()}
 
     def _block(key, fn, *a):
-        value, changed = read_block(key, fn, a, prev, meta, statuses, now,
-                                    reuse=not _fresh(key, meta, now))
+        read_at = datetime.now(KST) if key == "real_estate" else now
+        reuse = not _fresh(key, meta, now)
+        if key == "real_estate":
+            reuse = not real_estate.refresh_due(prev.get(key), meta.get(key), read_at)
+        value, changed = read_block(key, fn, a, prev, meta, statuses, read_at,
+                                    reuse=reuse)
         (refetched if changed else reused).append(key)
         return value
 
@@ -392,6 +409,7 @@ def main():
     asset_history = _block("asset_history", sheets_yearly.fetch_asset_history, now.date())
     liabilities   = _block("liabilities", lambda d: sheets_yearly.fetch_liabilities(d, strict=True), now.date())
     cities        = _block("cities", sheets_cities.fetch_cities, now.date())
+    realestate    = _block("real_estate", real_estate.fetch_real_estate, prev.get("real_estate"))
     officetel     = _block("officetel", lambda _d: sheets_officetel.fetch_officetel(), now.date())
     # 관심 뉴스 — TTL을 탄다(위 TTL_MIN 주석). 실패하면 직전 값을 유지해 빈 칸이 뜨지 않는다.
     news          = _block("news", lambda: news_feed.fetch_news()) or []
@@ -412,9 +430,11 @@ def main():
     baselines = _block("baselines", lambda d: _delta_baselines(d), now.date()) or {}
 
     statuses["financial"] = {"state": "ok" if financial_read_ok else "error", "attempted_at": now.isoformat()}
+    meta["market"] = datetime.now(KST).isoformat()
+    published = datetime.now(KST)
     live = {
-        "updated_at": now.strftime("%Y-%m-%d %H:%M KST"),
-        "updated_iso": now.isoformat(),
+        "updated_at": published.strftime("%Y-%m-%d %H:%M KST"),
+        "updated_iso": published.isoformat(),
         "us": us,
         "kr": kr,
         "fx": fx,
@@ -422,6 +442,8 @@ def main():
         # 전 시장이 닫혀 있나 — 화면이 "실시간"이라고 말하면서 값이 안 변하면
         # 고장처럼 보인다. 닫혔으면 닫혔다고 쓰기 위한 플래그.
         "market_closed": _all_markets_closed(),
+        "market": {"pending": sum(p.get("quote_state") == "awaiting" for p in q.values()),
+                   "delayed": sum(p.get("quote_state") == "delayed" for p in points.values())},
         "accounts": accounts,
         "financial_total": total,
         "news": news,
@@ -436,6 +458,7 @@ def main():
         "spending": spending or None,
         "annual_flow": annual_flow or None,
         "cities": cities or None,
+        "real_estate": realestate,
         "officetel": officetel or None,
         "simulation": simulation or None,
         "review": review or None,

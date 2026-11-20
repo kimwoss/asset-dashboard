@@ -282,9 +282,11 @@ function renderCities(ct, net, source = {}) {
 
   // 도시 선택 → 상세 (카테고리별 서울 대비 + 실시간 순자산 달성률)
   const pick = document.getElementById("ct-pick");
+  const selectedIndex = Math.max(0, byCost.findIndex(c => c.name === pick.dataset.selectedCity));
   pick.innerHTML = byCost.map((c, i) =>
-    `<button class="seg-btn${i === 0 ? " on" : ""}" data-i="${i}">${esc(ctShort(c.name))}</button>`).join("");
+    `<button class="seg-btn${i === selectedIndex ? " on" : ""}" data-i="${i}">${esc(ctShort(c.name))}</button>`).join("");
   const drawDetail = c => {
+    pick.dataset.selectedCity = c.name;
     const pctFire = c.fire_target ? net / c.fire_target * 100 : 0;
     const cats = (ct.categories || []).map((m, k) => ({
       name: m.name, group: m.group, seoul: seoul.categories[k] || 0, city: c.categories[k] || 0,
@@ -314,7 +316,7 @@ function renderCities(ct, net, source = {}) {
         <thead><tr><th>월간 항목</th><th>서울</th><th>${esc(ctShort(c.name))}</th><th>배율</th></tr></thead>
         <tbody>${catRows}</tbody></table></div>`;
   };
-  drawDetail(byCost[0]);
+  drawDetail(byCost[selectedIndex]);
   pick.onclick = ev => {
     const b = ev.target.closest(".seg-btn"); if (!b) return;
     for (const x of pick.querySelectorAll(".seg-btn")) x.classList.toggle("on", x === b);

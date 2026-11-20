@@ -9,6 +9,8 @@ import ssl
 import time
 import urllib.parse
 import urllib.request
+from datetime import date
+from math import isfinite
 
 BASE = "https://api.kbland.kr"
 
@@ -105,23 +107,38 @@ def area_types(complex_id):
     return _get("/land-complex/complex/typInfo", {"단지기본일련번호": complex_id}) or []
 
 
-def price_info(complex_id, area_id):
+def price_info(complex_id, area_id, window_s=RETRY_WINDOW_S):
     """평형별 KB시세. 반환: dict(시세 배열 포함), 금액 단위 만원."""
     return _get(
         "/land-price/price/BasePrcInfoNew",
         {"단지기본일련번호": complex_id, "면적일련번호": area_id},
+        window_s=window_s,
     )
 
 
-def latest_price(complex_id, area_id, field="매매일반거래가"):
+def latest_price(complex_id, area_id, field="매매일반거래가", window_s=RETRY_WINDOW_S):
     """가장 최근 KB시세 1건에서 지정 필드(만원)와 기준일을 반환."""
-    data = price_info(complex_id, area_id)
+    data = price_info(complex_id, area_id, window_s=window_s)
     rows = (data or {}).get("시세") or []
     if not rows:
         return None, None
-    row = rows[0]
-    date_keys = [k for k in row if "일자" in k or "기준" in k]
-    base_date = str(row.get(date_keys[0])) if date_keys else ""
-    if len(base_date) == 8 and base_date.isdigit():
-        base_date = f"{base_date[:4]}-{base_date[4:6]}-{base_date[6:]}"
-    return row.get(field), base_date
+    dated = []
+    for row in rows:
+        keys = [k for k in row if "일자" in k or "기준" in k or "년월일" in k]
+        for key in keys:
+            raw = str(row.get(key) or "")
+            if len(raw) == 8 and raw.isdigit():
+                raw = f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
+            try:
+                parsed = date.fromisoformat(raw)
+            except ValueError:
+                continue
+            dated.append((parsed.isoformat(), row))
+            break
+    if not dated:
+        raise ValueError("KB quote has no verifiable source date")
+    base_date, row = max(dated, key=lambda item: item[0])
+    price = float(str(row.get(field)).replace(",", ""))
+    if not isfinite(price) or price <= 0:
+        raise ValueError("KB quote has no positive price")
+    return price, base_date
