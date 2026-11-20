@@ -124,7 +124,13 @@ def latest_price(complex_id, area_id, field="매매일반거래가", window_s=RE
         return None, None
     dated = []
     for row in rows:
-        keys = [k for k in row if "일자" in k or "기준" in k or "년월일" in k]
+        # Contract start/end dates occur before the quote date in real responses.
+        # Only the price's source date can establish weekly freshness.
+        preferred = ["시세기준년월일", "시세기준일자", "시세기준일", "시세일자", "시세일",
+                     "기준일자", "기준년월일", "기준일"]
+        keys = [key for key in preferred if key in row]
+        keys += [key for key in row if key not in keys and "시세" in key
+                 and ("일자" in key or "년월일" in key or "기준일" in key)]
         for key in keys:
             raw = str(row.get(key) or "")
             if len(raw) == 8 and raw.isdigit():

@@ -54,3 +54,24 @@ def test_kb_never_renames_an_undated_quote_as_today(monkeypatch):
     monkeypatch.setattr(kb_api,"price_info",lambda *a,**k:{"시세":[{"매매일반거래가":10000}]})
     with pytest.raises(ValueError,match="source date"):
         kb_api.latest_price(1,1)
+
+
+def test_real_kb_schema_uses_quote_date_not_earlier_contract_or_reference_date(monkeypatch):
+    import kb_api
+    row={"전세계약시작년월일":"20261107","전세계약종료년월일":"20261107",
+         "시세기준년월일":"20261120","기준년월일":"20261116",
+         "매매계약종료년월일":"20261007","매매일반거래가":116000}
+    monkeypatch.setattr(kb_api,"price_info",lambda *a,**k:{"시세":[row]})
+    assert kb_api.latest_price(4389,4247)==(116000,"2026-11-20")
+
+
+def test_contract_dates_alone_cannot_make_a_price_fresh(monkeypatch):
+    import pytest, kb_api
+    monkeypatch.setattr(kb_api,"price_info",lambda *a,**k:{"시세":[{"전세계약시작년월일":"20261120","매매일반거래가":116000}]})
+    with pytest.raises(ValueError,match="source date"):
+        kb_api.latest_price(1,1)
+
+
+def test_current_but_failed_kb_reads_are_retried_during_friday():
+    previous={"assets":[{"name":"A","asof":"2026-11-20"}],"errors":[{"name":"A"}]}
+    assert refresh_due(previous,"2026-11-20T08:00:00+09:00",at("2026-11-20T08:05:00+09:00"))
